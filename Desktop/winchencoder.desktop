@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=lxterminal -e python2 /home/drill/drill-displays/codex560.py /dev/ttyUSB1
+StartupNotify=true
+Type=Application
+Terminal=false
+Name=Winch encoder
+Path=/home/drill/drill-displays/

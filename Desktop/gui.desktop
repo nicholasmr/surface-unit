@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=python3 /home/drill/surface-unit/drill-control.py
+StartupNotify=false
+Type=Application
+Terminal=false
+Name=New drill GUI
+Path=/home/drill/surface-unit

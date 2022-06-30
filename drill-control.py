@@ -22,7 +22,7 @@ XAXISLEN     = 30 + 1 # seconds
 
 SHOW_BNO055_DETAILED = 1
 
-FS = 13
+FS = 12
 FS_GRAPH_TITLE = 4 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
@@ -150,11 +150,6 @@ class MainWidget(QWidget):
         
         self.setWindowTitle("Drill Control Panel")
         
-    def advanceProgressBar(self):
-        curVal = self.progressBar.value()
-        maxVal = self.progressBar.maximum()
-        self.progressBar.setValue(curVal + (maxVal - curVal) // 100)
-
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
         layout = QVBoxLayout()
@@ -290,7 +285,7 @@ class MainWidget(QWidget):
     def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
         layout = QVBoxLayout()
-        self.cbox_unlockexpert = QCheckBox("Unlock expert control")
+        self.cbox_unlockexpert = QCheckBox("Unlock")
         self.cbox_unlockexpert.toggled.connect(self.clicked_unlockexpert)     
         layout.addWidget(self.cbox_unlockexpert)
 
@@ -418,13 +413,13 @@ class MainWidget(QWidget):
         
     ### State update
     
-    def MakeStateBox(self, id, name, value, margin_left=6, margin_topbot=3):
+    def MakeStateBox(self, id, name, value, margin_left=6, margin_right=0, margin_topbot=3):
         gb = QGroupBox(name)
         layout = QHBoxLayout()
         lbl = QLabel(value)
         setattr(self, id, lbl)
         layout.addWidget(lbl)
-        layout.setContentsMargins(margin_left, margin_topbot, 0, margin_topbot)
+        layout.setContentsMargins(margin_left, margin_topbot, margin_right, margin_topbot)
         gb.setLayout(layout)
         return gb
       

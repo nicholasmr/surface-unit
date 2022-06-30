@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=python /home/drill/drill-surface/legacy/drill_surface.py
+StartupNotify=false
+Type=Application
+Terminal=false
+Name=Old drill GUI
+Path=/home/drill/drill-surface/legacy/
