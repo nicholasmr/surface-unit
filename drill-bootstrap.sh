@@ -1,6 +1,9 @@
 #!/bin/bash
 echo "*** Drill bootstrap ***";
 
+echo "> Synchronizing clock"
+sudo timedatectl set-ntp true &
+
 echo -n "> Checking USB stick ... "
 sudo mount /dev/sda1 /mnt/logs/ -o umask=000
 

@@ -3,13 +3,14 @@
 #----------------------
 # Drill host
 #----------------------
-DRILL_HOST = "10.2.3.10" # IP address for drill host (raspberry pi in surface unit)
+DRILL_HOST = "10.2.3.10" # Assumed IP address for drill host (raspberry pi in surface unit), may change depending on surface unit number
 
 #----------------------
 # REDIS host
 #----------------------
-#REDIS_HOST = '127.0.0.1'
-REDIS_HOST = DRILL_HOST
+import socket
+if socket.gethostname() == 'drill': REDIS_HOST = '127.0.0.1'
+else:                               REDIS_HOST = DRILL_HOST
 
 #----------------------
 # Cable linear density for load-cable calculation

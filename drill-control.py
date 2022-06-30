@@ -502,7 +502,7 @@ class MainWidget(QWidget):
             self.updateStateBox('pressure_topplug',     self.ds.pressure_topplug,     warn__pressure)
             self.updateStateBox('pressure_gear1',       self.ds.pressure_gear1,       warn__pressure)
             self.updateStateBox('pressure_gear2',       self.ds.pressure_gear2,       warn__pressure)
-            self.updateStateBox('hammer',               self.ds.hammer,               warn__hammer)
+            self.updateStateBox('hammer',               round(self.ds.hammer,1),      warn__hammer)
 
             self.updateStateBox('temperature_electronics',    self.ds.temperature_electronics,    warn__temperature_electronics)
             self.updateStateBox('temperature_topplug',        self.ds.temperature_topplug,        warn__temperature_electronics)
