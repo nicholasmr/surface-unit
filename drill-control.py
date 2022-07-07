@@ -16,13 +16,13 @@ import pyqtgraph as pg
 # Settings
 #-------------------
 
-DT           = 1/20 # update rate in seconds for GUI/surface state
-DTFRAC_DRILL = 10 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
+DT           = 1/10 # update rate in seconds for GUI/surface state
+DTFRAC_DRILL = 5 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 XAXISLEN     = 30 + 1 # seconds
 
 SHOW_BNO055_DETAILED = 1
 
-FS = 12
+FS = 14
 FS_GRAPH_TITLE = 4 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
@@ -51,10 +51,9 @@ class MainWidget(QWidget):
 
         ### State objects
 
+        # REDIS_HOST determined in settings file
         self.ds = DrillState(  redis_host=REDIS_HOST)   
         self.ss = SurfaceState(redis_host=REDIS_HOST)
-        
-#        print(dir(self.ds))
 
         ### pyqt graphs
 
@@ -64,10 +63,10 @@ class MainWidget(QWidget):
         # X-axis
         self.hist_time       = np.flipud(np.arange(0,XAXISLEN+1e-9,DT))
         self.hist_time_drill = np.flipud(np.arange(0,XAXISLEN+1e-9,DT*DTFRAC_DRILL))
-        self.hist_load     = np.full(len(self.hist_time),np.nan)
-        self.hist_speed    = np.full(len(self.hist_time),np.nan)
-        self.hist_speedavg = np.full(len(self.hist_time),np.nan)
-        self.hist_current  = np.full(len(self.hist_time_drill),np.nan)
+        self.hist_load     = np.full(len(self.hist_time), 0.0)
+        self.hist_speed    = np.full(len(self.hist_time), 0.0)
+        self.hist_speedavg = np.full(len(self.hist_time), 0.0)
+        self.hist_current  = np.full(len(self.hist_time_drill), 0.0)
 
         def setupaxis(obj):
             obj.invertX()
@@ -84,12 +83,11 @@ class MainWidget(QWidget):
         setupaxis(self.plot_current);
 
         # init curves
-        lw = 4
+        lw = 3
         plotpen_black = pg.mkPen(color='k', width=lw)
         plotpen_blue  = pg.mkPen(color=COLOR_BLUE, width=lw-1)
         self.curve_load     = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_speed    = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
-        self.curve_speedavg = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_blue)
         self.curve_current  = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
         
         # Titles
@@ -156,8 +154,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('surface_depth',           'Depth (m)',            initstr))
         layout.addWidget(self.MakeStateBox('surface_load',            'Load (kg)',            initstr))
         layout.addWidget(self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr))
-        layout.addWidget(self.MakeStateBox('surface_speedinst',       'Speed, instant. (cm/s)',  initstr))
-        layout.addWidget(self.MakeStateBox('surface_speedavg',        'Speed, average (cm/s)',   initstr))
+        layout.addWidget(self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr))
         layout.addWidget(self.MakeStateBox('surface_downholevoltage', 'Downhole voltage (V)', initstr))
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
@@ -441,30 +438,27 @@ class MainWidget(QWidget):
         self.ss.update()
 
         ### Update graphs
-        self.hist_load     = np.roll(self.hist_load,     -1); self.hist_load[-1]     = self.ss.load-self.ss.loadtare if self.cbox_plotdeltaload.isChecked() else self.ss.load
-        self.hist_speed    = np.roll(self.hist_speed,    -1); self.hist_speed[-1]    = self.ss.velocity  
-        self.hist_speedavg = np.roll(self.hist_speedavg, -1); self.hist_speedavg[-1] = self.ss.velocityavg
-        self.curve_load.setData(     x=self.hist_time,y=self.hist_load)
-        self.curve_speed.setData(    x=self.hist_time,y=self.hist_speed)
-        self.curve_speedavg.setData( x=self.hist_time,y=self.hist_speedavg)
+        self.hist_load  = np.roll(self.hist_load,  -1); self.hist_load[-1]  = self.ss.load-self.ss.loadtare if self.cbox_plotdeltaload.isChecked() else self.ss.load
+        self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed*100
+        self.curve_load.setData( x=self.hist_time,y=self.hist_load)
+        self.curve_speed.setData(x=self.hist_time,y=self.hist_speed)
 
         ### Update state fields
-        self.updateStateBox('surface_depth',           self.ss.depth,            warn__nothres)
-        self.updateStateBox('surface_speedinst',       self.ss.velocity,         warn__velocity)
-        self.updateStateBox('surface_speedavg',        self.ss.velocityavg,      warn__velocity)
-        self.updateStateBox('surface_load',            self.ss.load,             warn__load)
-        self.updateStateBox('surface_loadcable',       self.ss.loadnet,          warn__nothres)
-        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1), warn__nothres)
+        self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
+        self.updateStateBox('surface_speed',           round(self.ss.speed*100,2),            warn__velocity)
+        self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
+        self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
+        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
 
         if self.btn_startrun.isChecked(): self.runtime1 = datetime.now() # update run time
         if self.runtime0 is not None:
             druntime = self.runtime1-self.runtime0
-            self.updateStateBox('run_time',       self.timestamp(druntime),          warn__nothres)
-            self.updateStateBox('run_startdepth', self.ss.depthtare,                 warn__nothres)    
-            self.updateStateBox('run_startload',  self.ss.loadtare,                  warn__nothres)    
-            self.updateStateBox('run_deltadepth', self.ss.depth - self.ss.depthtare, warn__corelength)    
-            self.updateStateBox('run_deltaload',  self.ss.load  - self.ss.loadtare,  warn__nothres)
-            self.updateStateBox('run_peakload',   np.amax(self.ss.load),             warn__nothres)
+            self.updateStateBox('run_time',       self.timestamp(druntime),                                 warn__nothres)
+            self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH),                 warn__nothres)    
+            self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),                   warn__nothres)    
+            self.updateStateBox('run_deltadepth', round(self.ss.depth - self.ss.depthtare,PRECISION_DEPTH), warn__corelength)    
+            self.updateStateBox('run_deltaload',  round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
+            self.updateStateBox('run_peakload',   round(np.amax(self.hist_load),PRECISION_LOAD),            warn__nothres)
             
 
         #-----------------------
@@ -498,19 +492,19 @@ class MainWidget(QWidget):
             else:
                 self.updateStateBox('orientation_inclinometer', str_incvec,          warn__nothres)
 
-            self.updateStateBox('pressure_electronics', self.ds.pressure_electronics, warn__pressure)
-            self.updateStateBox('pressure_topplug',     self.ds.pressure_topplug,     warn__pressure)
-            self.updateStateBox('pressure_gear1',       self.ds.pressure_gear1,       warn__pressure)
-            self.updateStateBox('pressure_gear2',       self.ds.pressure_gear2,       warn__pressure)
-            self.updateStateBox('hammer',               round(self.ds.hammer,1),      warn__hammer)
+            self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
+            self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
+            self.updateStateBox('pressure_gear1',       round(self.ds.pressure_gear1,1),       warn__pressure)
+            self.updateStateBox('pressure_gear2',       round(self.ds.pressure_gear2,1),       warn__pressure)
+            self.updateStateBox('hammer',               round(self.ds.hammer,1),               warn__hammer)
 
-            self.updateStateBox('temperature_electronics',    self.ds.temperature_electronics,    warn__temperature_electronics)
-            self.updateStateBox('temperature_topplug',        self.ds.temperature_topplug,        warn__temperature_electronics)
-            self.updateStateBox('temperature_gear1',          self.ds.temperature_gear1,          warn__temperature_electronics)
-            self.updateStateBox('temperature_gear2',          self.ds.temperature_gear1,          warn__temperature_electronics)
-            self.updateStateBox('temperature_auxelectronics', self.ds.temperature_auxelectronics, warn__temperature_electronics)
-            self.updateStateBox('temperature_motor',          self.ds.temperature_motor,          warn__temperature_motor)    
-            self.updateStateBox('temperature_motorctrl',      self.ds.motor_controller_temp,      warn__temperature_motor)    
+            self.updateStateBox('temperature_electronics',    round(self.ds.temperature_electronics,1),    warn__temperature_electronics)
+            self.updateStateBox('temperature_topplug',        round(self.ds.temperature_topplug,1),        warn__temperature_electronics)
+            self.updateStateBox('temperature_gear1',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
+            self.updateStateBox('temperature_gear2',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
+            self.updateStateBox('temperature_auxelectronics', round(self.ds.temperature_auxelectronics,1), warn__temperature_electronics)
+            self.updateStateBox('temperature_motor',          round(self.ds.temperature_motor,1),          warn__temperature_motor)    
+            self.updateStateBox('temperature_motorctrl',      round(self.ds.motor_controller_temp,1),      warn__temperature_motor)    
             
             self.updateStateBox('motor_current',  round(self.ds.motor_current,1),  warn__motor_current)
             self.updateStateBox('motor_speed',    round(self.ds.motor_rpm,1),      warn__motor_rpm)    
@@ -542,6 +536,9 @@ if __name__ == '__main__':
     
     main = MainWidget()
     main.show()
+    H = QDesktopWidget().availableGeometry().height()
+    W = 0 # setting width = 0 effectively sets the minimal window width allowed by the widgets enclosed
+    main.setGeometry(0, 0, W, H)
     
     # Update main window with latest field values ever DT seconds
     timer1 = QTimer()

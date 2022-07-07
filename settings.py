@@ -3,14 +3,16 @@
 #----------------------
 # Drill host
 #----------------------
-DRILL_HOST = "10.2.3.10" # Assumed IP address for drill host (raspberry pi in surface unit), may change depending on surface unit number
+DRILL_HOST = '10.2.3.10' # Assumed IP address for drill host (raspberry pi in surface unit), may change depending on surface unit number
+LOCAL_HOST = '127.0.0.1'
 
 #----------------------
 # REDIS host
 #----------------------
 import socket
-if socket.gethostname() == 'drill': REDIS_HOST = '127.0.0.1'
+if socket.gethostname() == 'drill': REDIS_HOST = LOCAL_HOST
 else:                               REDIS_HOST = DRILL_HOST
+#REDIS_HOST = LOCAL_HOST
 
 #----------------------
 # Cable linear density for load-cable calculation
@@ -27,6 +29,10 @@ parvalux_tube_free_hanging = [-0.04, 1.05, -9.64] # Gravity vector when drill is
 # Sensor reference values
 #----------------------
 HAMMER_MAX = 255
+
+# Decimal point precisions for physical displays of surface unit
+PRECISION_LOAD  = 2
+PRECISION_DEPTH = 2
 
 #----------------------
 # Safe range for drill sensors
@@ -45,11 +51,4 @@ warn__corelength              = [0.0,3.0]  # metre
 #----------------------
 warn__load     = [0,1200]    # kg
 warn__velocity = [-1.2,1.2]  # m/s
-
-
-# DISCARD
-#inching_time     = 1.0    # seconds
-#inching_pwm      = 90 # KM og NR: new val of 90 is more appropriate
-#inching_pwm__FLT = 90 # Filter (FLT) valve open close (requires at least 60 deg. rot.)
-#inching_pwm__SB  = 15 # Super banger (SB) disengage should be no more than 15 deg. to not rotate out of baronet.
 

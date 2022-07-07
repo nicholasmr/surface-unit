@@ -5,26 +5,29 @@ import numpy as np
 from settings import *
 
 try: 
+    # might fail if module not available or clock is incorrect set and reference magnetic field geoid (for a given date) is therefore unavailable.
     from ahrs.filters import SAAM
     from ahrs import Quaternion
-except ImportError: 
+except: 
     USE_BNO055_FOR_ORIENTATION = False
 
 class DrillState():
 
     # State variables
-    motor_rpm     = 0
-    motor_voltage = 0
-    motor_current = 0
+    motor_rpm             = 0
+    motor_voltage         = 0
+    motor_current         = 0
     motor_controller_temp = 0
+    motor_duty_cycle      = 0
 
-    temperature_electronics = 0     
-    temperature_topplug     = 0
-    temperature_gear1       = 0
-    temperature_gear2       = 0
-    temperature_baseplate   = 0
-    temperature_motor       = 0
-    temperature_vesc        = 0
+    temperature_electronics    = 0     
+    temperature_auxelectronics = 0
+    temperature_topplug        = 0
+    temperature_gear1          = 0
+    temperature_gear2          = 0
+    temperature_baseplate      = 0
+    temperature_motor          = 0
+    temperature_vesc           = 0
     
     pressure_electronics = 0
     pressure_topplug     = 0
@@ -33,50 +36,75 @@ class DrillState():
     
     hammer = 0
     
-    inclination = 0
-    azimuth     = 0
-    spin        = 0
-    quat        = [0,0,0,0]
-    drilldir    = [0,0,1]
+    inclination = 0 # calculated value, not direct sensor value
+    azimuth     = 0 # calculated value, not direct sensor value
+    spin        = 0 # = gyroscope_z
+    quat        = [0,0,0,0] # calculated using AHRS
+    drilldir    = [0,0,1]   # calculated using AHRS
+    
+    downhole_voltage = 0.0
+    
+    # BNO055 triaxial values
+    accelerometer_x = 0
+    accelerometer_y = 0
+    accelerometer_z = 0
+    magnetometer_x = 0
+    magnetometer_y = 0
+    magnetometer_z = 0
+    gyroscope_x = 0
+    gyroscope_y = 0
+    gyroscope_z = 0
+    
+    # Inclinometer
+    inclination_x = 0
+    inclination_y = 0
     
     # Redis connection
     rc = None 
     
     ###
     
-    def __init__(self, redis_host='127.0.0.1'):
-        self.rc = redis.StrictRedis(host=redis_host) # redis connection (rc) object
-        self.saam = SAAM() # https://ahrs.readthedocs.io/en/latest/filters/saam.html
-        self.refdir = np.array([0,0,1]) # used to determine orientation with SAAM
+    def __init__(self, redis_host=LOCAL_HOST):
+    
+        # redis connection (rc) object
+        try:    
+            self.rc = redis.StrictRedis(host=redis_host) 
+            self.rc.ping() 
+        except:
+            print('DrillState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
+            self.rc = redis.StrictRedis(host=LOCAL_HOST) 
+
+        if USE_BNO055_FOR_ORIENTATION: self.saam = SAAM() # https://ahrs.readthedocs.io/en/latest/filters/saam.html
+        self.refdir = np.array([0,0,1]) # BNO055 chip orientation; used to determine orientation with SAAM
         self.update()
 
     def get(self, attr):
         try:    return getattr(self, attr)
         except: return None
             
-    def update(self, skipOrientation=False):
+    def update(self):
     
         try:    ds = json.loads(self.rc.get('drill-state')) # redis state
         except: ds = {}
         for key in ds: setattr(self, key, ds[key])
 #        print(ds)
-            
+
         # orientation
         self.spin = round(abs(self.get_spin()), 2)
-        if not skipOrientation: 
-            self.inclination, self.azimuth = self.get_orientation() # might be heavy calculation, allowing skipping it if requested.
-            self.accelerometer_magnitude = np.sqrt(self.accelerometer_x**2 + self.accelerometer_y**2 + self.accelerometer_z**2)
-            self.magnetometer_magnitude  = np.sqrt(self.magnetometer_x**2  + self.magnetometer_y**2  + self.magnetometer_z**2)
-            self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
+        self.inclination, self.azimuth = self.get_orientation() # might be heavy calculation, allowing skipping it if requested.
+        self.accelerometer_magnitude = np.sqrt(self.accelerometer_x**2 + self.accelerometer_y**2 + self.accelerometer_z**2)
+        self.magnetometer_magnitude  = np.sqrt(self.magnetometer_x**2  + self.magnetometer_y**2  + self.magnetometer_z**2)
+        self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
 
         # motor 
         self.motor_throttle = 100 * self.motor_duty_cycle
 
         # rename
-        self.temperature_auxelectronics = self.aux_temperature_electronics        
-        self.temperature_topplug        = self.aux_temperature_topplug
-        self.temperature_gear1          = self.aux_temperature_gear1
-        self.temperature_gear2          = self.aux_temperature_gear2
+        if hasattr(self, 'aux_temperature_electronics'):
+            self.temperature_auxelectronics = self.aux_temperature_electronics        
+            self.temperature_topplug        = self.aux_temperature_topplug
+            self.temperature_gear1          = self.aux_temperature_gear1
+            self.temperature_gear2          = self.aux_temperature_gear2
         
         # aux
         self.hammer      = 100 * self.hammer/HAMMER_MAX
@@ -117,9 +145,8 @@ class DrillState():
     ### Orientation
     
     def get_spin(self):
-        # z-component of angular velocity vector, i.e. spin about z-axis (deg/s)
-        try:    return self.gyroscope_z * 1/6 # convert deg/s to RPM
-        except: return 0 # BNO055 data not available? Shall not attempt to determine spin from inclinometer...
+        # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
+        return self.gyroscope_z * 1/6 # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
     def get_orientation(self, USE_AHRS=True):
     
