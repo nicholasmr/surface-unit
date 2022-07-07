@@ -22,7 +22,7 @@ XAXISLEN     = 30 + 1 # seconds
 
 SHOW_BNO055_DETAILED = 1
 
-FS = 14
+FS = 13
 FS_GRAPH_TITLE = 4 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
@@ -65,7 +65,6 @@ class MainWidget(QWidget):
         self.hist_time_drill = np.flipud(np.arange(0,XAXISLEN+1e-9,DT*DTFRAC_DRILL))
         self.hist_load     = np.full(len(self.hist_time), 0.0)
         self.hist_speed    = np.full(len(self.hist_time), 0.0)
-        self.hist_speedavg = np.full(len(self.hist_time), 0.0)
         self.hist_current  = np.full(len(self.hist_time_drill), 0.0)
 
         def setupaxis(obj):
@@ -155,7 +154,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('surface_load',            'Load (kg)',            initstr))
         layout.addWidget(self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr))
         layout.addWidget(self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr))
-        layout.addWidget(self.MakeStateBox('surface_downholevoltage', 'Downhole voltage (V)', initstr))
+        layout.addWidget(self.MakeStateBox('surface_downholevoltage', 'Downhole vol. (V)',    initstr))
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
 
@@ -445,7 +444,7 @@ class MainWidget(QWidget):
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
-        self.updateStateBox('surface_speed',           round(self.ss.speed*100,2),            warn__velocity)
+        self.updateStateBox('surface_speed',           round(self.ss.speed*100,2),            warn__velocity*100)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
@@ -536,9 +535,10 @@ if __name__ == '__main__':
     
     main = MainWidget()
     main.show()
-    H = QDesktopWidget().availableGeometry().height()
+    dH = 30
+    H = QDesktopWidget().availableGeometry().height()-dH
     W = 0 # setting width = 0 effectively sets the minimal window width allowed by the widgets enclosed
-    main.setGeometry(0, 0, W, H)
+    main.setGeometry(0, dH, W, H)
     
     # Update main window with latest field values ever DT seconds
     timer1 = QTimer()

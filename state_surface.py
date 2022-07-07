@@ -15,7 +15,7 @@ class SurfaceState():
 
     # For speed calculation    
     speed = 0.0 # instantaneous
-    Navg = 10
+    Navg = 20
     arr_speed = np.zeros((Navg))  
     arr_time  = np.zeros((Navg))   
     depthprev = 0.0
