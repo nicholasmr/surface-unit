@@ -133,8 +133,8 @@ class MainWidget(QWidget):
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
         botLayout.addWidget(self.gb_pressure)
-        botLayout.addWidget(self.gb_run)
         botLayout.addWidget(self.gb_motor)
+        botLayout.addWidget(self.gb_run)
         botLayout.addWidget(self.gb_expert)
         botLayout.addStretch(1)
         
@@ -512,16 +512,12 @@ class MainWidget(QWidget):
                 self.updateStateBox('motor_speed',    round(self.ds.motor_rpm,1),      warn__motor_rpm)    
                 self.updateStateBox('motor_voltage',  round(self.ds.motor_voltage,1),  warn__nothres)    
                 self.updateStateBox('motor_throttle', round(self.ds.motor_throttle,0), warn__nothres)
-                
-            else:
-                NA_fields = [ \
-                    'orientation_inclination', 'orientation_azimuth', 'orientation_spin',  #'orientation_inclinometer', 'orientation_acceleration', 'orientation_magnetometer', 'orientation_gyroscope', \
-                    'pressure_electronics', 'pressure_topplug', 'pressure_gear1', 'pressure_gear2', 'hammer', \
-                    'temperature_electronics', 'temperature_topplug', 'temperature_gear1', 'temperature_gear2', 'temperature_auxelectronics', 'temperature_motor', 'temperature_motorctrl', \
-                    'motor_current','motor_speed','motor_voltage','motor_throttle']
-                for f in NA_fields:
-                    lbl = getattr(self, f)
-                    lbl.setText('No conn.')
+        
+        ### Set to disabled if drill state is dead
+        for f in self.ds.statefields:
+            lbl = getattr(self, f)
+            lbl.setEnabled(not self.ds.isdead)
+        
         
         ### END
                     

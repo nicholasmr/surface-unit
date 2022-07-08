@@ -83,6 +83,16 @@ class DrillState():
         if USE_BNO055_FOR_ORIENTATION: self.saam = SAAM() # https://ahrs.readthedocs.io/en/latest/filters/saam.html
         self.refdir = np.array([0,0,1]) # BNO055 chip orientation; used to determine orientation with SAAM
         self.update()
+        
+        self.statefields = [ \
+            'orientation_inclination', 'orientation_azimuth', 'orientation_spin',  #'orientation_inclinometer', 'orientation_acceleration', 'orientation_magnetometer', 'orientation_gyroscope', \
+            'pressure_electronics', 'pressure_topplug', 'pressure_gear1', 'pressure_gear2', 'hammer', \
+            'temperature_electronics', 'temperature_topplug', 'temperature_gear1', 'temperature_gear2', 'temperature_auxelectronics', 'temperature_motor', 'temperature_motorctrl', \
+            'motor_current','motor_speed','motor_voltage','motor_throttle' \
+        ]
+        if USE_BNO055_FOR_ORIENTATION: self.statefields = np.append(self.statefields, ['orientation_drilldir', 'orientation_acceleration', 'orientation_magnetometer', 'orientation_gyroscope'])
+        else:                          self.statefields = np.append(self.statefields, ['orientation_inclinometer'])
+
 
     def get(self, attr):
         try:    return getattr(self, attr)
