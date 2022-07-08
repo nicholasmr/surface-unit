@@ -1,6 +1,6 @@
 # N. Rathmann <rathmann@nbi.dk>, 2019-2022
 
-import redis, json
+import redis, json, datetime, time
 import numpy as np
 from settings import *
 
@@ -14,6 +14,7 @@ except:
 class DrillState():
 
     # State variables
+
     motor_rpm             = 0
     motor_voltage         = 0
     motor_current         = 0
@@ -58,6 +59,11 @@ class DrillState():
     # Inclinometer
     inclination_x = 0
     inclination_y = 0
+    
+    # Was the drill state update recently?
+    recieved = '2000-01-01 01:00:00'
+    isdead = False # True = connection is live, else False
+    livethreshold = 5*60 # seconds before drill state is assumed dead (unless a new state was recieved)
     
     # Redis connection
     rc = None 
@@ -109,7 +115,11 @@ class DrillState():
         # aux
         self.hammer      = 100 * self.hammer/HAMMER_MAX
         self.motorconfig = self.rc.get('motor-config')
-
+        
+        # Is live?
+        now = datetime.datetime.now()
+        lastrecieved = datetime.datetime.strptime(self.recieved, '%Y-%m-%d %H:%M:%S')
+        self.isdead = (now - lastrecieved).seconds > self.livethreshold
 
     ### Motor control
 

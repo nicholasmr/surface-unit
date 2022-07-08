@@ -6,20 +6,24 @@ from settings import *
 
 class SurfaceState():
 
-    depth     = 0.0
+    updatetime     = 0 # current 
+    updatetimeprev = 0 # previous
+
+    depth     = 0.0 # current
+    depthprev = 0.0 # previous
     depthtare = 0.0
     
     load     = 0.0
-    loadtare = 0.0
-    loadnet  = 0.0
+    loadtare = 0.0 # reference value to subtract from "load"
+    loadnet  = 0.0 # load - cable weight
 
     # For speed calculation    
-    speed = 0.0 # instantaneous
-    Navg = 20
-    arr_speed = np.zeros((Navg))  
-    arr_time  = np.zeros((Navg))   
-    depthprev = 0.0
-
+    speedinst  = 0.0 # instantaneous
+    speed      = 0.0 # time-average
+    Navg       = 15 # length of array used to calculate time averaged 
+    speed_list = np.zeros((Navg)) # array of speed estimates
+    dt_list    = np.zeros((Navg)) # array of dt
+    
     # Redis connection
     rc = None 
     
@@ -42,9 +46,14 @@ class SurfaceState():
         except: return None
             
     def update(self):
-    
+
+        ### Time
+        self.updatetimeprev = self.updatetime 
+        self.updatetime = time.time() # new time stamp (seconds)
+        self.dt = self.updatetime - self.updatetimeprev
+        
+        ### Depth 
         self.depthprev = self.depth # for speed calculation
-    
         try: 
             encoder = json.loads(self.rc.get('depth-encoder'))
             self.depth = abs(encoder["depth"])
@@ -53,8 +62,11 @@ class SurfaceState():
         except:
             self.depth, self.depthtare = 0.0, 0.0
 
-        self.speed = self.calc_speed(self.depth, self.depthprev)
+        ### Speed
+        self.speedinst = (self.depth-self.depthprev)/self.dt
+        self.speed = self.calc_avgspeed(self.speedinst, self.dt)
 
+        ### Load
         try:
             loadcell = json.loads(self.rc.get('load-cell'))
             self.load = float(loadcell["load"])
@@ -64,6 +76,7 @@ class SurfaceState():
         except:
             self.load, self.loadnet, self.loadtare = 0.0, 0.0, 0.0
         
+        ### AUX
         try:    self.alertloggers = int(self.rc.get('alert-loggers'))
         except: self.alertloggers = 0
         
@@ -79,19 +92,15 @@ class SurfaceState():
     def toggle_alertloggers(self):
         self.set_alertloggers(not self.alertloggers)
         
-    def calc_speed(self, depth, depthprev):
+    def calc_avgspeed(self, speedinst, dt):
 
-        self.arr_time = np.roll(self.arr_time, -1); 
-        self.arr_time[-1] =  time.time() # seconds stamp
-    
-        speed_inst = (depth-depthprev)/(self.arr_time[-1]-self.arr_time[-2])
-    
-        self.arr_speed = np.roll(self.arr_speed, -1); 
-        self.arr_speed[-1] = speed_inst
-       
-        dt = np.diff(self.arr_time)
-        T = np.sum(dt)
-        speed_avg = np.sum(np.multiply(self.arr_speed[1:],dt))/T
+        self.dt_list = np.roll(self.dt_list, -1); 
+        self.dt_list[-1] = dt # seconds stamp
         
+        self.speed_list = np.roll(self.speed_list, -1); 
+        self.speed_list[-1] = speedinst
+
+        T = np.sum(self.dt_list)       
+        speed_avg = np.sum(np.multiply(self.speed_list, self.dt_list))/T
         return speed_avg
     

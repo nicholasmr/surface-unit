@@ -1,7 +1,6 @@
 # N. Rathmann <rathmann@nbi.dk>, 2019-2022
 
-import sys, os, signal
-from datetime import datetime
+import sys, os, signal, datetime
 import numpy as np
 
 from settings import *
@@ -16,8 +15,8 @@ import pyqtgraph as pg
 # Settings
 #-------------------
 
-DT           = 1/10 # update rate in seconds for GUI/surface state
-DTFRAC_DRILL = 5 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
+DT           = 1/8 # update rate in seconds for GUI/surface state
+DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 XAXISLEN     = 30 + 1 # seconds
 
 SHOW_BNO055_DETAILED = 1
@@ -27,7 +26,7 @@ FS_GRAPH_TITLE = 4 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
 # Print settings
-print('%s: running with DT=%.3fs, DTFRAC_DRILL=%i (DT_DRILL=%.3fs), XAXISLEN=%is'%(sys.argv[0],DT,DTFRAC_DRILL,DT*DTFRAC_DRILL,XAXISLEN))
+print('%s: running with DT=%.3fs, DT_DRILL=%.3fs (DTFRAC_DRILL=%i), XAXISLEN=%is'%(sys.argv[0],DT,DT*DTFRAC_DRILL,DTFRAC_DRILL,XAXISLEN))
 print('Using BNO055 for orientation? %s'%('Yes' if USE_BNO055_FOR_ORIENTATION else 'No'))
 print('Showing detailed BNO055 output? %s'%('Yes' if SHOW_BNO055_DETAILED else 'No'))
 
@@ -64,6 +63,7 @@ class MainWidget(QWidget):
         self.hist_time       = np.flipud(np.arange(0,XAXISLEN+1e-9,DT))
         self.hist_time_drill = np.flipud(np.arange(0,XAXISLEN+1e-9,DT*DTFRAC_DRILL))
         self.hist_load     = np.full(len(self.hist_time), 0.0)
+        self.hist_loadtare = np.full(len(self.hist_time), 0.0)
         self.hist_speed    = np.full(len(self.hist_time), 0.0)
         self.hist_current  = np.full(len(self.hist_time_drill), 0.0)
 
@@ -150,10 +150,11 @@ class MainWidget(QWidget):
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('surface_depth',           'Depth (m)',            initstr))
         layout.addWidget(self.MakeStateBox('surface_load',            'Load (kg)',            initstr))
-        layout.addWidget(self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr))
+        layout.addWidget(self.MakeStateBox('surface_depth',           'Depth (m)',            initstr))
         layout.addWidget(self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr))
+        layout.addWidget(self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr))
+        layout.addWidget(self.MakeStateBox('surface_peakload',        'Peak load, %is (kg)'%(XAXISLEN), initstr))
         layout.addWidget(self.MakeStateBox('surface_downholevoltage', 'Downhole vol. (V)',    initstr))
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
@@ -333,7 +334,6 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr))
         layout.addWidget(self.MakeStateBox('run_startload',  'Start load (kg)',  initstr))
         layout.addWidget(self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr))
-        layout.addWidget(self.MakeStateBox('run_peakload',   'Peak load, %is (kg)'%(XAXISLEN), initstr))
         layout.addStretch(1)
         self.gb_run.setLayout(layout)
 
@@ -385,7 +385,7 @@ class MainWidget(QWidget):
             self.btn_startrun.setText('Stop')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
             self.cbox_plotdeltaload.setChecked(True)
-            self.runtime0 = datetime.now()
+            self.runtime0 = datetime.datetime.now()
             self.ss.set_loadtare(self.ss.load)
             self.ss.set_depthtare(self.ss.depth)
         else:
@@ -394,7 +394,7 @@ class MainWidget(QWidget):
             self.cbox_plotdeltaload.setChecked(False)
     
     def take_screenshot(self):
-        fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+        fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
         command = 'scrot -F "%s"'%(fname)
         os.system(command)
         print('Saving screenshot to %s'%(fname))
@@ -437,78 +437,93 @@ class MainWidget(QWidget):
         self.ss.update()
 
         ### Update graphs
-        self.hist_load  = np.roll(self.hist_load,  -1); self.hist_load[-1]  = self.ss.load-self.ss.loadtare if self.cbox_plotdeltaload.isChecked() else self.ss.load
         self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed*100
-        self.curve_load.setData( x=self.hist_time,y=self.hist_load)
         self.curve_speed.setData(x=self.hist_time,y=self.hist_speed)
+        self.hist_load = np.roll(self.hist_load,  -1); self.hist_load[-1]  = self.ss.load
+        self.hist_loadtare = self.hist_load-self.ss.loadtare
+        self.curve_load.setData( x=self.hist_time,y=self.hist_loadtare if self.cbox_plotdeltaload.isChecked() else self.hist_load)
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
         self.updateStateBox('surface_speed',           round(self.ss.speed*100,2),            warn__velocity*100)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
+        self.updateStateBox('surface_peakload',        round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
 
-        if self.btn_startrun.isChecked(): self.runtime1 = datetime.now() # update run time
-        if self.runtime0 is not None:
-            druntime = self.runtime1-self.runtime0
-            self.updateStateBox('run_time',       self.timestamp(druntime),                                 warn__nothres)
-            self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH),                 warn__nothres)    
-            self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),                   warn__nothres)    
-            self.updateStateBox('run_deltadepth', round(self.ss.depth - self.ss.depthtare,PRECISION_DEPTH), warn__corelength)    
-            self.updateStateBox('run_deltaload',  round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
-            self.updateStateBox('run_peakload',   round(np.amax(self.hist_load),PRECISION_LOAD),            warn__nothres)
-            
+        if self.btn_startrun.isChecked(): 
+            self.runtime1 = datetime.datetime.now() # update run time
+            if self.runtime0 is not None:
+                druntime = self.runtime1-self.runtime0
+                self.updateStateBox('run_time',       self.timestamp(druntime),                                 warn__nothres)
+                self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH),                 warn__nothres)    
+                self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),                   warn__nothres)    
+                self.updateStateBox('run_deltadepth', round(self.ss.depth - self.ss.depthtare,PRECISION_DEPTH), warn__corelength)    
+                self.updateStateBox('run_deltaload',  round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
+                
 
         #-----------------------
         # Update drill state
         #-----------------------
         
         if self.Nt % DTFRAC_DRILL == 0:
+
             self.ds.update()
-           
+
             ### Update graphs
             self.hist_current  = np.roll(self.hist_current,  -1); self.hist_current[-1]  = self.ds.motor_current
             self.curve_current.setData(  x=self.hist_time_drill,y=self.hist_current)
 
-            ### Update state fields
-            str_incvec   = '[%.1f, %.1f]'%(self.ds.inclination_x,self.ds.inclination_x)
-            self.updateStateBox('orientation_inclination',  round(self.ds.inclination,1), warn__nothres)
-            self.updateStateBox('orientation_azimuth',      round(self.ds.azimuth,1),     warn__nothres)
-            self.updateStateBox('orientation_spin',         round(self.ds.spin,1),        warn__spin)
-            if USE_BNO055_FOR_ORIENTATION:
-                str_drilldir = '[%.1f, %.1f, %.1f]'%(self.ds.drilldir[0],self.ds.drilldir[1],self.ds.drilldir[2])
-                self.updateStateBox('orientation_drilldir', str_drilldir,  warn__nothres)
-                if SHOW_BNO055_DETAILED:
-#                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
-#                    self.updateStateBox('orientation_quat',         str_quat,   warn__nothres)
-                    str_aclvec   = '[%.1f, %.1f, %.1f], %.2f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
-                    str_magvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_magnitude)
-                    str_spnvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_magnitude)
-                    self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
-                    self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
-                    self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
+            if not self.ds.isdead:
+               
+                ### Update state fields
+                str_incvec   = '[%.1f, %.1f]'%(self.ds.inclination_x,self.ds.inclination_x)
+                self.updateStateBox('orientation_inclination',  round(self.ds.inclination,1), warn__nothres)
+                self.updateStateBox('orientation_azimuth',      round(self.ds.azimuth,1),     warn__nothres)
+                self.updateStateBox('orientation_spin',         round(self.ds.spin,1),        warn__spin)
+                if USE_BNO055_FOR_ORIENTATION:
+                    str_drilldir = '[%.1f, %.1f, %.1f]'%(self.ds.drilldir[0],self.ds.drilldir[1],self.ds.drilldir[2])
+                    self.updateStateBox('orientation_drilldir', str_drilldir,  warn__nothres)
+                    if SHOW_BNO055_DETAILED:
+    #                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
+    #                    self.updateStateBox('orientation_quat',         str_quat,   warn__nothres)
+                        str_aclvec   = '[%.1f, %.1f, %.1f], %.2f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
+                        str_magvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_magnitude)
+                        str_spnvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_magnitude)
+                        self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
+                        self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
+                        self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
+                else:
+                    self.updateStateBox('orientation_inclinometer', str_incvec,          warn__nothres)
+
+                self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
+                self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
+                self.updateStateBox('pressure_gear1',       round(self.ds.pressure_gear1,1),       warn__pressure)
+                self.updateStateBox('pressure_gear2',       round(self.ds.pressure_gear2,1),       warn__pressure)
+                self.updateStateBox('hammer',               round(self.ds.hammer,1),               warn__hammer)
+
+                self.updateStateBox('temperature_electronics',    round(self.ds.temperature_electronics,1),    warn__temperature_electronics)
+                self.updateStateBox('temperature_topplug',        round(self.ds.temperature_topplug,1),        warn__temperature_electronics)
+                self.updateStateBox('temperature_gear1',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
+                self.updateStateBox('temperature_gear2',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
+                self.updateStateBox('temperature_auxelectronics', round(self.ds.temperature_auxelectronics,1), warn__temperature_electronics)
+                self.updateStateBox('temperature_motor',          round(self.ds.temperature_motor,1),          warn__temperature_motor)    
+                self.updateStateBox('temperature_motorctrl',      round(self.ds.motor_controller_temp,1),      warn__temperature_motor)    
+                
+                self.updateStateBox('motor_current',  round(self.ds.motor_current,1),  warn__motor_current)
+                self.updateStateBox('motor_speed',    round(self.ds.motor_rpm,1),      warn__motor_rpm)    
+                self.updateStateBox('motor_voltage',  round(self.ds.motor_voltage,1),  warn__nothres)    
+                self.updateStateBox('motor_throttle', round(self.ds.motor_throttle,0), warn__nothres)
+                
             else:
-                self.updateStateBox('orientation_inclinometer', str_incvec,          warn__nothres)
-
-            self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
-            self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
-            self.updateStateBox('pressure_gear1',       round(self.ds.pressure_gear1,1),       warn__pressure)
-            self.updateStateBox('pressure_gear2',       round(self.ds.pressure_gear2,1),       warn__pressure)
-            self.updateStateBox('hammer',               round(self.ds.hammer,1),               warn__hammer)
-
-            self.updateStateBox('temperature_electronics',    round(self.ds.temperature_electronics,1),    warn__temperature_electronics)
-            self.updateStateBox('temperature_topplug',        round(self.ds.temperature_topplug,1),        warn__temperature_electronics)
-            self.updateStateBox('temperature_gear1',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
-            self.updateStateBox('temperature_gear2',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
-            self.updateStateBox('temperature_auxelectronics', round(self.ds.temperature_auxelectronics,1), warn__temperature_electronics)
-            self.updateStateBox('temperature_motor',          round(self.ds.temperature_motor,1),          warn__temperature_motor)    
-            self.updateStateBox('temperature_motorctrl',      round(self.ds.motor_controller_temp,1),      warn__temperature_motor)    
-            
-            self.updateStateBox('motor_current',  round(self.ds.motor_current,1),  warn__motor_current)
-            self.updateStateBox('motor_speed',    round(self.ds.motor_rpm,1),      warn__motor_rpm)    
-            self.updateStateBox('motor_voltage',  round(self.ds.motor_voltage,1),  warn__nothres)    
-            self.updateStateBox('motor_throttle', round(self.ds.motor_throttle,0), warn__nothres)
+                NA_fields = [ \
+                    'orientation_inclination', 'orientation_azimuth', 'orientation_spin',  #'orientation_inclinometer', 'orientation_acceleration', 'orientation_magnetometer', 'orientation_gyroscope', \
+                    'pressure_electronics', 'pressure_topplug', 'pressure_gear1', 'pressure_gear2', 'hammer', \
+                    'temperature_electronics', 'temperature_topplug', 'temperature_gear1', 'temperature_gear2', 'temperature_auxelectronics', 'temperature_motor', 'temperature_motorctrl', \
+                    'motor_current','motor_speed','motor_voltage','motor_throttle']
+                for f in NA_fields:
+                    lbl = getattr(self, f)
+                    lbl.setText('No conn.')
         
         ### END
                     
