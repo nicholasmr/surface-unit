@@ -90,7 +90,7 @@ class MainWidget(QWidget):
         self.curve_current  = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
         
         # Titles
-        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE))
+#        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE)) # set in update() if also writing current value in title
         self.plot_speed.setTitle(self.htmlfont('<b>Winch speed (cm/s)', FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current (A)', FS_GRAPH_TITLE))
 
@@ -402,10 +402,8 @@ class MainWidget(QWidget):
     def clicked_plotdeltaload(self):
         if self.cbox_plotdeltaload.isChecked():
             self.hist_load -= self.ss.loadtare
-            self.plot_load.setTitle(self.htmlfont('<b>Tare load (kg)', FS_GRAPH_TITLE))
         else:
             self.hist_load += self.ss.loadtare
-            self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE))
         
     ### State update
     
@@ -442,6 +440,11 @@ class MainWidget(QWidget):
         self.hist_load = np.roll(self.hist_load,  -1); self.hist_load[-1]  = self.ss.load
         self.hist_loadtare = self.hist_load-self.ss.loadtare
         self.curve_load.setData( x=self.hist_time,y=self.hist_loadtare if self.cbox_plotdeltaload.isChecked() else self.hist_load)
+
+        if self.cbox_plotdeltaload.isChecked():
+            self.plot_load.setTitle(self.htmlfont('<b>Tare load (kg) &mdash; %.2f kg'%(self.ss.load-self.ss.loadtare), FS_GRAPH_TITLE))
+        else:
+            self.plot_load.setTitle(self.htmlfont('<b>Load (kg) &mdash; %.2f kg'%(self.ss.load), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
