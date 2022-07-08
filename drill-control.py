@@ -91,7 +91,7 @@ class MainWidget(QWidget):
         
         # Titles
 #        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE)) # set in update() if also writing current value in title
-        self.plot_speed.setTitle(self.htmlfont('<b>Winch speed (cm/s)', FS_GRAPH_TITLE))        
+        self.plot_speed.setTitle(self.htmlfont('<b>Speed (cm/s)', FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current (A)', FS_GRAPH_TITLE))
 
         def setAxisTicksEtc(obj):
@@ -400,10 +400,7 @@ class MainWidget(QWidget):
         print('Saving screenshot to %s'%(fname))
     
     def clicked_plotdeltaload(self):
-        if self.cbox_plotdeltaload.isChecked():
-            self.hist_load -= self.ss.loadtare
-        else:
-            self.hist_load += self.ss.loadtare
+        pass
         
     ### State update
     
@@ -441,10 +438,8 @@ class MainWidget(QWidget):
         self.hist_loadtare = self.hist_load-self.ss.loadtare
         self.curve_load.setData( x=self.hist_time,y=self.hist_loadtare if self.cbox_plotdeltaload.isChecked() else self.hist_load)
 
-        if self.cbox_plotdeltaload.isChecked():
-            self.plot_load.setTitle(self.htmlfont('<b>Tare load (kg) &mdash; %.2f kg'%(self.ss.load-self.ss.loadtare), FS_GRAPH_TITLE))
-        else:
-            self.plot_load.setTitle(self.htmlfont('<b>Load (kg) &mdash; %.2f kg'%(self.ss.load), FS_GRAPH_TITLE))
+        if self.cbox_plotdeltaload.isChecked(): self.plot_load.setTitle(self.htmlfont('<b>Tare load = %.2f kg'%(self.ss.load-self.ss.loadtare), FS_GRAPH_TITLE))
+        else:                                   self.plot_load.setTitle(self.htmlfont('<b>Load = %.2f kg'%(self.ss.load), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
