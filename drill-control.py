@@ -96,9 +96,10 @@ class MainWidget(QWidget):
         self.curve_current  = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
         
         # Titles
-#        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE)) # set in update() if also writing current value in title
-        self.plot_speed.setTitle(self.htmlfont('<b>Speed (cm/s)', FS_GRAPH_TITLE))        
-        self.plot_current.setTitle(self.htmlfont('<b>Current (A)', FS_GRAPH_TITLE))
+        # set in update() if also writing current value in title
+#        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE)) 
+#        self.plot_speed.setTitle(self.htmlfont('<b>Speed (cm/s)', FS_GRAPH_TITLE))        
+#        self.plot_current.setTitle(self.htmlfont('<b>Current (A)', FS_GRAPH_TITLE))
 
         def setAxisTicksEtc(obj):
                 obj.setLabel('right', "&nbsp;") # hacky way of adding spacing between graphs
@@ -456,6 +457,8 @@ class MainWidget(QWidget):
 
         if self.cbox_plotdeltaload.isChecked(): self.plot_load.setTitle(self.htmlfont('<b>Tare load = %.2f kg'%(self.ss.load-self.ss.loadtare), FS_GRAPH_TITLE))
         else:                                   self.plot_load.setTitle(self.htmlfont('<b>Load = %.2f kg'%(self.ss.load), FS_GRAPH_TITLE))
+        self.plot_speed.setTitle(self.htmlfont('<b>Speed = %.2f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
+        self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display

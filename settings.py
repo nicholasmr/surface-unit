@@ -49,6 +49,6 @@ warn__corelength              = [0.0,3.0]  # metre
 #----------------------
 # Safe range for surface sensors
 #----------------------
-warn__load     = [0,1200]    # kg
+warn__load     = [-100,1200] # kg
 warn__velocity = [-1.2,1.2]  # m/s
 
