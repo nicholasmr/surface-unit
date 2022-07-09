@@ -14,15 +14,20 @@ class SurfaceState():
     depthtare = 0.0
     
     load     = 0.0
+#    loadprev = 0.0
     loadtare = 0.0 # reference value to subtract from "load"
     loadnet  = 0.0 # load - cable weight
 
     # For speed calculation    
     speedinst  = 0.0 # instantaneous
     speed      = 0.0 # time-average
-    Navg       = 15 # length of array used to calculate time averaged 
+    Navg       = 20 # length of array used to calculate time averaged 
     speed_list = np.zeros((Navg)) # array of speed estimates
     dt_list    = np.zeros((Navg)) # array of dt
+    
+    # Are sensors live?
+    isdepthcounterdead = False
+    isloadcelldead     = False 
     
     # Redis connection
     rc = None 
@@ -52,19 +57,21 @@ class SurfaceState():
         self.updatetime = time.time() # new time stamp (seconds)
         self.dt = self.updatetime - self.updatetimeprev
         
-        ### Depth 
+        ### Depth and speed
         self.depthprev = self.depth # for speed calculation
         try: 
             encoder = json.loads(self.rc.get('depth-encoder'))
             self.depth = abs(encoder["depth"])
+            self.speedinst = (self.depth-self.depthprev)/self.dt
+            self.speed = self.calc_avgspeed(self.speedinst, self.dt)
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
+            self.isdepthcounterdead = False
         except:
-            self.depth, self.depthtare = 0.0, 0.0
-
-        ### Speed
-        self.speedinst = (self.depth-self.depthprev)/self.dt
-        self.speed = self.calc_avgspeed(self.speedinst, self.dt)
+            # probably because not connected?
+            self.depth, self.depthtare = 0.0, 0.0 
+            self.speedinst, self.speed = 0.0, 0.0
+            self.isdepthcounterdead = True
 
         ### Load
         try:
@@ -73,9 +80,12 @@ class SurfaceState():
             self.loadnet  = self.load - CABLE_DENSITY*self.depth
             try:    self.loadtare = float(self.rc.get('load-tare'))
             except: self.loadtare = self.load
+            self.isloadcelldead = False
         except:
+            # probably because not connected?
             self.load, self.loadnet, self.loadtare = 0.0, 0.0, 0.0
-        
+            self.isloadcelldead = True
+                    
         ### AUX
         try:    self.alertloggers = int(self.rc.get('alert-loggers'))
         except: self.alertloggers = 0

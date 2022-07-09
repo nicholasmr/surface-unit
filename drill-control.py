@@ -80,7 +80,13 @@ class MainWidget(QWidget):
         setupaxis(self.plot_load);
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
-
+        self.plot_load.setMenuEnabled(False)
+        self.plot_speed.setMenuEnabled(False)
+        self.plot_current.setMenuEnabled(False)
+        self.plot_load.setMouseEnabled(x=False, y=False)
+        self.plot_speed.setMouseEnabled(x=False, y=False)
+        self.plot_current.setMouseEnabled(x=False, y=False)
+    
         # init curves
         lw = 3
         plotpen_black = pg.mkPen(color='k', width=lw)
@@ -150,12 +156,18 @@ class MainWidget(QWidget):
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('surface_load',            'Load (kg)',            initstr))
-        layout.addWidget(self.MakeStateBox('surface_depth',           'Depth (m)',            initstr))
-        layout.addWidget(self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr))
-        layout.addWidget(self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr))
-        layout.addWidget(self.MakeStateBox('surface_peakload',        'Peak load, %is (kg)'%(XAXISLEN), initstr))
-        layout.addWidget(self.MakeStateBox('surface_downholevoltage', 'Downhole vol. (V)',    initstr))
+        self.gb_surface_load            = self.MakeStateBox('surface_load',            'Load (kg)',            initstr)
+        self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
+        self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr)
+        self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
+        self.gb_surface_peakload        = self.MakeStateBox('surface_peakload',        'Peak load, %is (kg)'%(XAXISLEN), initstr)
+        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole vol. (V)',    initstr)
+        layout.addWidget(self.gb_surface_load)
+        layout.addWidget(self.gb_surface_depth)
+        layout.addWidget(self.gb_surface_speed)
+        layout.addWidget(self.gb_surface_loadcable)
+        layout.addWidget(self.gb_surface_peakload)
+        layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
 
@@ -278,6 +290,34 @@ class MainWidget(QWidget):
         layout.setRowStretch(row+5, 1)
         self.gb_motor.setLayout(layout)
         
+    def create_gb_run(self, initstr='N/A'):
+        self.gb_run = QGroupBox("Current run")
+        layout = QVBoxLayout()
+        self.btn_startrun = QPushButton("Start")
+        self.btn_startrun.setCheckable(True)
+        self.btn_startrun.clicked.connect(self.clicked_startstop_run)
+        self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+        layout.addWidget(self.btn_startrun)
+
+        self.cbox_plotdeltaload = QCheckBox("Plot tare load")
+        self.cbox_plotdeltaload.toggled.connect(self.clicked_plotdeltaload)     
+        layout.addWidget(self.cbox_plotdeltaload)  
+        
+        self.btn_screenshot = QPushButton("Screenshot")
+        self.btn_screenshot.clicked.connect(self.take_screenshot)
+        layout.addWidget(self.btn_screenshot)
+
+        layout.addWidget(self.MakeStateBox('run_time', 'Run time', initstr))
+        self.gb_run_startdepth = self.MakeStateBox('run_startdepth', 'Start depth (m)',  initstr)
+        self.gb_run_deltadepth = self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr)
+        self.gb_run_startload  = self.MakeStateBox('run_startload',  'Start load (kg)',  initstr)
+        self.gb_run_deltaload  = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
+        layout.addWidget(self.gb_run_startdepth)
+        layout.addWidget(self.gb_run_deltadepth)
+        layout.addWidget(self.gb_run_startload)
+        layout.addWidget(self.gb_run_deltaload)
+        layout.addStretch(1)
+        self.gb_run.setLayout(layout)
 
     def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
@@ -313,30 +353,6 @@ class MainWidget(QWidget):
         layout.addStretch(1)
         self.gb_expert.setLayout(layout)
         
-    def create_gb_run(self, initstr='N/A'):
-        self.gb_run = QGroupBox("Current run")
-        layout = QVBoxLayout()
-        self.btn_startrun = QPushButton("Start")
-        self.btn_startrun.setCheckable(True)
-        self.btn_startrun.clicked.connect(self.clicked_startstop_run)
-        self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
-        layout.addWidget(self.btn_startrun)
-        self.btn_screenshot = QPushButton("Screenshot")
-        self.btn_screenshot.clicked.connect(self.take_screenshot)
-        layout.addWidget(self.btn_screenshot)
-
-        self.cbox_plotdeltaload = QCheckBox("Plot tare load")
-        self.cbox_plotdeltaload.toggled.connect(self.clicked_plotdeltaload)     
-        layout.addWidget(self.cbox_plotdeltaload)  
-
-        layout.addWidget(self.MakeStateBox('run_time',       'Run time',         initstr))
-        layout.addWidget(self.MakeStateBox('run_startdepth', 'Start depth (m)',  initstr))
-        layout.addWidget(self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr))
-        layout.addWidget(self.MakeStateBox('run_startload',  'Start load (kg)',  initstr))
-        layout.addWidget(self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr))
-        layout.addStretch(1)
-        self.gb_run.setLayout(layout)
-
     ### User actions 
     
     # Motor
@@ -513,11 +529,30 @@ class MainWidget(QWidget):
                 self.updateStateBox('motor_voltage',  round(self.ds.motor_voltage,1),  warn__nothres)    
                 self.updateStateBox('motor_throttle', round(self.ds.motor_throttle,0), warn__nothres)
         
-        ### Set to disabled if drill state is dead
-        for f in self.ds.statefields:
-            lbl = getattr(self, f)
-            lbl.setEnabled(not self.ds.isdead)
+        ### Disabled widgets if drill state is dead
         
+        self.gb_orientation.setEnabled(not self.ds.isdead)
+        self.gb_pressure.setEnabled(not self.ds.isdead)
+        self.gb_temperature.setEnabled(not self.ds.isdead)
+        self.gb_motor.setEnabled(not self.ds.isdead)
+        self.gb_expert.setEnabled(not self.ds.isdead)
+        self.gb_surface_downholevoltage.setEnabled(not self.ds.isdead)
+
+        ### Disabled widgets if winch encoder is dead
+
+        for f in ['gb_surface_depth','gb_surface_speed', 'gb_run_startdepth','gb_run_deltadepth']:
+            lbl = getattr(self, f)
+            lbl.setEnabled(not self.ss.isloadcelldead)
+                        
+#        if self.ss.isloadcelldead: self.curve_load.hide()
+#        else:                      self.curve_load.show()
+                        
+        ### Disabled widgets if load cell is dead
+                        
+        for f in ['gb_surface_load','gb_surface_loadcable','gb_surface_peakload',  'gb_run_startload','gb_run_deltaload']:
+            lbl = getattr(self, f)
+            lbl.setEnabled(not self.ss.isdepthcounterdead)
+            
         
         ### END
                     
