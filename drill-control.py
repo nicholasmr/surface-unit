@@ -22,7 +22,7 @@ XAXISLEN     = 30 + 1 # seconds
 SHOW_BNO055_DETAILED = 1
 
 FS = 13
-FS_GRAPH_TITLE = 4 # font size for graph titles
+FS_GRAPH_TITLE = 4.5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
 # Print settings
@@ -279,13 +279,9 @@ class MainWidget(QWidget):
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_inchingstart.clicked.connect(self.clicked_inchingstart)
-#        self.btn_inchingstop = QPushButton("Stop")
-#        self.btn_inchingstop.setStyleSheet("background-color : %s"%(COLOR_RED))
-#        self.btn_inchingstop.clicked.connect(self.clicked_motorstop)
         self.btn_inchingstart.setMinimumWidth(btn_width); self.btn_inchingstart.setMaximumWidth(btn_width)
-#        self.btn_inchingstop.setMinimumWidth(btn_width);  self.btn_inchingstop.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_inchingstart, row+4,1)
-#        layout.addWidget(self.btn_inchingstop,  row+4,2)
+#        layout.addWidget(QLabel(''), row,1)
               
         ###              
         layout.setRowStretch(row+5, 1)
@@ -294,15 +290,21 @@ class MainWidget(QWidget):
     def create_gb_run(self, initstr='N/A'):
         self.gb_run = QGroupBox("Current run")
         layout = QVBoxLayout()
+        
         self.btn_startrun = QPushButton("Start")
         self.btn_startrun.setCheckable(True)
         self.btn_startrun.clicked.connect(self.clicked_startstop_run)
         self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         layout.addWidget(self.btn_startrun)
 
-        self.cbox_plotdeltaload = QCheckBox("Plot tare load")
-        self.cbox_plotdeltaload.toggled.connect(self.clicked_plotdeltaload)     
-        layout.addWidget(self.cbox_plotdeltaload)  
+#        self.cbox_plotdeltaload = QCheckBox("Plot tare load")
+#        self.cbox_plotdeltaload.toggled.connect(self.clicked_plotdeltaload)     
+#        layout.addWidget(self.cbox_plotdeltaload)  
+        self.cbox_plotdeltaload = QPushButton("Plot tare load")
+        self.cbox_plotdeltaload.setCheckable(True)
+        self.cbox_plotdeltaload.clicked.connect(self.clicked_plotdeltaload)
+        layout.addWidget(self.cbox_plotdeltaload)
+
         
         self.btn_screenshot = QPushButton("Screenshot")
         self.btn_screenshot.clicked.connect(self.take_screenshot)
@@ -401,14 +403,15 @@ class MainWidget(QWidget):
         if self.btn_startrun.isChecked(): # start pressed
             self.btn_startrun.setText('Stop')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
-            self.cbox_plotdeltaload.setChecked(True)
             self.runtime0 = datetime.datetime.now()
-            self.ss.set_loadtare(self.ss.load)
             self.ss.set_depthtare(self.ss.depth)
+            # simulate click, set load tare
+            self.cbox_plotdeltaload.setChecked(True) 
+            self.clicked_plotdeltaload() 
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
-            self.cbox_plotdeltaload.setChecked(False)
+            self.cbox_plotdeltaload.setChecked(False) # simulate un-click
     
     def take_screenshot(self):
         fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
@@ -417,8 +420,10 @@ class MainWidget(QWidget):
         print('Saving screenshot to %s'%(fname))
     
     def clicked_plotdeltaload(self):
-        pass
-        
+        if self.cbox_plotdeltaload.isChecked():
+            print('Setting tare load to %.2f'%(self.ss.load))
+            self.ss.set_loadtare(self.ss.load)
+            
     ### State update
     
     def MakeStateBox(self, id, name, value, margin_left=6, margin_right=0, margin_topbot=3):

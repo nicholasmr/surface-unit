@@ -78,13 +78,15 @@ class SurfaceState():
             loadcell = json.loads(self.rc.get('load-cell'))
             self.load = float(loadcell["load"])
             self.loadnet  = self.load - CABLE_DENSITY*self.depth
-            try:    self.loadtare = float(self.rc.get('load-tare'))
-            except: self.loadtare = self.load
             self.isloadcelldead = False
         except:
             # probably because not connected?
-            self.load, self.loadnet, self.loadtare = 0.0, 0.0, 0.0
+            self.load, self.loadnet = 0.0, 0.0
             self.isloadcelldead = True
+#            self.load = np.random.rand()  + 10 # debug
+
+        try:    self.loadtare = float(self.rc.get('load-tare'))
+        except: self.loadtare = 0.0
                     
         ### AUX
         try:    self.alertloggers = int(self.rc.get('alert-loggers'))
