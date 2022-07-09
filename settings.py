@@ -12,7 +12,7 @@ LOCAL_HOST = '127.0.0.1'
 import socket
 if socket.gethostname() == 'drill': REDIS_HOST = LOCAL_HOST
 else:                               REDIS_HOST = DRILL_HOST
-#REDIS_HOST = LOCAL_HOST
+REDIS_HOST = LOCAL_HOST
 
 #----------------------
 # Cable linear density for load-cable calculation

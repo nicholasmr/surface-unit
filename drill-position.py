@@ -53,8 +53,8 @@ else:      vdrill_hist = np.full(50,1e-10)
 
 ### State objects 
 
-ds = DrillState(  redis_host=REDIS_HOST)   
-ss = SurfaceState(redis_host=REDIS_HOST)
+ds = DrillState(  redis_host=DRILL_HOST if INFOMODE else REDIS_HOST)   
+ss = SurfaceState(redis_host=DRILL_HOST if INFOMODE else REDIS_HOST)
 
 ### Globals 
 
@@ -471,7 +471,7 @@ def eventListener():
 
             # Pull from redis 
             ss.update()
-            ldrill, velinst, l, load = ss.depth, ss.velocity, ss.depthtare, ss.load
+            ldrill, velinst, l, load = ss.depth, ss.speed, ss.depthtare, ss.load
             alertloggers = ss.alertloggers
             
             ds.update()
@@ -538,6 +538,7 @@ layout.addWidget(progress, 0, 0, 4, 1)  # plot goes on right side, spanning 3 ro
 
 if not INFOMODE:
     button = QPushButton('Alert loggers',w)
+    button.setCheckable(True)
     button.clicked.connect(lambda: ss.toggle_alertloggers())
     button.resize(120,30)
     button.move(int(geom_xy[0]*f/2*1.1),20)
