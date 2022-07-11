@@ -14,7 +14,7 @@ class SurfaceState():
     depthtare = 0.0
     
     load     = 0.0
-#    loadprev = 0.0
+    loadprev = 0.0 # used for running smoothed load average
     loadtare = 0.0 # reference value to subtract from "load"
     loadnet  = 0.0 # load - cable weight
 
@@ -26,8 +26,8 @@ class SurfaceState():
     dt_list    = np.zeros((Navg)) # array of dt
     
     # Are sensors live?
-    isdepthcounterdead = False
-    isloadcelldead     = False 
+    islive_depthcounter = False
+    islive_loadcell     = False 
     
     # Redis connection
     rc = None 
@@ -50,7 +50,7 @@ class SurfaceState():
         try:    return getattr(self, attr)
         except: return None
             
-    def update(self):
+    def update(self, smoothload=True):
 
         ### Time
         self.updatetimeprev = self.updatetime 
@@ -66,23 +66,29 @@ class SurfaceState():
             self.speed = self.calc_avgspeed(self.speedinst, self.dt)
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
-            self.isdepthcounterdead = False
+            self.islive_depthcounter = True
         except:
             # probably because not connected?
             self.depth, self.depthtare = 0.0, 0.0 
             self.speedinst, self.speed = 0.0, 0.0
-            self.isdepthcounterdead = True
+            self.islive_depthcounter = False
+
+        # m/s -> cm/s 
+        self.speed     *= 100
+        self.speedinst *= 100
 
         ### Load
+        self.loadprev = self.load
         try:
             loadcell = json.loads(self.rc.get('load-cell'))
-            self.load = float(loadcell["load"])
+            loadnew = float(loadcell["load"])
+            self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
             self.loadnet  = self.load - CABLE_DENSITY*self.depth
-            self.isloadcelldead = False
+            self.islive_loadcell = True
         except:
             # probably because not connected?
             self.load, self.loadnet = 0.0, 0.0
-            self.isloadcelldead = True
+            self.islive_loadcell = False
 #            self.load = np.random.rand()  + 10 # debug
 
         try:    self.loadtare = float(self.rc.get('load-tare'))

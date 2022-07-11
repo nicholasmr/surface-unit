@@ -17,12 +17,15 @@ import pyqtgraph as pg
 
 DT           = 1/8 # update rate in seconds for GUI/surface state
 DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
+
 XAXISLEN     = 30 + 1 # seconds
+#XAXISLEN     = 60*60 # seconds
+xaxislens_names = ["30 sec", "2 min", "10 min", "60 min"]
 
 SHOW_BNO055_DETAILED = 1
 
 FS = 13
-FS_GRAPH_TITLE = 4.5 # font size for graph titles
+FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
 # Print settings
@@ -44,6 +47,9 @@ class MainWidget(QWidget):
     runtime0 = None
     Nt = 0 # number of time steps taken
 
+    loadmeasures = {'hist_load':'Load', 'hist_loadnet':'Load - cable', 'hist_loadtare':'Tare load'}
+    loadmeasure_inuse = 'hist_load'
+    
     def __init__(self, parent=None):
     
         super(MainWidget, self).__init__(parent)
@@ -62,10 +68,11 @@ class MainWidget(QWidget):
         # X-axis
         self.hist_time       = np.flipud(np.arange(0,XAXISLEN+1e-9,DT))
         self.hist_time_drill = np.flipud(np.arange(0,XAXISLEN+1e-9,DT*DTFRAC_DRILL))
-        self.hist_load     = np.full(len(self.hist_time), 0.0)
-        self.hist_loadtare = np.full(len(self.hist_time), 0.0)
-        self.hist_speed    = np.full(len(self.hist_time), 0.0)
-        self.hist_current  = np.full(len(self.hist_time_drill), 0.0)
+        self.hist_load       = np.full(len(self.hist_time), 0.0)
+        self.hist_loadnet    = np.full(len(self.hist_time), 0.0)
+        self.hist_loadtare   = np.full(len(self.hist_time), 0.0)
+        self.hist_speed      = np.full(len(self.hist_time), 0.0)
+        self.hist_current    = np.full(len(self.hist_time_drill), 0.0)
 
         def setupaxis(obj):
             obj.invertX()
@@ -80,20 +87,24 @@ class MainWidget(QWidget):
         setupaxis(self.plot_load);
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
+        self.plot_load.setLimits(minYRange=4.2) # minimum y-axis span for load (don't auto-zoom in too much)
+        self.plot_speed.setLimits(minYRange=1.1) # minimum y-axis span for speed (don't auto-zoom in too much)
+        self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
+    
         self.plot_load.setMenuEnabled(False)
         self.plot_speed.setMenuEnabled(False)
         self.plot_current.setMenuEnabled(False)
         self.plot_load.setMouseEnabled(x=False, y=False)
         self.plot_speed.setMouseEnabled(x=False, y=False)
         self.plot_current.setMouseEnabled(x=False, y=False)
-    
+
         # init curves
         lw = 3
         plotpen_black = pg.mkPen(color='k', width=lw)
         plotpen_blue  = pg.mkPen(color=COLOR_BLUE, width=lw-1)
-        self.curve_load     = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
-        self.curve_speed    = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
-        self.curve_current  = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
+        self.curve_load    = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
+        self.curve_speed   = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
+        self.curve_current = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
         
         # Titles
         # set in update() if also writing current value in title
@@ -119,12 +130,14 @@ class MainWidget(QWidget):
         ### State fields
 
         self.create_gb_surface()
+        self.create_gb_status()
         self.create_gb_orientation()
         self.create_gb_temperature()
         self.create_gb_pressure()
         self.create_gb_motor()
-        self.create_gb_expert()
         self.create_gb_run()
+        self.create_gb_figconf()
+        self.create_gb_expert()
 
         ### QT Layout
 
@@ -136,13 +149,19 @@ class MainWidget(QWidget):
         
         # State fields (bottom)
         botLayout = QHBoxLayout()
-        botLayout.addWidget(self.gb_surface)
+        botLayoutSub1 = QVBoxLayout()
+        botLayoutSub1.addWidget(self.gb_surface)
+        botLayoutSub1.addWidget(self.gb_status)
+        botLayout.addLayout(botLayoutSub1)
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
         botLayout.addWidget(self.gb_pressure)
         botLayout.addWidget(self.gb_motor)
         botLayout.addWidget(self.gb_run)
-        botLayout.addWidget(self.gb_expert)
+        botLayoutSub2 = QVBoxLayout()
+        botLayoutSub2.addWidget(self.gb_figconf)
+        botLayoutSub2.addWidget(self.gb_expert)
+        botLayout.addLayout(botLayoutSub2)
         botLayout.addStretch(1)
         
         # Main (parent) layout
@@ -161,13 +180,11 @@ class MainWidget(QWidget):
         self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
         self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
-        self.gb_surface_peakload        = self.MakeStateBox('surface_peakload',        'Peak load, %is (kg)'%(XAXISLEN), initstr)
-        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole vol. (V)',    initstr)
-        layout.addWidget(self.gb_surface_load)
+        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
+        layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
-        layout.addWidget(self.gb_surface_peakload)
         layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
@@ -223,14 +240,19 @@ class MainWidget(QWidget):
     def create_gb_motor(self, initstr='N/A', btn_width=170):
         self.gb_motor = QGroupBox("Motor")
         layout = QGridLayout()
-        layout.addWidget(self.MakeStateBox('motor_current',  'Current (A)',  initstr), 1,1)
-        layout.addWidget(self.MakeStateBox('motor_speed',    'Speed (RPM)',  initstr), 1,2)
-        layout.addWidget(self.MakeStateBox('motor_voltage',  'Voltage (V)',  initstr), 2,1)
-        layout.addWidget(self.MakeStateBox('motor_throttle', 'Throttle (%)', initstr), 2,2)
+        layout.addWidget(self.MakeStateBox('motor_current',    'Current (A)',  initstr), 1,1)
+        layout.addWidget(self.MakeStateBox('motor_speed',      'Speed (RPM)',  initstr), 1,2)
+        layout.addWidget(self.MakeStateBox('motor_voltage',    'Voltage (V)',  initstr), 2,1)
+        layout.addWidget(self.MakeStateBox('motor_throttle',   'Throttle (%)', initstr), 2,2)
+        layout.addWidget(self.MakeStateBox('motor_tachometer', 'Tachometer (rev)',   initstr), 3,1)
+        btn_resettacho = QPushButton("Reset tachometer")
+        btn_resettacho.clicked.connect(self.clicked_resettacho)
+        layout.addWidget(btn_resettacho, 4,1)
+
 
         ### Throttle
 
-        row = 3
+        row = 5
         layout.addWidget(QLabel(), row,1)
         self.sl_throttle_label = QLabel('Throttle: 0%')
         layout.addWidget(self.sl_throttle_label, row+1,1, 1,2)
@@ -256,7 +278,7 @@ class MainWidget(QWidget):
         
         ### Inching
         
-        row = 8
+        row += 5
         layout.addWidget(QLabel(), row,1)
         self.sl_inching_label = QLabel('Inching: 0 deg')
         layout.addWidget(self.sl_inching_label, row+1,1)
@@ -265,7 +287,9 @@ class MainWidget(QWidget):
         self.sl_inching.setMaximum(+360)
         self.sl_inching.setValue(0)
         self.sl_inching.setTickPosition(QSlider.TicksBelow)
-        self.sl_inching.setTickInterval(int(180/4))
+#        self.sl_inching.setTickInterval(int(180/4))
+        self.sl_inching.setTickInterval(60)
+        self.sl_inching.setSingleStep(5)
         self.sl_inching.valueChanged.connect(self.changed_sl_inching)
         layout.addWidget(self.sl_inching, row+2,1, 1,1)
         self.dial_inching = QDial()
@@ -297,13 +321,10 @@ class MainWidget(QWidget):
         self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         layout.addWidget(self.btn_startrun)
 
-#        self.cbox_plotdeltaload = QCheckBox("Plot tare load")
-#        self.cbox_plotdeltaload.toggled.connect(self.clicked_plotdeltaload)     
-#        layout.addWidget(self.cbox_plotdeltaload)  
-        self.cbox_plotdeltaload = QPushButton("Plot tare load")
-        self.cbox_plotdeltaload.setCheckable(True)
-        self.cbox_plotdeltaload.clicked.connect(self.clicked_plotdeltaload)
-        layout.addWidget(self.cbox_plotdeltaload)
+        self.cbox_settareload = QPushButton("Set tare load")
+        self.cbox_settareload.setCheckable(True)
+        self.cbox_settareload.clicked.connect(self.clicked_settareload)
+        layout.addWidget(self.cbox_settareload)
 
         
         self.btn_screenshot = QPushButton("Screenshot")
@@ -315,10 +336,12 @@ class MainWidget(QWidget):
         self.gb_run_deltadepth = self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr)
         self.gb_run_startload  = self.MakeStateBox('run_startload',  'Start load (kg)',  initstr)
         self.gb_run_deltaload  = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
+        self.gb_run_peakload    = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(XAXISLEN), initstr)
         layout.addWidget(self.gb_run_startdepth)
         layout.addWidget(self.gb_run_deltadepth)
         layout.addWidget(self.gb_run_startload)
         layout.addWidget(self.gb_run_deltaload)
+        layout.addWidget(self.gb_run_peakload)
         layout.addStretch(1)
         self.gb_run.setLayout(layout)
 
@@ -355,6 +378,56 @@ class MainWidget(QWidget):
 
         layout.addStretch(1)
         self.gb_expert.setLayout(layout)
+
+    def create_gb_status(self):
+        self.gb_status = QGroupBox("Status")
+        layout = QGridLayout()
+        self.status_drill        = QLabel('Offline')
+        self.status_loadcell     = QLabel('Offline')
+        self.status_depthcounter = QLabel('Offline')
+        layout.addWidget(QLabel('Drill:'),1,1)
+        layout.addWidget(QLabel('Load cell:'),2,1)
+        layout.addWidget(QLabel('Depth counter:'),3,1)
+        layout.addWidget(self.status_drill,1,2)
+        layout.addWidget(self.status_loadcell,2,2)
+        layout.addWidget(self.status_depthcounter,3,2)
+        layout.rowStretch(1)
+        self.gb_status.setLayout(layout)
+
+    def create_gb_figconf(self):
+        self.gb_figconf = QGroupBox("Plots")
+        layout_master = QVBoxLayout()
+        
+        layout_master.addWidget(QLabel('Load measure:'))
+        self.cb_loadmeasure = QComboBox()
+        self.cb_loadmeasure.addItems([self.loadmeasures[key] for key in self.loadmeasures.keys()])
+        self.cb_loadmeasure.currentIndexChanged.connect(self.changed_loadmeasure)
+        layout_master.addWidget(self.cb_loadmeasure)
+
+        layout_master.addWidget(QLabel(''))        
+        gb = QGroupBox("x-axis length")
+        layout = QGridLayout()        
+        layout.addWidget(QLabel('Speed: '), 1,1)
+        self.cb_xaxislen_speed = QComboBox()
+        self.cb_xaxislen_speed.addItems(xaxislens_names)
+        self.cb_xaxislen_speed.currentIndexChanged.connect(self.changed_xaxislen_speed)
+        layout.addWidget(self.cb_xaxislen_speed, 1,2)
+        layout.addWidget(QLabel('Load: '), 2,1)
+        self.cb_xaxislen_load = QComboBox()
+        self.cb_xaxislen_load.addItems(xaxislens_names)
+        self.cb_xaxislen_load.currentIndexChanged.connect(self.changed_xaxislen_load)
+        layout.addWidget(self.cb_xaxislen_load, 2,2)
+        layout.addWidget(QLabel('Current: '), 3,1)
+        self.cb_xaxislen_current = QComboBox()
+        self.cb_xaxislen_current.addItems(xaxislens_names)
+        self.cb_xaxislen_current.currentIndexChanged.connect(self.changed_xaxislen_current)
+        layout.addWidget(self.cb_xaxislen_current, 3,2)
+        gb.setLayout(layout)
+        layout_master.addWidget(gb)
+        
+        layout_master.addStretch(1)
+        self.gb_figconf.setLayout(layout_master)
+
         
     ### User actions 
     
@@ -379,6 +452,9 @@ class MainWidget(QWidget):
     def clicked_motorstop(self):
         self.ds.stop_motor()
         
+    def clicked_resettacho(self):
+        self.ds.set_tacho(0)
+        
     # Expert control 
     
     def clicked_unlockexpert(self):
@@ -390,12 +466,28 @@ class MainWidget(QWidget):
         self.sl_inchingthrottle_label.setEnabled(unlocked)
         self.sl_inchingthrottle.setEnabled(unlocked)
 
-
     def changed_motorconfig(self):
         pass
 
     def changed_inchingthrottle(self):
         self.sl_inchingthrottle_label.setText('Inching throttle: %i%%'%(self.sl_inchingthrottle.value()))
+
+    # x-axis lengths
+    
+    def changed_xaxislen_speed(self):
+        pass
+
+    def changed_xaxislen_load(self):
+        pass
+        
+    def changed_xaxislen_current(self):
+        pass
+        
+    def changed_loadmeasure(self):
+        loadmeasure = self.cb_loadmeasure.currentText()
+        if loadmeasure == 'Load':         self.loadmeasure_inuse = 'hist_load'
+        if loadmeasure == 'Load - cable': self.loadmeasure_inuse = 'hist_loadnet'
+        if loadmeasure == 'Tare load':    self.loadmeasure_inuse = 'hist_loadtare'
 
     # Logging/run-status panel
     
@@ -405,22 +497,22 @@ class MainWidget(QWidget):
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
-            # simulate click, set load tare
-            self.cbox_plotdeltaload.setChecked(True) 
-            self.clicked_plotdeltaload() 
+#            # simulate click, set load tare
+#            self.cbox_settareload.setChecked(True) 
+            self.clicked_settareload() 
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
-            self.cbox_plotdeltaload.setChecked(False) # simulate un-click
+#            self.cbox_settareload.setChecked(False) # simulate un-click
     
     def take_screenshot(self):
         fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
-        command = 'scrot -F "%s"'%(fname)
+        command = 'scrot "%s"'%(fname)
         os.system(command)
         print('Saving screenshot to %s'%(fname))
     
-    def clicked_plotdeltaload(self):
-        if self.cbox_plotdeltaload.isChecked():
+    def clicked_settareload(self):
+        if self.cbox_settareload.isChecked():
             print('Setting tare load to %.2f'%(self.ss.load))
             self.ss.set_loadtare(self.ss.load)
             
@@ -454,24 +546,26 @@ class MainWidget(QWidget):
         self.ss.update()
 
         ### Update graphs
-        self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed*100
+        self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed
         self.curve_speed.setData(x=self.hist_time,y=self.hist_speed)
-        self.hist_load = np.roll(self.hist_load,  -1); self.hist_load[-1]  = self.ss.load
-        self.hist_loadtare = self.hist_load-self.ss.loadtare
-        self.curve_load.setData( x=self.hist_time,y=self.hist_loadtare if self.cbox_plotdeltaload.isChecked() else self.hist_load)
+        
+        self.hist_load     = np.roll(self.hist_load,  -1);     self.hist_load[-1]     = self.ss.load
+        self.hist_loadtare = np.roll(self.hist_loadtare,  -1); self.hist_loadtare[-1] = self.ss.load - self.ss.loadtare
+        self.hist_loadnet  = np.roll(self.hist_loadnet,  -1);  self.hist_loadnet[-1]  = self.ss.loadnet
+        hist_loadmeas = getattr(self,self.loadmeasure_inuse)
+        self.curve_load.setData( x=self.hist_time,y=hist_loadmeas)
 
-        if self.cbox_plotdeltaload.isChecked(): self.plot_load.setTitle(self.htmlfont('<b>Tare load = %.2f kg'%(self.ss.load-self.ss.loadtare), FS_GRAPH_TITLE))
-        else:                                   self.plot_load.setTitle(self.htmlfont('<b>Load = %.2f kg'%(self.ss.load), FS_GRAPH_TITLE))
-        self.plot_speed.setTitle(self.htmlfont('<b>Speed = %.2f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
+        self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
+        self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.2f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
-        self.updateStateBox('surface_speed',           round(self.ss.speed*100,2),            warn__velocity*100)
+        self.updateStateBox('surface_speed',           round(self.ss.speed,2),                warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
-        self.updateStateBox('surface_peakload',        round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
+        self.updateStateBox('run_peakload',            round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
 
         if self.btn_startrun.isChecked(): 
             self.runtime1 = datetime.datetime.now() # update run time
@@ -496,7 +590,12 @@ class MainWidget(QWidget):
             self.hist_current  = np.roll(self.hist_current,  -1); self.hist_current[-1]  = self.ds.motor_current
             self.curve_current.setData(  x=self.hist_time_drill,y=self.hist_current)
 
-            if not self.ds.isdead:
+            ### Check components statuses
+            self.status_drill.setText('Online' if self.ds.islive else 'Offline')
+            self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
+            self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
+
+            if self.ds.islive:
                
                 ### Update state fields
                 str_incvec   = '[%.1f, %.1f]'%(self.ds.inclination_x,self.ds.inclination_x)
@@ -532,34 +631,35 @@ class MainWidget(QWidget):
                 self.updateStateBox('temperature_motor',          round(self.ds.temperature_motor,1),          warn__temperature_motor)    
                 self.updateStateBox('temperature_motorctrl',      round(self.ds.motor_controller_temp,1),      warn__temperature_motor)    
                 
-                self.updateStateBox('motor_current',  round(self.ds.motor_current,1),  warn__motor_current)
-                self.updateStateBox('motor_speed',    round(self.ds.motor_rpm,1),      warn__motor_rpm)    
-                self.updateStateBox('motor_voltage',  round(self.ds.motor_voltage,1),  warn__nothres)    
-                self.updateStateBox('motor_throttle', round(self.ds.motor_throttle,0), warn__nothres)
+                self.updateStateBox('motor_current',    round(self.ds.motor_current,1),  warn__motor_current)
+                self.updateStateBox('motor_speed',      round(self.ds.motor_rpm,1),      warn__motor_rpm)    
+                self.updateStateBox('motor_voltage',    round(self.ds.motor_voltage,1),  warn__nothres)    
+                self.updateStateBox('motor_throttle',   round(self.ds.motor_throttle,0), warn__nothres)
+                self.updateStateBox('motor_tachometer', round(self.ds.tachometer*TACHO_PRE_REV,2), warn__nothres)
         
         ### Disabled widgets if drill state is dead
         
-        self.gb_orientation.setEnabled(not self.ds.isdead)
-        self.gb_pressure.setEnabled(not self.ds.isdead)
-        self.gb_temperature.setEnabled(not self.ds.isdead)
-        self.gb_motor.setEnabled(not self.ds.isdead)
-        self.gb_expert.setEnabled(not self.ds.isdead)
-        self.gb_surface_downholevoltage.setEnabled(not self.ds.isdead)
+        self.gb_orientation.setEnabled(self.ds.islive)
+        self.gb_pressure.setEnabled(self.ds.islive)
+        self.gb_temperature.setEnabled(self.ds.islive)
+        self.gb_motor.setEnabled(self.ds.islive)
+        self.gb_expert.setEnabled(self.ds.islive)
+        self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
 
         ### Disabled widgets if winch encoder is dead
 
         for f in ['gb_surface_depth','gb_surface_speed', 'gb_run_startdepth','gb_run_deltadepth']:
             lbl = getattr(self, f)
-            lbl.setEnabled(not self.ss.isloadcelldead)
+            lbl.setEnabled(self.ss.islive_loadcell)
                         
 #        if self.ss.isloadcelldead: self.curve_load.hide()
 #        else:                      self.curve_load.show()
                         
         ### Disabled widgets if load cell is dead
                         
-        for f in ['gb_surface_load','gb_surface_loadcable','gb_surface_peakload',  'gb_run_startload','gb_run_deltaload']:
+        for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload',  'gb_run_startload','gb_run_deltaload']:
             lbl = getattr(self, f)
-            lbl.setEnabled(not self.ss.isdepthcounterdead)
+            lbl.setEnabled(self.ss.islive_depthcounter)
             
         
         ### END

@@ -36,6 +36,7 @@ class DrillState():
     pressure_gear2       = 0
     
     hammer = 0
+    tachometer = 0
     
     inclination = 0 # calculated value, not direct sensor value
     azimuth     = 0 # calculated value, not direct sensor value
@@ -61,9 +62,9 @@ class DrillState():
     inclination_y = 0
     
     # Was the drill state update recently?
-    recieved = '2000-01-01 01:00:00'
-    isdead = False # True = connection is live, else False
-    livethreshold = 5*60 # seconds before drill state is assumed dead (unless a new state was recieved)
+    recieved        = '2022-01-01 00:00:00'
+    islive          = False # True = connection is live, else False
+    islivethreshold = 10 # seconds before drill state is assumed dead (unless a new state was recieved)
     
     # Redis connection
     rc = None 
@@ -120,7 +121,10 @@ class DrillState():
         # Is live?
         now = datetime.datetime.now()
         lastrecieved = datetime.datetime.strptime(self.recieved, '%Y-%m-%d %H:%M:%S')
-        self.isdead = (now - lastrecieved).seconds > self.livethreshold
+        dt = (now - lastrecieved).total_seconds()
+        self.islive = dt < self.islivethreshold
+#        self.islive = 1
+#        print('ds: dt=%f'%dt)
 
     ### Motor control
 

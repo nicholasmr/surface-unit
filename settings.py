@@ -12,7 +12,7 @@ LOCAL_HOST = '127.0.0.1'
 import socket
 if socket.gethostname() == 'drill': REDIS_HOST = LOCAL_HOST
 else:                               REDIS_HOST = DRILL_HOST
-REDIS_HOST = LOCAL_HOST
+#REDIS_HOST = LOCAL_HOST
 
 #----------------------
 # Cable linear density for load-cable calculation
@@ -23,12 +23,13 @@ CABLE_DENSITY = 0.165 # kg/m
 # Orientation settings
 #----------------------
 USE_BNO055_FOR_ORIENTATION = True # Use BNO055 triaxial information for determining orientation? Else use inclinometer.
-parvalux_tube_free_hanging = [-0.04, 1.05, -9.64] # Gravity vector when drill is hanging plumb.  
+#parvalux_tube_free_hanging = [-0.04, 1.05, -9.64] # Gravity vector when drill is hanging plumb.  
 
 #----------------------
 # Sensor reference values
 #----------------------
 HAMMER_MAX = 255
+TACHO_PRE_REV = 360/560
 
 # Decimal point precisions for physical displays of surface unit
 PRECISION_LOAD  = 2
@@ -37,12 +38,12 @@ PRECISION_DEPTH = 2
 #----------------------
 # Safe range for drill sensors
 #----------------------
-warn__motor_current           = [0,13]     # Amps
+warn__motor_current           = [0,12]     # Amps
 warn__motor_rpm               = [-70,70]   # RPM
-warn__temperature_motor       = [-30,60]   # deg C
-warn__temperature_electronics = [-30,60]   # deg C
+warn__temperature_motor       = [-60,60]   # deg C
+warn__temperature_electronics = [-60,60]   # deg C
 warn__pressure                = [700,1100] # mbar
-warn__hammer                  = [0,10]     # percent
+warn__hammer                  = [0,35]     # percent
 warn__spin                    = [0,10]     # rpm
 warn__corelength              = [0.0,3.0]  # metre
 
@@ -50,5 +51,5 @@ warn__corelength              = [0.0,3.0]  # metre
 # Safe range for surface sensors
 #----------------------
 warn__load     = [-100,1200] # kg
-warn__velocity = [-1.2,1.2]  # m/s
+warn__velocity = [-120,120]  # cm/s
 
