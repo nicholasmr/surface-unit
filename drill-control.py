@@ -19,6 +19,7 @@ DT           = 1/8 # update rate in seconds for GUI/surface state
 DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 
 SHOW_BNO055_DETAILED = 1
+ALWAYS_SHOW_DRILL_FIELDS = True
 
 FS = 13
 FS_GRAPH_TITLE = 5 # font size for graph titles
@@ -163,10 +164,12 @@ class MainWidget(QWidget):
         self.gb_surface_load            = self.MakeStateBox('surface_load',            'Load (kg)',            initstr)
         self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
         self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr)
+#        self.gb_surface_speedavg        = self.MakeStateBox('surface_speedavg',        'Speed average (cm/s)', initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
         self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
+#        layout.addWidget(self.gb_surface_speedavg)
         layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
         layout.addWidget(self.gb_surface_downholevoltage)
@@ -175,6 +178,7 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation")
+        self.gb_orientation.setMinimumWidth(280)
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
@@ -305,7 +309,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.btn_startrun)
 
         self.cbox_settareload = QPushButton("Reset tare load")
-        self.cbox_settareload.clicked.connect(self.clicked_settareload)
+        self.cbox_settareload.clicked.connect(self.clicked_resettareload)
         layout.addWidget(self.cbox_settareload)
 
         
@@ -482,11 +486,10 @@ class MainWidget(QWidget):
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
-            self.clicked_settareload() 
+            self.clicked_resettareload() 
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
-#            self.cbox_settareload.setChecked(False) # simulate un-click
     
     def take_screenshot(self):
         fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
@@ -494,11 +497,13 @@ class MainWidget(QWidget):
         os.system(command)
         print('Saving screenshot to %s'%(fname))
     
-    def clicked_settareload(self):
-        if self.cbox_settareload.isChecked():
-            print('Setting tare load to %.2f'%(self.ss.load))
-            self.ss.set_loadtare(self.ss.load)
-            
+    def clicked_resettareload(self):
+        loadtare_new = self.ss.load
+        print('Setting tare load to %.2f'%(loadtare_new))
+        self.hist_loadtare += self.ss.loadtare
+        self.hist_loadtare -= loadtare_new
+        self.ss.set_loadtare(loadtare_new)
+
     ### State update
     
     def MakeStateBox(self, id, name, value, margin_left=6, margin_right=0, margin_topbot=3):
@@ -552,7 +557,8 @@ class MainWidget(QWidget):
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
-        self.updateStateBox('surface_speed',           round(self.ss.speed,2),                warn__velocity)
+        self.updateStateBox('surface_speed',           round(self.ss.speedinst,2),            warn__velocity)
+#        self.updateStateBox('surface_speedavg',        round(self.ss.speed,2),                warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
@@ -590,7 +596,7 @@ class MainWidget(QWidget):
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
 
-            if self.ds.islive:
+            if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
                 str_incvec   = '[%.1f, %.1f]'%(self.ds.inclination_x,self.ds.inclination_x)
@@ -634,15 +640,17 @@ class MainWidget(QWidget):
         
         ### Disabled widgets if drill state is dead
         
-        self.gb_orientation.setEnabled(self.ds.islive)
-        self.gb_pressure.setEnabled(self.ds.islive)
-        self.gb_temperature.setEnabled(self.ds.islive)
-        self.gb_motor.setEnabled(self.ds.islive)
-        self.gb_expert.setEnabled(self.ds.islive)
-        self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
+        if not ALWAYS_SHOW_DRILL_FIELDS:
+            self.gb_orientation.setEnabled(self.ds.islive)
+            self.gb_pressure.setEnabled(self.ds.islive)
+            self.gb_temperature.setEnabled(self.ds.islive)
+            self.gb_motor.setEnabled(self.ds.islive)
+            self.gb_expert.setEnabled(self.ds.islive)
+            self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
 
         ### Disabled widgets if winch encoder is dead
 
+#        for f in ['gb_surface_depth','gb_surface_speed','gb_surface_speedavg', 'gb_run_startdepth','gb_run_deltadepth']:
         for f in ['gb_surface_depth','gb_surface_speed', 'gb_run_startdepth','gb_run_deltadepth']:
             lbl = getattr(self, f)
             lbl.setEnabled(self.ss.islive_loadcell)

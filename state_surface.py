@@ -62,8 +62,14 @@ class SurfaceState():
         try: 
             encoder = json.loads(self.rc.get('depth-encoder'))
             self.depth = abs(encoder["depth"])
-            self.speedinst = (self.depth-self.depthprev)/self.dt
+            self.speedinst = abs((self.depth-self.depthprev)/self.dt)
+            self.speedinst *= 100 # m/s -> cm/s 
             self.speed = self.calc_avgspeed(self.speedinst, self.dt)
+
+#            oldspeed = self.speed
+#            alpha = 0.05
+#            self.speed = self.speedinst if not smoothload else alpha*self.speedinst + (1-alpha)*oldspeed
+
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
             self.islive_depthcounter = True
@@ -72,10 +78,6 @@ class SurfaceState():
             self.depth, self.depthtare = 0.0, 0.0 
             self.speedinst, self.speed = 0.0, 0.0
             self.islive_depthcounter = False
-
-        # m/s -> cm/s 
-        self.speed     *= 100
-        self.speedinst *= 100
 
         ### Load
         self.loadprev = self.load
