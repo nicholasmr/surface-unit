@@ -480,7 +480,7 @@ def eventListener():
             hammer, sliprate         = ds.hammer, ds.spin
             incl, azi                = ds.inclination, ds.azimuth
             ##
-            vdrill_inst = velinst * 1e2
+            vdrill_inst = velinst #* 1e2
             vdrill_hist = np.hstack([vdrill_hist[1::],vdrill_inst]) 
             vdrill      = np.nanmean(vdrill_hist)
             # /end
