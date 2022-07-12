@@ -18,10 +18,6 @@ import pyqtgraph as pg
 DT           = 1/8 # update rate in seconds for GUI/surface state
 DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 
-XAXISLEN     = 30 + 1 # seconds
-#XAXISLEN     = 60*60 # seconds
-xaxislens_names = ["30 sec", "2 min", "10 min", "60 min"]
-
 SHOW_BNO055_DETAILED = 1
 
 FS = 13
@@ -29,7 +25,7 @@ FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
 # Print settings
-print('%s: running with DT=%.3fs, DT_DRILL=%.3fs (DTFRAC_DRILL=%i), XAXISLEN=%is'%(sys.argv[0],DT,DT*DTFRAC_DRILL,DTFRAC_DRILL,XAXISLEN))
+print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRILL))
 print('Using BNO055 for orientation? %s'%('Yes' if USE_BNO055_FOR_ORIENTATION else 'No'))
 print('Showing detailed BNO055 output? %s'%('Yes' if SHOW_BNO055_DETAILED else 'No'))
 
@@ -47,8 +43,14 @@ class MainWidget(QWidget):
     runtime0 = None
     Nt = 0 # number of time steps taken
 
-    loadmeasures = {'hist_load':'Load', 'hist_loadnet':'Load - cable', 'hist_loadtare':'Tare load'}
+    loadmeasures      = {'hist_load':'Load', 'hist_loadnet':'Load - cable', 'hist_loadtare':'Tare load'}
     loadmeasure_inuse = 'hist_load'
+
+    xlen            = [int(0.5*60), int(2*60), int(10*60), int(45*60)] 
+    xlen_names      = ["1/2 min", "2 min", "10 min", "45 min"]
+    xlen_samplerate = [1,1,1,1]  
+    xlen_selector   = {'speed':0, 'load':0, 'current':0} # default selection
+    
     
     def __init__(self, parent=None):
     
@@ -66,8 +68,8 @@ class MainWidget(QWidget):
         pg.setConfigOptions(foreground='k')
 
         # X-axis
-        self.hist_time       = np.flipud(np.arange(0,XAXISLEN+1e-9,DT))
-        self.hist_time_drill = np.flipud(np.arange(0,XAXISLEN+1e-9,DT*DTFRAC_DRILL))
+        self.hist_time       = np.flipud(np.arange(0, self.xlen[-1]/60 +1e-9, DT/60))
+        self.hist_time_drill = np.flipud(np.arange(0, self.xlen[-1]/60 +1e-9, DT*DTFRAC_DRILL/60))
         self.hist_load       = np.full(len(self.hist_time), 0.0)
         self.hist_loadnet    = np.full(len(self.hist_time), 0.0)
         self.hist_loadtare   = np.full(len(self.hist_time), 0.0)
@@ -76,9 +78,19 @@ class MainWidget(QWidget):
 
         def setupaxis(obj):
             obj.invertX()
-            obj.setXRange(0, XAXISLEN, padding=0)
+            obj.setXRange(0, self.xlen[0]/60, padding=0)
             obj.showAxis('right')
-            obj.showAxis('top')        
+            obj.showAxis('top')      
+            obj.setMenuEnabled(False)
+            obj.setMouseEnabled(x=False, y=False)  
+            obj.setLabel('right', "&nbsp;") # hacky way of adding spacing between graphs
+            obj.setLabel('bottom', "Minutes ago")
+            obj.showGrid(y=True,x=True)
+            obj.getAxis('left').setGrid(False)
+            obj.getAxis('bottom').setGrid(False)
+            for ax in ['left', 'top']:
+                obj.showAxis(ax)
+                obj.getAxis(ax).setStyle(showValues=False)
 
         # Plots
         self.plot_load    = pg.PlotWidget(); 
@@ -90,13 +102,6 @@ class MainWidget(QWidget):
         self.plot_load.setLimits(minYRange=4.2) # minimum y-axis span for load (don't auto-zoom in too much)
         self.plot_speed.setLimits(minYRange=1.1) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
-    
-        self.plot_load.setMenuEnabled(False)
-        self.plot_speed.setMenuEnabled(False)
-        self.plot_current.setMenuEnabled(False)
-        self.plot_load.setMouseEnabled(x=False, y=False)
-        self.plot_speed.setMouseEnabled(x=False, y=False)
-        self.plot_current.setMouseEnabled(x=False, y=False)
 
         # init curves
         lw = 3
@@ -105,27 +110,6 @@ class MainWidget(QWidget):
         self.curve_load    = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_speed   = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_current = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
-        
-        # Titles
-        # set in update() if also writing current value in title
-#        self.plot_load.setTitle(self.htmlfont('<b>Load (kg)', FS_GRAPH_TITLE)) 
-#        self.plot_speed.setTitle(self.htmlfont('<b>Speed (cm/s)', FS_GRAPH_TITLE))        
-#        self.plot_current.setTitle(self.htmlfont('<b>Current (A)', FS_GRAPH_TITLE))
-
-        def setAxisTicksEtc(obj):
-                obj.setLabel('right', "&nbsp;") # hacky way of adding spacing between graphs
-                obj.setLabel('bottom', "Seconds ago")
-                obj.showGrid(y=True,x=True)
-                obj.getAxis('left').setGrid(False)
-                obj.getAxis('bottom').setGrid(False)
-                for ax in ['left', 'top']:
-                    obj.showAxis(ax)
-                    obj.getAxis(ax).setStyle(showValues=False)
-
-
-        setAxisTicksEtc(self.plot_load)
-        setAxisTicksEtc(self.plot_speed)                
-        setAxisTicksEtc(self.plot_current)
 
         ### State fields
 
@@ -249,7 +233,6 @@ class MainWidget(QWidget):
         btn_resettacho.clicked.connect(self.clicked_resettacho)
         layout.addWidget(btn_resettacho, 4,1)
 
-
         ### Throttle
 
         row = 5
@@ -321,8 +304,7 @@ class MainWidget(QWidget):
         self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         layout.addWidget(self.btn_startrun)
 
-        self.cbox_settareload = QPushButton("Set tare load")
-        self.cbox_settareload.setCheckable(True)
+        self.cbox_settareload = QPushButton("Reset tare load")
         self.cbox_settareload.clicked.connect(self.clicked_settareload)
         layout.addWidget(self.cbox_settareload)
 
@@ -336,7 +318,7 @@ class MainWidget(QWidget):
         self.gb_run_deltadepth = self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr)
         self.gb_run_startload  = self.MakeStateBox('run_startload',  'Start load (kg)',  initstr)
         self.gb_run_deltaload  = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
-        self.gb_run_peakload    = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(XAXISLEN), initstr)
+        self.gb_run_peakload    = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(self.xlen[0]), initstr)
         layout.addWidget(self.gb_run_startdepth)
         layout.addWidget(self.gb_run_deltadepth)
         layout.addWidget(self.gb_run_startload)
@@ -409,17 +391,17 @@ class MainWidget(QWidget):
         layout = QGridLayout()        
         layout.addWidget(QLabel('Speed: '), 1,1)
         self.cb_xaxislen_speed = QComboBox()
-        self.cb_xaxislen_speed.addItems(xaxislens_names)
+        self.cb_xaxislen_speed.addItems(self.xlen_names)
         self.cb_xaxislen_speed.currentIndexChanged.connect(self.changed_xaxislen_speed)
         layout.addWidget(self.cb_xaxislen_speed, 1,2)
         layout.addWidget(QLabel('Load: '), 2,1)
         self.cb_xaxislen_load = QComboBox()
-        self.cb_xaxislen_load.addItems(xaxislens_names)
+        self.cb_xaxislen_load.addItems(self.xlen_names)
         self.cb_xaxislen_load.currentIndexChanged.connect(self.changed_xaxislen_load)
         layout.addWidget(self.cb_xaxislen_load, 2,2)
         layout.addWidget(QLabel('Current: '), 3,1)
         self.cb_xaxislen_current = QComboBox()
-        self.cb_xaxislen_current.addItems(xaxislens_names)
+        self.cb_xaxislen_current.addItems(self.xlen_names)
         self.cb_xaxislen_current.currentIndexChanged.connect(self.changed_xaxislen_current)
         layout.addWidget(self.cb_xaxislen_current, 3,2)
         gb.setLayout(layout)
@@ -472,16 +454,19 @@ class MainWidget(QWidget):
     def changed_inchingthrottle(self):
         self.sl_inchingthrottle_label.setText('Inching throttle: %i%%'%(self.sl_inchingthrottle.value()))
 
-    # x-axis lengths
+    # Plot control
     
     def changed_xaxislen_speed(self):
-        pass
+        self.xlen_selector['speed'] = self.cb_xaxislen_speed.currentIndex()
+        self.plot_speed.setXRange(0, self.xlen[self.xlen_selector['speed']]/60*1.01, padding=0)
 
     def changed_xaxislen_load(self):
-        pass
+        self.xlen_selector['load'] = self.cb_xaxislen_load.currentIndex()
+        self.plot_load.setXRange(0, self.xlen[self.xlen_selector['load']]/60*1.01, padding=0)
         
     def changed_xaxislen_current(self):
-        pass
+        self.xlen_selector['current'] = self.cb_xaxislen_current.currentIndex()
+        self.plot_current.setXRange(0, self.xlen[self.xlen_selector['current']]/60*1.01, padding=0)
         
     def changed_loadmeasure(self):
         loadmeasure = self.cb_loadmeasure.currentText()
@@ -497,8 +482,6 @@ class MainWidget(QWidget):
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
-#            # simulate click, set load tare
-#            self.cbox_settareload.setChecked(True) 
             self.clicked_settareload() 
         else:
             self.btn_startrun.setText('Start')
@@ -547,13 +530,21 @@ class MainWidget(QWidget):
 
         ### Update graphs
         self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed
-        self.curve_speed.setData(x=self.hist_time,y=self.hist_speed)
+        sel = self.xlen_selector['speed']
+        I0 = -int(self.xlen[sel]/DT)
+        x = self.hist_time[ I0:len(self.hist_time):self.xlen_samplerate[sel]]
+        y = self.hist_speed[I0:len(self.hist_time):self.xlen_samplerate[sel]]
+        self.curve_speed.setData(x=x, y=y)
         
         self.hist_load     = np.roll(self.hist_load,  -1);     self.hist_load[-1]     = self.ss.load
         self.hist_loadtare = np.roll(self.hist_loadtare,  -1); self.hist_loadtare[-1] = self.ss.load - self.ss.loadtare
         self.hist_loadnet  = np.roll(self.hist_loadnet,  -1);  self.hist_loadnet[-1]  = self.ss.loadnet
         hist_loadmeas = getattr(self,self.loadmeasure_inuse)
-        self.curve_load.setData( x=self.hist_time,y=hist_loadmeas)
+        sel = self.xlen_selector['load']
+        I0 = -int(self.xlen[sel]/DT)
+        x = self.hist_time[I0:len(self.hist_time):self.xlen_samplerate[sel]]
+        y = hist_loadmeas[ I0:len(self.hist_time):self.xlen_samplerate[sel]]
+        self.curve_load.setData(x=x,y=y)
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
         self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.2f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
@@ -588,7 +579,11 @@ class MainWidget(QWidget):
 
             ### Update graphs
             self.hist_current  = np.roll(self.hist_current,  -1); self.hist_current[-1]  = self.ds.motor_current
-            self.curve_current.setData(  x=self.hist_time_drill,y=self.hist_current)
+            sel = self.xlen_selector['current']
+            I0 = -int(self.xlen[sel]/(DT*DTFRAC_DRILL))
+            x = self.hist_time_drill[I0:len(self.hist_time_drill):self.xlen_samplerate[sel]]
+            y = self.hist_current[   I0:len(self.hist_time_drill):self.xlen_samplerate[sel]]
+            self.curve_current.setData(x=x,y=y)
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')

@@ -29,7 +29,7 @@ USE_BNO055_FOR_ORIENTATION = True # Use BNO055 triaxial information for determin
 # Sensor reference values
 #----------------------
 HAMMER_MAX = 255
-TACHO_PRE_REV = 360/560
+TACHO_PRE_REV = 1/560
 
 # Decimal point precisions for physical displays of surface unit
 PRECISION_LOAD  = 2

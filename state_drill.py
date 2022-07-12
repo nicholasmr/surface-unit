@@ -62,9 +62,9 @@ class DrillState():
     inclination_y = 0
     
     # Was the drill state update recently?
-    recieved        = '2022-01-01 00:00:00'
+    received        = '2022-01-01 00:00:00'
     islive          = False # True = connection is live, else False
-    islivethreshold = 10 # seconds before drill state is assumed dead (unless a new state was recieved)
+    islivethreshold = 10 # seconds before drill state is assumed dead (unless a new state was received)
     
     # Redis connection
     rc = None 
@@ -120,9 +120,10 @@ class DrillState():
         
         # Is live?
         now = datetime.datetime.now()
-        lastrecieved = datetime.datetime.strptime(self.recieved, '%Y-%m-%d %H:%M:%S')
-        dt = (now - lastrecieved).total_seconds()
+        lastreceived = datetime.datetime.strptime(self.received, '%Y-%m-%d %H:%M:%S')
+        dt = (now - lastreceived).total_seconds()
         self.islive = dt < self.islivethreshold
+#        print(self.received, lastreceived, now, dt, self.islivethreshold)
 #        self.islive = 1
 #        print('ds: dt=%f'%dt)
 
