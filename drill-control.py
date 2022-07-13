@@ -18,10 +18,10 @@ import pyqtgraph as pg
 DT           = 1/8 # update rate in seconds for GUI/surface state
 DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 
-Tavg = 1.5 # time-averging length in seconds for velocity estimate
+tavg = 3 # time-averging length in seconds for velocity estimate
 
 SHOW_BNO055_DETAILED = 1
-ALWAYS_SHOW_DRILL_FIELDS = True
+ALWAYS_SHOW_DRILL_FIELDS = True # ignores of drill is offline
 
 FS = 13
 FS_GRAPH_TITLE = 5 # font size for graph titles
@@ -63,7 +63,7 @@ class MainWidget(QWidget):
 
         # REDIS_HOST determined in settings file
         self.ds = DrillState(redis_host=REDIS_HOST)   
-        self.ss = SurfaceState(Tavg, DT*DTFRAC_DRILL,redis_host=REDIS_HOST)
+        self.ss = SurfaceState(tavg, DT*DTFRAC_DRILL,redis_host=REDIS_HOST)
 
         ### pyqt graphs
 
@@ -102,8 +102,8 @@ class MainWidget(QWidget):
         setupaxis(self.plot_load);
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
-        self.plot_load.setLimits(minYRange=4.2) # minimum y-axis span for load (don't auto-zoom in too much)
-        self.plot_speed.setLimits(minYRange=1.1) # minimum y-axis span for speed (don't auto-zoom in too much)
+        self.plot_load.setLimits(minYRange=5.1) # minimum y-axis span for load (don't auto-zoom in too much)
+        self.plot_speed.setLimits(minYRange=10.1) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
 
         # init curves
@@ -610,7 +610,7 @@ class MainWidget(QWidget):
                     if SHOW_BNO055_DETAILED:
     #                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
     #                    self.updateStateBox('orientation_quat',         str_quat,   warn__nothres)
-                        str_aclvec   = '[%.1f, %.1f, %.1f], %.2f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
+                        str_aclvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
                         str_magvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_magnitude)
                         str_spnvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_magnitude)
                         self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)

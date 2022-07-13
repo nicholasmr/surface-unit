@@ -17,6 +17,7 @@ class SurfaceState():
     # For speed calculation    
     speedinst = 0.0 # instantaneous
     speed     = 0.0 # time-average
+    speedprev = 0.0
     
     # Are sensors live?
     islive_depthcounter = False
@@ -27,7 +28,7 @@ class SurfaceState():
     
     ###
     
-    def __init__(self, Tavg, dt_intended, redis_host=LOCAL_HOST):
+    def __init__(self, tavg, dt_intended, redis_host=LOCAL_HOST):
     
         # redis connection (rc) object
         try:    
@@ -37,10 +38,12 @@ class SurfaceState():
             print('SurfaceState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
-        N = int(np.round(Tavg/dt_intended))
-        self.depth_list = np.zeros((N))
-        self.time_list = np.zeros((N))
+        self.dt_intended = dt_intended
+        self.Navg = int(np.round(tavg/dt_intended))
+        self.depth_list = np.zeros((self.Navg))
+        self.time_list = np.zeros((self.Navg))
 
+        np.seterr(divide='ignore', invalid='ignore')
         self.update()
 
     def get(self, attr):
@@ -51,18 +54,25 @@ class SurfaceState():
 
         ### Depth and speed
         try: 
+            now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
-            self.depth     = encoder["depth"]
-            self.speedinst = encoder["velocity"]
+            self.depth     = -encoder["depth"]
+            self.speedinst = -100*encoder["velocity"]
             
             self.depth_list = np.roll(self.depth_list, -1); 
             self.depth_list[-1] = self.depth
 
             self.time_list = np.roll(self.time_list, -1); 
-            self.time_list[-1] = time.time() # new time stamp (seconds)
+            self.time_list[-1] = now # new time stamp (seconds)
             
-            self.speed = (self.depth_list[-1] - self.depth_list[0]) / (self.time_list[-1] - self.time_list[0])
-            self.speed *= 100 # m/s -> cm/s 
+            #self.speed = (self.depth_list[-1] - self.depth_list[0]) / (self.dt_intended*(self.Navg-1))
+            self.speedprev = self.speed
+#            speednew = (self.depth_list[-1] - self.depth_list[0]) / (self.time_list[-1] - self.time_list[0])
+            speednew = np.nanmean(np.divide( np.diff(self.depth_list), np.diff(self.time_list) ))
+            speednew *= 100 # m/s -> cm/s 
+            alpha = 0.125
+            self.speed = alpha*speednew + (1-alpha)*self.speedprev
+            #self.speed *= 100 # m/s -> cm/s 
             
 #####################            
 #            self.speedinst = abs((self.depth-self.depthprev)/self.dt)
