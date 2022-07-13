@@ -54,7 +54,7 @@ else:      vdrill_hist = np.full(50,1e-10)
 ### State objects 
 
 ds = DrillState(  redis_host=DRILL_HOST if INFOMODE else REDIS_HOST)   
-ss = SurfaceState(redis_host=DRILL_HOST if INFOMODE else REDIS_HOST)
+ss = SurfaceState(1.5, dt, redis_host=DRILL_HOST if INFOMODE else REDIS_HOST)
 
 ### Globals 
 

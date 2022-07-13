@@ -6,11 +6,7 @@ from settings import *
 
 class SurfaceState():
 
-    updatetime     = 0 # current 
-    updatetimeprev = 0 # previous
-
     depth     = 0.0 # current
-    depthprev = 0.0 # previous
     depthtare = 0.0
     
     load     = 0.0
@@ -19,11 +15,8 @@ class SurfaceState():
     loadnet  = 0.0 # load - cable weight
 
     # For speed calculation    
-    speedinst  = 0.0 # instantaneous
-    speed      = 0.0 # time-average
-    Navg       = 20 # length of array used to calculate time averaged 
-    speed_list = np.zeros((Navg)) # array of speed estimates
-    dt_list    = np.zeros((Navg)) # array of dt
+    speedinst = 0.0 # instantaneous
+    speed     = 0.0 # time-average
     
     # Are sensors live?
     islive_depthcounter = False
@@ -34,7 +27,7 @@ class SurfaceState():
     
     ###
     
-    def __init__(self, redis_host=LOCAL_HOST):
+    def __init__(self, Tavg, dt_intended, redis_host=LOCAL_HOST):
     
         # redis connection (rc) object
         try:    
@@ -44,6 +37,10 @@ class SurfaceState():
             print('SurfaceState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
+        N = int(np.round(Tavg/dt_intended))
+        self.depth_list = np.zeros((N))
+        self.time_list = np.zeros((N))
+
         self.update()
 
     def get(self, attr):
@@ -52,23 +49,30 @@ class SurfaceState():
             
     def update(self, smoothload=True):
 
-        ### Time
-        self.updatetimeprev = self.updatetime 
-        self.updatetime = time.time() # new time stamp (seconds)
-        self.dt = self.updatetime - self.updatetimeprev
-        
         ### Depth and speed
-        self.depthprev = self.depth # for speed calculation
         try: 
             encoder = json.loads(self.rc.get('depth-encoder'))
-            self.depth = abs(encoder["depth"])
-            self.speedinst = abs((self.depth-self.depthprev)/self.dt)
-            self.speedinst *= 100 # m/s -> cm/s 
-            self.speed = self.calc_avgspeed(self.speedinst, self.dt)
+            self.depth     = encoder["depth"]
+            self.speedinst = encoder["velocity"]
+            
+            self.depth_list = np.roll(self.depth_list, -1); 
+            self.depth_list[-1] = self.depth
 
+            self.time_list = np.roll(self.time_list, -1); 
+            self.time_list[-1] = time.time() # new time stamp (seconds)
+            
+            self.speed = (self.depth_list[-1] - self.depth_list[0]) / (self.time_list[-1] - self.time_list[0])
+            self.speed *= 100 # m/s -> cm/s 
+            
+#####################            
+#            self.speedinst = abs((self.depth-self.depthprev)/self.dt)
+#            self.speedinst *= 100 # m/s -> cm/s 
+#            self.speed = self.calc_avgspeed(self.speedinst, self.dt)
+#####################
 #            oldspeed = self.speed
 #            alpha = 0.05
 #            self.speed = self.speedinst if not smoothload else alpha*self.speedinst + (1-alpha)*oldspeed
+#####################
 
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
@@ -112,15 +116,15 @@ class SurfaceState():
     def toggle_alertloggers(self):
         self.set_alertloggers(not self.alertloggers)
         
-    def calc_avgspeed(self, speedinst, dt):
+#    def calc_avgspeed(self, speedinst, dt):
 
-        self.dt_list = np.roll(self.dt_list, -1); 
-        self.dt_list[-1] = dt # seconds stamp
-        
-        self.speed_list = np.roll(self.speed_list, -1); 
-        self.speed_list[-1] = speedinst
+#        self.dt_list = np.roll(self.dt_list, -1); 
+#        self.dt_list[-1] = dt # seconds stamp
+#        
+#        self.speed_list = np.roll(self.speed_list, -1); 
+#        self.speed_list[-1] = speedinst
 
-        T = np.sum(self.dt_list)       
-        speed_avg = np.sum(np.multiply(self.speed_list, self.dt_list))/T
-        return speed_avg
+#        T = np.sum(self.dt_list)       
+#        speed_avg = np.sum(np.multiply(self.speed_list, self.dt_list))/T
+#        return speed_avg
     

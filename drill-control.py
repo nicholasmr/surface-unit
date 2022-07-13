@@ -18,6 +18,8 @@ import pyqtgraph as pg
 DT           = 1/8 # update rate in seconds for GUI/surface state
 DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 
+Tavg = 1.5 # time-averging length in seconds for velocity estimate
+
 SHOW_BNO055_DETAILED = 1
 ALWAYS_SHOW_DRILL_FIELDS = True
 
@@ -60,8 +62,8 @@ class MainWidget(QWidget):
         ### State objects
 
         # REDIS_HOST determined in settings file
-        self.ds = DrillState(  redis_host=REDIS_HOST)   
-        self.ss = SurfaceState(redis_host=REDIS_HOST)
+        self.ds = DrillState(redis_host=REDIS_HOST)   
+        self.ss = SurfaceState(Tavg, DT*DTFRAC_DRILL,redis_host=REDIS_HOST)
 
         ### pyqt graphs
 
@@ -163,13 +165,11 @@ class MainWidget(QWidget):
         layout = QVBoxLayout()
         self.gb_surface_load            = self.MakeStateBox('surface_load',            'Load (kg)',            initstr)
         self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
-        self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Speed (cm/s)',         initstr)
-#        self.gb_surface_speedavg        = self.MakeStateBox('surface_speedavg',        'Speed average (cm/s)', initstr)
+        self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Inst. speed (cm/s)',   initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
         self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
-#        layout.addWidget(self.gb_surface_speedavg)
         layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
         layout.addWidget(self.gb_surface_downholevoltage)
@@ -384,13 +384,6 @@ class MainWidget(QWidget):
         self.gb_figconf = QGroupBox("Plots")
         layout_master = QVBoxLayout()
         
-        layout_master.addWidget(QLabel('Load measure:'))
-        self.cb_loadmeasure = QComboBox()
-        self.cb_loadmeasure.addItems([self.loadmeasures[key] for key in self.loadmeasures.keys()])
-        self.cb_loadmeasure.currentIndexChanged.connect(self.changed_loadmeasure)
-        layout_master.addWidget(self.cb_loadmeasure)
-
-        layout_master.addWidget(QLabel(''))        
         gb = QGroupBox("x-axis length")
         layout = QGridLayout()        
         layout.addWidget(QLabel('Speed: '), 1,1)
@@ -410,6 +403,14 @@ class MainWidget(QWidget):
         layout.addWidget(self.cb_xaxislen_current, 3,2)
         gb.setLayout(layout)
         layout_master.addWidget(gb)
+        
+        layout_master.addWidget(QLabel(''))        
+        
+        layout_master.addWidget(QLabel('Load measure:'))
+        self.cb_loadmeasure = QComboBox()
+        self.cb_loadmeasure.addItems([self.loadmeasures[key] for key in self.loadmeasures.keys()])
+        self.cb_loadmeasure.currentIndexChanged.connect(self.changed_loadmeasure)
+        layout_master.addWidget(self.cb_loadmeasure)
         
         layout_master.addStretch(1)
         self.gb_figconf.setLayout(layout_master)
@@ -490,6 +491,7 @@ class MainWidget(QWidget):
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+#            self.ss.set_depthtare(self.ss.depth)
     
     def take_screenshot(self):
         fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
@@ -552,13 +554,12 @@ class MainWidget(QWidget):
         self.curve_load.setData(x=x,y=y)
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
-        self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.2f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
+        self.plot_speed.setTitle(  self.htmlfont('<b>Avg. speed = %.1f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
         self.updateStateBox('surface_speed',           round(self.ss.speedinst,2),            warn__velocity)
-#        self.updateStateBox('surface_speedavg',        round(self.ss.speed,2),                warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
@@ -650,7 +651,6 @@ class MainWidget(QWidget):
 
         ### Disabled widgets if winch encoder is dead
 
-#        for f in ['gb_surface_depth','gb_surface_speed','gb_surface_speedavg', 'gb_run_startdepth','gb_run_deltadepth']:
         for f in ['gb_surface_depth','gb_surface_speed', 'gb_run_startdepth','gb_run_deltadepth']:
             lbl = getattr(self, f)
             lbl.setEnabled(self.ss.islive_loadcell)

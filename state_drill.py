@@ -64,7 +64,7 @@ class DrillState():
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
     islive          = False # True = connection is live, else False
-    islivethreshold = 10 # seconds before drill state is assumed dead (unless a new state was received)
+    islivethreshold = 15 # seconds before drill state is assumed dead (unless a new state was received)
     
     # Redis connection
     rc = None 
