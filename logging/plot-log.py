@@ -13,7 +13,7 @@ from ahrs import Quaternion
 saam = SAAM()
 #famc = FAMC()
 
-if len(sys.argv) < 2: sys.exit('usage: %s /mnt/logs/<LOGNAME> [HOUR_START] [HOUR_END]'%(sys.argv[0]))
+if len(sys.argv) !=5: sys.exit('usage: %s /mnt/logs/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
 
 # BASH script for plotting multiple days
 """
@@ -38,9 +38,12 @@ LOGFILE = str(sys.argv[1])
 date_time_str0 = LOGFILE[-10:]
 
 flog = "logger-2019.dat"
+script_dir = os.path.dirname(__file__)
+rel_path = "logger-data/%s"%(flog)
+LOGGERDATA = os.path.join(script_dir, rel_path)
 
-if len(sys.argv) == 4: xlims=[float(sys.argv[2]),float(sys.argv[3])];
-else:                  xlims=[8,24];
+xlims=[float(sys.argv[2]),float(sys.argv[3])];
+OUTPATH = str(sys.argv[-1])
 
 ### Data structures
 
@@ -86,6 +89,8 @@ incl, azi = empty_array(flen), empty_array(flen)
 #-----------------------
 
 if 1:
+
+    print('*** Loading log file %s'%(LOGFILE))
 
     fh  = open(LOGFILE, "r")
     jj = 0
@@ -160,7 +165,7 @@ if 1:
     DCM = DCM[0:(jjmax+1), :,:]
     Z = z[0:(jjmax+1)]
 
-    print('*** Finished loading log file')
+    print('... done')
 
 
 #-----------------------
@@ -185,7 +190,7 @@ def incl_from_sensordir(x,y):
         z_est, inclmean_est, inclvar_est = binned_average(df)
         return z_est, inclmean_est, inclvar_est, incl_raw
 
-df_log = pd.read_csv(flog, names=['z','incl'])
+df_log = pd.read_csv(LOGGERDATA, names=['z','incl'])
 Z_log, inclmean_log, _ = binned_average(df_log)
 lograw = df_log.to_numpy()
 z_lograw, incl_lograw = lograw[:,0], lograw[:,1]
@@ -314,7 +319,7 @@ if PLOT_TIMESERIES:
 
     #-----
 
-    imgout = '%s.png'%(date_time_str0)
+    imgout = '%s/%s.png'%(OUTPATH,date_time_str0)
     print('Saving %s'%(imgout))
     plt.savefig(imgout, dpi=300, bbox_inches='tight')
 
@@ -334,7 +339,7 @@ if PLOT_ORIENTATION:
     ax2 = plt.subplot(1,2,2, sharey=ax1)
 
     ax1.plot(inclmean_log[I0fit:], -Z_log[I0fit:], c=c_log, lw=2, label='Mean logger (%s)'%flog)
-    ax1.plot(inclmean_est[I0fit:], -Z_est[I0fit:], c=c_drill, lw=2, label='Mean drill (%s)'%(LOGFILE))
+    ax1.plot(inclmean_est[I0fit:], -Z_est[I0fit:], c=c_drill, lw=2, label='Mean drill')
     ax1.set_xlim(incllims)
     ax1.set_ylim([Z_MIN,0])
     ax1.set_ylabel('z (m)')
@@ -345,14 +350,14 @@ if PLOT_ORIENTATION:
     ax1.legend()
 
     ax2.scatter(incl_lograw, -z_lograw, marker='.', s=1, c=c_log, label='Raw logger (%s)'%(flog))
-    ax2.scatter(incl_estraw, -Z, marker='.', s=1, c=c_drill, label='Raw drill (%s)'%(LOGFILE))
+    ax2.scatter(incl_estraw, -Z, marker='.', s=1, c=c_drill, label='Raw drill')
     ax2.set_xlim(incllims)
     ax2.set_xlabel('Azimuth (deg)')
     ax2.grid()
     plt.setp(ax2.get_yticklabels(), visible=False)
     ax2.legend()
 
-    imgout = '%s-orientation.png'%(date_time_str0)
+    imgout = '%s/%s-orientation.png'%(OUTPATH,date_time_str0)
     print('Saving %s'%(imgout))
     plt.savefig(imgout, dpi=300, bbox_inches='tight')
 
