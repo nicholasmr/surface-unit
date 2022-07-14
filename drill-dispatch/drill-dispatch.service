@@ -1,0 +1,14 @@
+[Unit]
+Description=EastGRIP drill dispatch
+
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python2 /home/pi/drill-dispatch/dispatch.py --debug
+WorkingDirectory=/home/pi/drill-dispatch/
+Restart=always
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

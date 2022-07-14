@@ -22,24 +22,24 @@ else
    echo "NOT OK, no logfiles will be taken!"
 fi
 
-echo "> Launching GUI";
+echo "> Launching drill control GUI";
 sleep 1;
-#python /home/drill/drill-surface/legacy/drill_surface.py &
-python3 /home/drill/surface-unit/drill-control.py &
+#python /home/drill/drill-surface/legacy/drill-surface/drill_surface.py &
+python3 /home/drill/surface-unit/drill-control/drill-control.py &
 
 #echo "> Drill position GUI";
 #sleep 1;
-#python /home/drill/surface-unit/drill-position.py run &
+#python /home/drill/surface-unit/drill-control/drill-position.py run &
 
-echo "> Winch encoder"
+echo "> Winch encoder (codex560)"
 sleep 1;
-python2 /home/drill/drill-displays/codex560.py /dev/ttyUSB1 &
+python2 /home/drill/surface-unit/drill-displays/codex560.py /dev/ttyUSB1 &
 
-echo "> Load cell"
+echo "> Load cell (pmdstrain)"
 sleep 1;
-python2 /home/drill/drill-displays/pmdstrain.py /dev/ttyUSB0 &
+python2 /home/drill/surface-unit/drill-displays/pmdstrain.py /dev/ttyUSB0 &
 
-echo "> Launching The Matrix";
+echo "> Launching drill comms (dispatch)";
 sleep 1;
-python /home/drill/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
+python /home/drill/surface-unit/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
 
