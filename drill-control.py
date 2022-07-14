@@ -54,6 +54,8 @@ class MainWidget(QWidget):
     xlen_samplerate = [1,1,1,1]  
     xlen_selector   = {'speed':0, 'load':0, 'current':0} # default selection
     
+    minYRange_load = 5.1 # kg
+    minYRange_speed = 10.1 # cm/s
     
     def __init__(self, parent=None):
     
@@ -102,8 +104,8 @@ class MainWidget(QWidget):
         setupaxis(self.plot_load);
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
-        self.plot_load.setLimits(minYRange=5.1) # minimum y-axis span for load (don't auto-zoom in too much)
-        self.plot_speed.setLimits(minYRange=10.1) # minimum y-axis span for speed (don't auto-zoom in too much)
+        self.plot_load.setLimits(minYRange=self.minYRange_load) # minimum y-axis span for load (don't auto-zoom in too much)
+        self.plot_speed.setLimits(minYRange=self.minYRange_speed) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
 
         # init curves
@@ -605,7 +607,7 @@ class MainWidget(QWidget):
                 self.updateStateBox('orientation_azimuth',      round(self.ds.azimuth,1),     warn__nothres)
                 self.updateStateBox('orientation_spin',         round(self.ds.spin,1),        warn__spin)
                 if USE_BNO055_FOR_ORIENTATION:
-                    str_drilldir = '[%.1f, %.1f, %.1f]'%(self.ds.drilldir[0],self.ds.drilldir[1],self.ds.drilldir[2])
+                    str_drilldir = '[%.2f, %.2f, %.2f]'%(self.ds.drilldir[0],self.ds.drilldir[1],self.ds.drilldir[2])
                     self.updateStateBox('orientation_drilldir', str_drilldir,  warn__nothres)
                     if SHOW_BNO055_DETAILED:
     #                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
