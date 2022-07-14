@@ -647,9 +647,10 @@ class MainWidget(QWidget):
             self.gb_orientation.setEnabled(self.ds.islive)
             self.gb_pressure.setEnabled(self.ds.islive)
             self.gb_temperature.setEnabled(self.ds.islive)
-            self.gb_motor.setEnabled(self.ds.islive)
-            self.gb_expert.setEnabled(self.ds.islive)
             self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
+
+        self.gb_motor.setEnabled(self.ds.islive)
+        self.gb_expert.setEnabled(self.ds.islive)
 
         ### Disabled widgets if winch encoder is dead
 
