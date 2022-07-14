@@ -1,12 +1,15 @@
 #!/bin/bash
 echo "*** Drill bootstrap ***";
 
-echo "*** Setting IP-address ***";
+echo "> Setting STATIC IP address";
 sudo dhcpcd -S ip_address=10.2.3.10/16 -S routers=10.2.1.1 -S domain_name_servers=10.2.1.1 eth0
-sleep 6;
+sleep 4;
 
 echo "> Synchronizing clock"
+sudo systemctl restart systemd-timesyncd.service
 sudo timedatectl set-ntp true &
+sudo ntpdate 0.arch.pool.ntp.org
+sleep 3
 
 echo -n "> Checking USB stick ... "
 sudo mount /dev/sda1 /mnt/logs/ -o umask=000
@@ -15,10 +18,6 @@ sudo mount /dev/sda1 /mnt/logs/ -o umask=000
 if [ $? -eq 0 ]
 then
    echo "OK"
-
-   echo "> Notes"
-   sleep 1;
-   gedit /mnt/logs/notes.txt &
 else
    echo "NOT OK, no logfiles will be taken!"
 fi
