@@ -83,17 +83,14 @@ class PMDStrain( minimalmodbus.Instrument ):
 
 
 
-
-
-
 if __name__ == '__main__':
-    print "Load cell"
+    print("Load cell")
     if (len(sys.argv) > 1):
         print(sys.argv[1])
         loadcellDisplay = None
         while loadcellDisplay is None:
             try:
-                print "trying again"
+                print("trying again")
                 loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
                 loadcellDisplay.debug=False
                 time.sleep(1)
@@ -117,7 +114,7 @@ if __name__ == '__main__':
         if loadcellDisplay is None:
             sys.exit("No port found for PMD-Strain (load cell display)!")
 
-            
+
     redis_conn = redis.StrictRedis(host=REDIS_HOST)
 
     while True:
@@ -130,7 +127,7 @@ if __name__ == '__main__':
             pass
         except ValueError:
             pass
-	except TypeError:
+        except TypeError:
             pass
 
 
