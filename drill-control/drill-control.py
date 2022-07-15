@@ -180,7 +180,7 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation")
-        self.gb_orientation.setMinimumWidth(280)
+        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
@@ -375,7 +375,7 @@ class MainWidget(QWidget):
         self.status_depthcounter = QLabel('Offline')
         layout.addWidget(QLabel('Drill:'),1,1)
         layout.addWidget(QLabel('Load cell:'),2,1)
-        layout.addWidget(QLabel('Depth counter:'),3,1)
+        layout.addWidget(QLabel('Depth cntr.:'),3,1)
         layout.addWidget(self.status_drill,1,2)
         layout.addWidget(self.status_loadcell,2,2)
         layout.addWidget(self.status_depthcounter,3,2)
@@ -598,14 +598,14 @@ class MainWidget(QWidget):
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
-            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
-            else:              self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
+            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
+            else:              self.status_drill.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
-            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
-            else:                       self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
+            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
+            else:                       self.status_loadcell.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
-            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
-            else:                           self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
+            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
+            else:                           self.status_depthcounter.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
 
 
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
