@@ -14,7 +14,7 @@ from ahrs.filters import SAAM, FAMC
 from ahrs import Quaternion
 saam = SAAM()
 
-if len(sys.argv) !=5: sys.exit('usage: %s /mnt/logs/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
+if len(sys.argv) !=6: sys.exit('usage: %s /mnt/logs/<LOGNAME> HOUR_START HOUR_END PLOT_ORIENTATION /output/path '%(sys.argv[0]))
 
 #-----------------------
 # Notes
@@ -39,8 +39,9 @@ usr: drill, psw: same as drill computer
 #-----------------------
 
 PLOT_TIMESERIES  = 1
-PLOT_ORIENTATION = 1
-RUN_SENSOR_ORIENTATION_CALIBRATION = 1
+
+PLOT_ORIENTATION = int(sys.argv[4])
+RUN_SENSOR_ORIENTATION_CALIBRATION = PLOT_ORIENTATION
 
 Z_MAX = 0
 Z_MIN = -2800
@@ -53,7 +54,7 @@ script_dir = os.path.dirname(__file__)
 rel_path = "logger-data/%s"%(flog)
 LOGGERDATA = os.path.join(script_dir, rel_path)
 
-xlims=[float(sys.argv[2]),float(sys.argv[3])];
+xlims=[int(sys.argv[2]),int(sys.argv[3])];
 OUTPATH = str(sys.argv[-1])
 
 ### Data structures
@@ -337,7 +338,7 @@ if PLOT_TIMESERIES:
 
     #-----
 
-    imgout = '%s/%s.png'%(OUTPATH,date_time_str0)
+    imgout = '%s/%s--%i-%i.png'%(OUTPATH,date_time_str0,xlims[0],xlims[1])
     print('Saving %s'%(imgout))
     plt.savefig(imgout, dpi=300, bbox_inches='tight')
 
