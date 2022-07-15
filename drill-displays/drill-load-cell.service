@@ -3,7 +3,7 @@ Description=Reads the PMD-Strain counter used on the EastGRIP load cell
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python2 /home/pi/drill-displays/pmdstrain.py
+ExecStart=/usr/bin/python3 /home/pi/drill-displays/pmdstrain.py
 Restart=always
 
 [Install]
