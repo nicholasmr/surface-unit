@@ -4,23 +4,34 @@
 import numpy as np
 import code # code.interact(local=locals())
 import sys, os, time, csv, datetime, time, json, scipy
-import pandas as pd
-from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+import pandas as pd
+
+from scipy.optimize import minimize
+from scipy.signal import savgol_filter
 
 from ahrs.filters import SAAM, FAMC
 from ahrs import Quaternion
 saam = SAAM()
-#famc = FAMC()
 
 if len(sys.argv) !=5: sys.exit('usage: %s /mnt/logs/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
 
-# BASH script for plotting multiple days
+#-----------------------
+# Notes
+#-----------------------
+
+### BASH script for plotting multiple days
 """
 for i in {01..30}
 do
-   python3 plot-log.py drill.log.2019-06-$i
+   python3 plot-log.py drill.log.2019-06-$i 8 24 ./
 done
+"""
+
+### For drilllogplotter cronjob on bob:
+"""
+IP: 10.2.3.18
+usr: drill, psw: same as drill computer
 """
 
 #-----------------------
@@ -160,6 +171,10 @@ if 1:
 #        #-----------------------
 #    #    if ~np.isnan(Si[ii]): thoff[ii] = th[ii]
 
+    ### Velocity
+    vel = 100 * abs(np.nan_to_num( np.divide(np.diff(z),np.diff(t))) )
+    vel = savgol_filter(vel, 100, 2) # smoothing
+
     fh.close()
     jjmax = jj-1
     DCM = DCM[0:(jjmax+1), :,:]
@@ -167,6 +182,10 @@ if 1:
 
     print('... done')
 
+### Dump z(t) log
+#df = pd.DataFrame(zip(t,z), columns = ['t','z'])
+#df.to_csv('%s_zt.csv'%LOGFILE, index=False)
+#sys.exit(0)
 
 #-----------------------
 # BNO055 orientation calibration
@@ -277,12 +296,11 @@ if PLOT_TIMESERIES:
     plt.xlim(xlims); plt.ylim([Z_MIN,0]); ax.grid()
     plt.ylabel('Depth (m)', fontweight=fw, fontsize=fs);
 
-#    ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-#    color = 'tab:green'
-#    ax2.plot(th, Si, color=color, lw=lwtwin)
-#    ax2.set_xticks(np.arange(-5,30,xtick))
-#    ax2.set_xticks(np.arange(-5,30,xtick/4.), minor=True)
-#    ax2.set_ylabel('Drill rotations (rev)', color=color, fontweight=fw, fontsize=fs);
+    ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+    color = 'tab:green'
+    ax2.plot(th[:-1], vel, color=color, lw=lwtwin)
+    ax2.set_ylabel('|Speed| (cm/s)', color=color, fontweight=fw, fontsize=fs);
+    plt.ylim([0,110]);
 
     #-----
 

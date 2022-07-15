@@ -105,7 +105,7 @@ class MainWidget(QWidget):
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
         self.plot_load.setLimits(minYRange=self.minYRange_load) # minimum y-axis span for load (don't auto-zoom in too much)
-        self.plot_speed.setLimits(minYRange=self.minYRange_speed+0.2, yMin=-0.2) # minimum y-axis span for speed (don't auto-zoom in too much)
+#        self.plot_speed.setLimits(minYRange=self.minYRange_speed+0.2, yMin=-0.2) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
 
         # init curves
@@ -545,6 +545,7 @@ class MainWidget(QWidget):
         x = self.hist_time[ I0:len(self.hist_time):self.xlen_samplerate[sel]]
         y = self.hist_speed[I0:len(self.hist_time):self.xlen_samplerate[sel]]
         self.curve_speed.setData(x=x, y=y)
+        self.plot_speed.setYRange(0, np.amax([self.minYRange_speed, np.amax(y)*1.075]), padding=0.02)
         
         self.hist_load     = np.roll(self.hist_load,  -1);     self.hist_load[-1]     = self.ss.load
         self.hist_loadtare = np.roll(self.hist_loadtare,  -1); self.hist_loadtare[-1] = self.ss.load - self.ss.loadtare
