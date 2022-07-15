@@ -3,7 +3,7 @@ Description=Reads the Codex560 counter used for the depth encoder
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python2 /home/pi/drill-displays/codex560.py
+ExecStart=/usr/bin/python3 /home/pi/drill-displays/codex560.py
 Restart=always
 
 [Install]
