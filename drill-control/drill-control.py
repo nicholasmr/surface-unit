@@ -23,7 +23,7 @@ tavg = 3 # time-averging length in seconds for velocity estimate
 SHOW_BNO055_DETAILED = 1
 ALWAYS_SHOW_DRILL_FIELDS = True # ignores of drill is offline
 
-FS = 13
+FS = 14
 FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
@@ -54,8 +54,8 @@ class MainWidget(QWidget):
     xlen_samplerate = [1,1,1,1]  
     xlen_selector   = {'speed':0, 'load':0, 'current':0} # default selection
     
-    minYRange_load = 5.1 # kg
-    minYRange_speed = 10.1 # cm/s
+    minYRange_load = 15 # kg
+    minYRange_speed = 10.5 # cm/s
     
     def __init__(self, parent=None):
     
@@ -105,7 +105,7 @@ class MainWidget(QWidget):
         setupaxis(self.plot_speed);
         setupaxis(self.plot_current);
         self.plot_load.setLimits(minYRange=self.minYRange_load) # minimum y-axis span for load (don't auto-zoom in too much)
-        self.plot_speed.setLimits(minYRange=self.minYRange_speed) # minimum y-axis span for speed (don't auto-zoom in too much)
+        self.plot_speed.setLimits(minYRange=self.minYRange_speed+0.2, yMin=-0.2) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
 
         # init curves
@@ -235,9 +235,9 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('motor_voltage',    'Voltage (V)',  initstr), 2,1)
         layout.addWidget(self.MakeStateBox('motor_throttle',   'Throttle (%)', initstr), 2,2)
         layout.addWidget(self.MakeStateBox('motor_tachometer', 'Tachometer (rev)',   initstr), 3,1)
-        btn_resettacho = QPushButton("Reset tachometer")
-        btn_resettacho.clicked.connect(self.clicked_resettacho)
-        layout.addWidget(btn_resettacho, 4,1)
+#        btn_resettacho = QPushButton("Reset tachometer")
+#        btn_resettacho.clicked.connect(self.clicked_resettacho)
+#        layout.addWidget(btn_resettacho, 4,1)
 
         ### Throttle
 
@@ -489,7 +489,8 @@ class MainWidget(QWidget):
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
-            self.clicked_resettareload() 
+            self.ds.set_tacho(0)
+#            self.clicked_resettareload() 
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
@@ -538,7 +539,7 @@ class MainWidget(QWidget):
         self.ss.update()
 
         ### Update graphs
-        self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = self.ss.speed
+        self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = abs(self.ss.speed)
         sel = self.xlen_selector['speed']
         I0 = -int(self.xlen[sel]/DT)
         x = self.hist_time[ I0:len(self.hist_time):self.xlen_samplerate[sel]]
@@ -556,7 +557,7 @@ class MainWidget(QWidget):
         self.curve_load.setData(x=x,y=y)
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
-        self.plot_speed.setTitle(  self.htmlfont('<b>Avg. speed = %.1f cm/s'%(self.ss.speed), FS_GRAPH_TITLE))        
+        self.plot_speed.setTitle(  self.htmlfont('<b>|Avg. speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         ### Update state fields
@@ -596,8 +597,15 @@ class MainWidget(QWidget):
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
+            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
+            else:              self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
+            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
+            else:                       self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
+            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_GREEN))
+            else:                           self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_RED))
+
 
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
