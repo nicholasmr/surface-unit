@@ -35,36 +35,41 @@ usr: drill, psw: same as drill computer
 """
 
 #-----------------------
-# INIT
+# Flags
 #-----------------------
 
 PLOT_TIMESERIES  = 1
-
 PLOT_ORIENTATION = int(sys.argv[4])
 RUN_SENSOR_ORIENTATION_CALIBRATION = PLOT_ORIENTATION
 
-Z_MAX = 0
-Z_MIN = -2800
+#-----------------------
+# Files
+#-----------------------
 
-LOGFILE = str(sys.argv[1])
-date_time_str0 = LOGFILE[-10:]
+OUTPATH = str(sys.argv[-1]) # where to save images
+DRILLLOG = str(sys.argv[1]) # drill log to plot
+date_time_str0 = DRILLLOG[-10:] # log file date string
 
-flog = "logger-2019.dat"
-script_dir = os.path.dirname(__file__)
-rel_path = "logger-data/%s"%(flog)
-LOGGERDATA = os.path.join(script_dir, rel_path)
+### Logger data
+fname_logger    = 'logger-2019.dat'
+fname_loggernew = 'logger-2022-07-09.dat'
+LOGGERDATA    = os.path.join(os.path.dirname(__file__), "logger-data/%s"%(fname_logger))
+LOGGERDATANEW = os.path.join(os.path.dirname(__file__), "logger-data/%s"%(fname_loggernew))
 
-xlims=[int(sys.argv[2]),int(sys.argv[3])];
-OUTPATH = str(sys.argv[-1])
+#-----------------------
+# Initialize
+#-----------------------
 
-### Data structures
+### Plot limits
+Z_MAX, Z_MIN = 0, -2800 # y axis
+xlims=[int(sys.argv[2]),int(sys.argv[3])]; # x axis
 
 def empty_array(len):
     arr    = np.empty((len), dtype=float)
     arr[:] = np.nan
     return arr;
 
-flen = sum(1 for l in open(LOGFILE, "r"))
+flen = sum(1 for l in open(DRILLLOG, "r"))
 
 ### Time
 t  = empty_array(flen) # time in seconds
@@ -73,7 +78,6 @@ thoff = empty_array(flen) # time in hours, but nan'ed when drill is powered off
 
 ### Depth, speed, etc.
 z  = empty_array(flen) # depth
-v  = empty_array(flen) # winch speed
 w  = empty_array(flen) # tower weight
 H  = empty_array(flen) # hammer pct.
 
@@ -85,16 +89,8 @@ Tg, Tmc, Tm = empty_array(flen), empty_array(flen), empty_array(flen) # temperat
 
 ### Orientation
 quat = np.zeros((flen,4))
-DCM = np.zeros((flen,3,3))
-incl, azi = empty_array(flen), empty_array(flen)
-
-#ax,ay,az = empty_array(flen),empty_array(flen),empty_array(flen)
-#mx,my,mz = empty_array(flen),empty_array(flen),empty_array(flen)
-
-#Sg = initArr(flen) # integrated drill rotations: gyro
-#Si = initArr(flen) # integrated drill rotations: incl
-#totalChange = 0;
-#lastAzimuth = -1000;
+DCM = np.zeros((flen,3,3)) # rotation matrix
+inc, azi = empty_array(flen), empty_array(flen)
 
 #-----------------------
 # Load log file
@@ -102,9 +98,9 @@ incl, azi = empty_array(flen), empty_array(flen)
 
 if 1:
 
-    print('*** Loading log file %s'%(LOGFILE))
+    print('*** Loading log file %s'%(DRILLLOG))
 
-    fh  = open(LOGFILE, "r")
+    fh  = open(DRILLLOG, "r")
     jj = 0
     for ii, l in enumerate(fh):
 
@@ -139,112 +135,85 @@ if 1:
         mvec = np.array([json.loads(l)['magnetometer_x'], json.loads(l)['magnetometer_y'], json.loads(l)['magnetometer_z']]) 
         quat[jj,:] = saam.estimate(acc=avec, mag=mvec) # quaternion
         DCM[jj,:,:] = Quaternion(quat[jj,:]).to_DCM()
-        
+
+        ### Make ready for next loop        
         jj +=1
-        
-    #    quat = famc.estimate(acc=avec, mag=mvec) # quaternion
-#        drilldir = np.matmul(Quaternion(quat).to_DCM(), sensordir) # drill orientation vector: matrix--vector product between rotation matrix (derived from quaternion) and vertical (plumb) direction
-#        incl[ii] = np.rad2deg(np.arccos(drilldir[2]))
-#        azi[ii]  = np.rad2deg(np.arctan2(drilldir[1],drilldir[0]))
-    #       if azi[ii] < 0: azi[ii] = 360-azi[ii]
 
-#        ### drill rotations
-#            
-#        Sg[ii] = 0.15 * float(json.loads(l)['gyroscope_z'])
-#        
-#        pitch = np.deg2rad(json.loads(l)['inclination_x']);  # pitch
-#        roll = np.deg2rad(json.loads(l)['inclination_y']);  # roll  
-#        nx =  np.cos(pitch)*np.sin(roll);
-#        ny = -np.sin(pitch);
-#        azrad = np.mod(np.arctan2(ny,nx), 2*np.pi)
-#        az = np.rad2deg(azrad)
-
-#        if az > 180: az -= 360; #   // do this if your azimuth is always positive i.e. 0-360.
-#        if lastAzimuth == -1000: lastAzimuth = az;
-
-#        diff = az - lastAzimuth;
-#        if diff > 180:  diff -= 360;
-#        if diff < -180: diff += 360;
-
-#        lastAzimuth = az;
-#        totalChange += diff;
-#        Si[ii] = totalChange / 360;
-#        #-----------------------
-#    #    if ~np.isnan(Si[ii]): thoff[ii] = th[ii]
-
+    fh.close()
+    print('... done')
+            
     ### Velocity
     vel = 100 * abs(np.nan_to_num( np.divide(np.diff(z),np.diff(t))) )
     vel = savgol_filter(vel, 100, 2) # smoothing
 
-    fh.close()
+    ### Remove empty parts of arrays for incl and azi plots.
     jjmax = jj-1
     DCM = DCM[0:(jjmax+1), :,:]
     Z = z[0:(jjmax+1)]
 
-    print('... done')
 
-### Dump z(t) log
+#-----------------------
+# Dump z(t) for Aslak's codex560 calibration
+#-----------------------
+
 #df = pd.DataFrame(zip(t,z), columns = ['t','z'])
-#df.to_csv('%s_zt.csv'%LOGFILE, index=False)
+#df.to_csv('%s_zt.csv'%DRILLLOG, index=False)
 #sys.exit(0)
 
 #-----------------------
 # BNO055 orientation calibration
 #-----------------------
 
-dz = 15 # dz is bin size
-    
-def binned_average(df):
-#    ranges = np.arange(df.z.min() - dz, df.z.max() + dz, dz)
-    ranges = np.arange(0, abs(Z_MIN)+dz, dz)
-    groups = df.groupby(pd.cut(df.z, ranges))
-    meanbins = groups.mean().to_numpy()
-    varbins = groups.var().to_numpy()
-    return ranges[1:], meanbins[:,1], varbins[:,1] # binned: [ z, mean(incl), var(incl) ]
-    
-def incl_from_sensordir(x,y):
-        sensordir = -np.array([x,y,np.sqrt(1-x**2-y**2)])
-        drilldir = np.array([np.matmul(DCM[ii,:,:], sensordir) for ii in np.arange(jjmax+1)])
-        incl_raw = np.rad2deg(np.arccos(drilldir[:,2]))
-        df = pd.DataFrame(zip(Z,incl_raw), columns = ['z','incl'])
-        z_est, inclmean_est, inclvar_est = binned_average(df)
-        return z_est, inclmean_est, inclvar_est, incl_raw
+x_opt, y_opt = -0.01, 0.03 # initial sensor orientation guess
 
-df_log = pd.read_csv(LOGGERDATA, names=['z','incl'])
-Z_log, inclmean_log, _ = binned_average(df_log)
-lograw = df_log.to_numpy()
-z_lograw, incl_lograw = lograw[:,0], lograw[:,1]
-    
-x_opt, y_opt = -0.01, 0.03
+dz = 15 # dz is data bin size 
 Z0fit = 75 # ignore misfit with logger at depths shallower than this number
 I0fit = int(Z0fit/dz)
+z_bin_full = np.arange(0, abs(Z_MIN)+dz, dz) # new z-axis
+z_bin = z_bin_full[1:]
+        
+def binned_stats(df):
+    groups = df.groupby(pd.cut(df.z, z_bin_full))
+    meanbins, varbins = groups.mean().to_numpy(), groups.var().to_numpy()
+    return meanbins[:,1], varbins[:,1] # binned: [ mean(inc), var(inc) ]
+    
+def inc_given_sensor_xyplane(x,y):
+        sensordir = -np.array([x,y,np.sqrt(1-x**2-y**2)]) # presumed BNO055 sensor orientation
+        drilldir = np.array([np.matmul(DCM[ii,:,:], sensordir) for ii in np.arange(jjmax+1)]) 
+        incr = np.rad2deg(np.arccos(drilldir[:,2])) # raw inclination data
+        df = pd.DataFrame(zip(Z,incr), columns = ['z','inc'])
+        incm, _ = binned_stats(df)
+        return incm, incr
+
+### Load logger data
+
+df_loggernew = pd.read_csv(LOGGERDATANEW, names=['z','inc'], delim_whitespace=True)
+df_logger    = pd.read_csv(LOGGERDATA,    names=['z','inc'])
+incm_logger, _ = binned_stats(df_logger) # this is what is used to calibration against ("true" inc/azi)
+
+### Run sensor calibration?
 
 if RUN_SENSOR_ORIENTATION_CALIBRATION:
 
     print('*** Estimating BNO055 sensor orientation')
 
+    # Misfit measure
     def J(xy):
-        Z_est, inclmean_est, inclvar_est, _ = incl_from_sensordir(xy[0], xy[1])
-        if 1: # logger misfit?
-            errsq = np.power(inclmean_est-inclmean_log, 2)
-            J = np.nansum(errsq[I0fit:])
-        else: # reduce variance
-            J = np.nansum(inclvar_est)
+        incm, _ = inc_given_sensor_xyplane(xy[0], xy[1])
+        errsq = np.power(incm - incm_logger, 2)
+        J = np.nansum(errsq[I0fit:])
         return J
         
-#    x_0, y_0 = 0, 0 # init guess
-    x_0, y_0 = x_opt, y_opt # init guess
-    paramvec = [x_0,y_0]
-    res = minimize(J, paramvec, method='BFGS', tol=1e-4, options={'gtol': 1e-4, 'disp': True})
-    x_opt, y_opt = res.x[0], res.x[1]
-            
+    paramvec = [x_opt, y_opt] # init guess
+    res = minimize(J, paramvec, method='L-BFGS-B', bounds=[(-0.1,0.1),(-0.1,0.1)], tol=1e-4, options={'gtol': 1e-4, 'disp': True})
+    x_opt, y_opt = res.x[0], res.x[1] # best fit
     print('... done: (x_opt, y_opt) = (%f,%f)'%(x_opt,y_opt))
+    
 else:
     print('*** Using pre-defined BNO055 sensor orientation: (x_opt, y_opt) = (%f,%f)'%(x_opt,y_opt))
     
-Z_est, inclmean_est, inclvar_est, incl_estraw = incl_from_sensordir(x_opt, y_opt)
-
-#code.interact(local=locals())
+### Best fit solution    
+incm_drill, incr_drill = inc_given_sensor_xyplane(x_opt, y_opt)
 
 #-----------------------
 # Plot timer series
@@ -252,16 +221,15 @@ Z_est, inclmean_est, inclvar_est, incl_estraw = incl_from_sensordir(x_opt, y_opt
 
 if PLOT_TIMESERIES:
 
-    scale = 0.7
-    ylen = 14
-    xtick = 1
+    scale, ylen = 0.7, 14
     fig = plt.figure(figsize=(scale*ylen*1.414*1.2, scale*ylen))
+
+    xtick = 1 # hour ticks
 
     N = 4;
     lw = 1.4
     lwtwin = lw*0.8
-    fw = 'normal'
-    fs = 11
+    fs, fw = 11, 'normal'
 
     ### Subplots
 
@@ -350,30 +318,31 @@ if PLOT_ORIENTATION:
 
     scale = 0.7
     fig = plt.figure(figsize=(7,8))
-    c_lograw, c_log = '0.6', 'k'
-    c_drillraw, c_drill = '#a6cee3', '#1f78b4'
-    incllims = [0,7]
+    c_drill, c_logger, c_loggernew = '#1f78b4', '0.6', 'k'
+    inclims = [0,7]
 
     ax1 = plt.subplot(1,2,1)
     ax2 = plt.subplot(1,2,2, sharey=ax1)
 
-    ax1.plot(inclmean_log[I0fit:], -Z_log[I0fit:], c=c_log, lw=2, label='Mean logger (%s)'%flog)
-    ax1.plot(inclmean_est[I0fit:], -Z_est[I0fit:], c=c_drill, lw=2, label='Mean drill')
-    ax1.set_xlim(incllims)
-    ax1.set_ylim([Z_MIN,0])
-    ax1.set_ylabel('z (m)')
-    ax1.set_xlabel('Inclination (deg)')
-    ax1.grid()
+    loggerraw = df_logger.to_numpy()
+    loggerrawnew = df_loggernew.to_numpy()
+    z_ = -z_bin[I0fit:]
+
+    ax1.plot(incm_drill[I0fit:],  z_, c=c_drill,  lw=2, label='Drill (x,y=%.2f,%.2f)'%(x_opt,y_opt), zorder=5)    
+    ax1.plot(incm_logger[I0fit:], z_, c=c_logger, lw=2, label='%s'%fname_logger, zorder=4)
+    ax1.plot(loggerrawnew[:,1], -loggerrawnew[:,0], c=c_loggernew, lw=2, label='%s'%fname_loggernew, zorder=3)
+    ax1.set_xlim(inclims); ax1.set_ylim([Z_MIN,0])
+    ax1.set_ylabel('z (m)'); ax1.set_xlabel('Mean inclination (deg)')
     ax1.set_yticks(np.arange(Z_MIN,0+1,200))
     ax1.set_yticks(np.arange(Z_MIN,0+1,100),minor=True)
+    ax1.grid()
     ax1.legend()
 
-    ax2.scatter(incl_lograw, -z_lograw, marker='.', s=1, c=c_log, label='Raw logger (%s)'%(flog))
-    ax2.scatter(incl_estraw, -Z, marker='.', s=1, c=c_drill, label='Raw drill')
-    ax2.set_xlim(incllims)
-    ax2.set_xlabel('Azimuth (deg)')
-    ax2.grid()
+    ax2.scatter(loggerraw[:,1], -loggerraw[:,0], marker='.', s=1, c=c_logger, label='%s'%(fname_logger))
+    ax2.scatter(incr_drill, -Z, marker='.', s=1, c=c_drill, label='Drill')
+    ax2.set_xlim(inclims); ax2.set_xlabel('Inclination (deg)')
     plt.setp(ax2.get_yticklabels(), visible=False)
+    ax2.grid()
     ax2.legend()
 
     imgout = '%s/%s-orientation.png'%(OUTPATH,date_time_str0)
