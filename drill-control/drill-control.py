@@ -182,16 +182,18 @@ class MainWidget(QWidget):
         self.lbl_depthbar = QLabel(self.htmlfont('<b>Depth', FS_GRAPH_TITLE))
         plotLayout0.addWidget(self.lbl_depthbar)
         self.depthbar = QProgressBar()
-#        bar.setGeometry(200, 150, 40, 200)
+#        self.depthbar.setGeometry(400, 150, 40, 200)
+#        self.depthbar.setTextDirection(QProgressBar.BottomToTop)
+#        self.depthbar.setFormat('%v m')
+#        self.depthbar.setTextVisible(True)
+        self.depthbar.setOrientation(Qt.Vertical)
         self.depthbar.setMinimum(0)
         self.depthbar.setMaximum(DEPTH_MAX)           
         self.depthbar.setValue(0)
-#        self.depthbar.setAlignment(Qt.AlignCenter)
-        self.depthbar.setOrientation(Qt.Vertical)
+        self.depthbar.setAlignment(Qt.AlignCenter)
         self.depthbar.setInvertedAppearance(True) 
-        self.depthbar.setTextVisible(True)
-        self.depthbar.setFormat('%v m')
         plotLayout0.addWidget(self.depthbar)
+        plotLayout0.addWidget(QLabel(''))
         plotLayout0.addWidget(QLabel(''))
         plotLayout0.addWidget(QLabel(''))
         
@@ -594,8 +596,7 @@ class MainWidget(QWidget):
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(int(self.ss.depth))
-#        self.lbl_depthbar.setText('Depth = %06.1fm'%(self.ss.depth))
-#        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
+        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display

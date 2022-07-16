@@ -48,11 +48,11 @@ warn__temperature_electronics = [-60,60]   # deg C
 warn__pressure                = [700,1100] # mbar
 warn__hammer                  = [0,50]     # percent
 warn__spin                    = [0,10]     # rpm
-warn__corelength              = [0.0,3.0]  # metre
+warn__corelength              = [0.0,3.5]  # metre
 
 #----------------------
 # Safe range for surface sensors
 #----------------------
-warn__load     = [-100,1200] # kg
+warn__load     = [-100,1300] # kg
 warn__velocity = [-140,140]  # cm/s
 
