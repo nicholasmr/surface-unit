@@ -35,6 +35,9 @@ TACHO_PRE_REV = 1/560
 PRECISION_LOAD  = 2
 PRECISION_DEPTH = 2
 
+# Presumed max depth of core site
+DEPTH_MAX = 2700
+
 #----------------------
 # Safe range for drill sensors
 #----------------------

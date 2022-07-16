@@ -20,8 +20,7 @@ DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surfa
 
 tavg = 3 # time-averging length in seconds for velocity estimate
 
-SHOW_BNO055_DETAILED = 1
-ALWAYS_SHOW_DRILL_FIELDS = True # ignores of drill is offline
+ALWAYS_SHOW_DRILL_FIELDS = True # ignore if drill is offline and show last recorded redis fields for drill
 
 FS = 14
 FS_GRAPH_TITLE = 5 # font size for graph titles
@@ -30,7 +29,6 @@ PATH_SCREENSHOT = "/mnt/logs/screenshots"
 # Print settings
 print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRILL))
 print('Using BNO055 for orientation? %s'%('Yes' if USE_BNO055_FOR_ORIENTATION else 'No'))
-print('Showing detailed BNO055 output? %s'%('Yes' if SHOW_BNO055_DETAILED else 'No'))
 
 # GUI colors
 COLOR_GREEN = '#66bd63'
@@ -56,6 +54,8 @@ class MainWidget(QWidget):
     
     minYRange_load = 15 # kg
     minYRange_speed = 10.5 # cm/s
+    
+    SHOW_BNO055_DETAILED = 0
     
     def __init__(self, parent=None):
     
@@ -119,36 +119,98 @@ class MainWidget(QWidget):
         ### State fields
 
         self.create_gb_surface()
-        self.create_gb_status()
         self.create_gb_orientation()
         self.create_gb_temperature()
         self.create_gb_pressure()
         self.create_gb_motor()
         self.create_gb_run()
-        self.create_gb_figconf()
+        self.create_gb_status()
         self.create_gb_expert()
 
         ### QT Layout
 
         # Graphs (top)
-        topLayout = QHBoxLayout()
-        topLayout.addWidget(self.plot_speed, 1)
-        topLayout.addWidget(self.plot_load, 2)
-        topLayout.addWidget(self.plot_current, 1)
+
+        w_btn = 90
+        s_btn = 15
+        
+        topLayout = QHBoxLayout() # graphs and associated buttons
+        
+        plotLayout1 = QVBoxLayout()
+        plotLayout1.addWidget(self.plot_speed)
+        plotLayout1btn = QHBoxLayout()
+        plotLayout1btn.setSpacing(s_btn)
+        plotLayout1btn.addStretch(1)
+        speed_xlen_btn1 = QPushButton(self.xlen_names[0]); speed_xlen_btn1.clicked.connect(lambda: self.changed_xaxislen_speed(0)); speed_xlen_btn1.setMaximumWidth(w_btn); plotLayout1btn.addWidget(speed_xlen_btn1)
+        speed_xlen_btn2 = QPushButton(self.xlen_names[1]); speed_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_speed(1)); speed_xlen_btn2.setMaximumWidth(w_btn); plotLayout1btn.addWidget(speed_xlen_btn2)
+        speed_xlen_btn3 = QPushButton(self.xlen_names[2]); speed_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_speed(2)); speed_xlen_btn3.setMaximumWidth(w_btn); plotLayout1btn.addWidget(speed_xlen_btn3)
+        speed_xlen_btn4 = QPushButton(self.xlen_names[3]); speed_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_speed(3)); speed_xlen_btn4.setMaximumWidth(w_btn); plotLayout1btn.addWidget(speed_xlen_btn4)
+        plotLayout1btn.addStretch(2)
+        plotLayout1.addLayout(plotLayout1btn)
+
+        plotLayout2 = QVBoxLayout()
+        plotLayout2.addWidget(self.plot_load)
+        plotLayout2btn = QHBoxLayout()
+        plotLayout2btn.setSpacing(s_btn)
+        plotLayout2btn.addStretch(2)
+        load_xlen_btn1 = QPushButton(self.xlen_names[0]); load_xlen_btn1.clicked.connect(lambda: self.changed_xaxislen_load(0)); load_xlen_btn1.setMaximumWidth(w_btn); plotLayout2btn.addWidget(load_xlen_btn1)
+        load_xlen_btn2 = QPushButton(self.xlen_names[1]); load_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_load(1)); load_xlen_btn2.setMaximumWidth(w_btn); plotLayout2btn.addWidget(load_xlen_btn2)
+        load_xlen_btn3 = QPushButton(self.xlen_names[2]); load_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_load(2)); load_xlen_btn3.setMaximumWidth(w_btn); plotLayout2btn.addWidget(load_xlen_btn3)
+        load_xlen_btn4 = QPushButton(self.xlen_names[3]); load_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_load(3)); load_xlen_btn4.setMaximumWidth(w_btn); plotLayout2btn.addWidget(load_xlen_btn4)
+        plotLayout2btn.addStretch(1)
+        plotLayout2btn.addWidget(QLabel('Plot:'))
+        self.cb_loadmeasure = QComboBox()
+        self.cb_loadmeasure.addItems([self.loadmeasures[key] for key in self.loadmeasures.keys()])
+        self.cb_loadmeasure.currentIndexChanged.connect(self.changed_loadmeasure)
+        plotLayout2btn.addWidget(self.cb_loadmeasure)
+        plotLayout2btn.addStretch(2)
+        plotLayout2.addLayout(plotLayout2btn)
+        
+        plotLayout3 = QVBoxLayout()        
+        plotLayout3.addWidget(self.plot_current)
+        plotLayout3btn = QHBoxLayout()
+        plotLayout3btn.setSpacing(s_btn)
+        plotLayout3btn.addStretch(1)
+        current_xlen_btn1 = QPushButton(self.xlen_names[0]); current_xlen_btn1.clicked.connect(lambda: self.changed_xaxislen_current(0)); current_xlen_btn1.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn1)
+        current_xlen_btn2 = QPushButton(self.xlen_names[1]); current_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_current(1)); current_xlen_btn2.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn2)
+        current_xlen_btn3 = QPushButton(self.xlen_names[2]); current_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_current(2)); current_xlen_btn3.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn3)
+        current_xlen_btn4 = QPushButton(self.xlen_names[3]); current_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_current(3)); current_xlen_btn4.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn4)
+        plotLayout3btn.addStretch(2)
+        plotLayout3.addLayout(plotLayout3btn)
+        
+        plotLayout0 = QVBoxLayout()
+        self.lbl_depthbar = QLabel(self.htmlfont('<b>Depth', FS_GRAPH_TITLE))
+        plotLayout0.addWidget(self.lbl_depthbar)
+        self.depthbar = QProgressBar()
+#        bar.setGeometry(200, 150, 40, 200)
+        self.depthbar.setMinimum(0)
+        self.depthbar.setMaximum(DEPTH_MAX)           
+        self.depthbar.setValue(0)
+#        self.depthbar.setAlignment(Qt.AlignCenter)
+        self.depthbar.setOrientation(Qt.Vertical)
+        self.depthbar.setInvertedAppearance(True) 
+        self.depthbar.setTextVisible(True)
+        self.depthbar.setFormat('%v m')
+        plotLayout0.addWidget(self.depthbar)
+        plotLayout0.addWidget(QLabel(''))
+        plotLayout0.addWidget(QLabel(''))
+        
+        topLayout.addLayout(plotLayout1,1)
+        topLayout.addLayout(plotLayout0,0)
+        topLayout.addLayout(plotLayout2,2)
+        topLayout.addLayout(plotLayout3,1)
+
         
         # State fields (bottom)
         botLayout = QHBoxLayout()
-        botLayoutSub1 = QVBoxLayout()
-        botLayoutSub1.addWidget(self.gb_surface)
-        botLayoutSub1.addWidget(self.gb_status)
-        botLayout.addLayout(botLayoutSub1)
+        botLayout.addWidget(self.gb_surface)
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
         botLayout.addWidget(self.gb_pressure)
         botLayout.addWidget(self.gb_motor)
         botLayout.addWidget(self.gb_run)
         botLayoutSub2 = QVBoxLayout()
-        botLayoutSub2.addWidget(self.gb_figconf)
+        botLayoutSub2.addWidget(self.gb_status)
         botLayoutSub2.addWidget(self.gb_expert)
         botLayout.addLayout(botLayoutSub2)
         botLayout.addStretch(1)
@@ -169,11 +231,15 @@ class MainWidget(QWidget):
         self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
         self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Inst. speed (cm/s)',   initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
+        self.gb_run_deltaload           = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
+        self.gb_run_peakload            = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(self.xlen[0]), initstr)
         self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
         layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
+        layout.addWidget(self.gb_run_deltaload)
+        layout.addWidget(self.gb_run_peakload)
         layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
@@ -187,15 +253,19 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
         if USE_BNO055_FOR_ORIENTATION:
             layout.addWidget(self.MakeStateBox('orientation_drilldir', 'Orientation vector', initstr))
-            if SHOW_BNO055_DETAILED:
-#                layout.addWidget(self.MakeStateBox('orientation_quat', 'Quaternion (BNO055)',         initstr))
-                self.gb_BNO055 = QGroupBox("BNO055 triaxial values")
-                layout_BNO055 = QVBoxLayout()
-                layout_BNO055.addWidget(self.MakeStateBox('orientation_acceleration', 'Acceleration (m/s^2)', initstr))
-                layout_BNO055.addWidget(self.MakeStateBox('orientation_magnetometer', 'Magnetometer (mT)',    initstr))
-                layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
-                self.gb_BNO055.setLayout(layout_BNO055)
-                layout.addWidget(self.gb_BNO055)
+            self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
+#            layout.addWidget(self.MakeStateBox('orientation_quat', 'Quaternion (BNO055)',         initstr))
+            layout_BNO055 = QVBoxLayout()
+            layout_BNO055.addWidget(self.MakeStateBox('orientation_acceleration', 'Acceleration (m/s^2)', initstr))
+            layout_BNO055.addWidget(self.MakeStateBox('orientation_magnetometer', 'Magnetometer (mT)',    initstr))
+            layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
+            self.gb_BNO055.setLayout(layout_BNO055)
+            self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
+            self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
+            self.cb_show_bno055.setChecked(self.SHOW_BNO055_DETAILED)
+            self.clicked_showhide_bno055()
+            layout.addWidget(self.cb_show_bno055)
+            layout.addWidget(self.gb_BNO055)
         else:
             layout.addWidget(self.MakeStateBox('orientation_inclinometer', 'Inclinometer [x,y] (deg)', initstr))
                 
@@ -234,10 +304,6 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('motor_speed',      'Speed (RPM)',  initstr), 1,2)
         layout.addWidget(self.MakeStateBox('motor_voltage',    'Voltage (V)',  initstr), 2,1)
         layout.addWidget(self.MakeStateBox('motor_throttle',   'Throttle (%)', initstr), 2,2)
-        layout.addWidget(self.MakeStateBox('motor_tachometer', 'Tachometer (rev)',   initstr), 3,1)
-#        btn_resettacho = QPushButton("Reset tachometer")
-#        btn_resettacho.clicked.connect(self.clicked_resettacho)
-#        layout.addWidget(btn_resettacho, 4,1)
 
         ### Throttle
 
@@ -319,17 +385,12 @@ class MainWidget(QWidget):
         self.btn_screenshot.clicked.connect(self.take_screenshot)
         layout.addWidget(self.btn_screenshot)
 
-        layout.addWidget(self.MakeStateBox('run_time', 'Run time', initstr))
-        self.gb_run_startdepth = self.MakeStateBox('run_startdepth', 'Start depth (m)',  initstr)
-        self.gb_run_deltadepth = self.MakeStateBox('run_deltadepth', 'Delta depth (m)',  initstr)
-        self.gb_run_startload  = self.MakeStateBox('run_startload',  'Start load (kg)',  initstr)
-        self.gb_run_deltaload  = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
-        self.gb_run_peakload    = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(self.xlen[0]), initstr)
-        layout.addWidget(self.gb_run_startdepth)
-        layout.addWidget(self.gb_run_deltadepth)
-        layout.addWidget(self.gb_run_startload)
-        layout.addWidget(self.gb_run_deltaload)
-        layout.addWidget(self.gb_run_peakload)
+        layout.addWidget(self.MakeStateBox('run_time', 'Run time',                 initstr))
+        layout.addWidget(self.MakeStateBox('run_startdepth', 'Start depth (m)',    initstr))
+        layout.addWidget(self.MakeStateBox('run_deltadepth', 'Delta depth (m)',    initstr))
+        layout.addWidget(self.MakeStateBox('run_startload',  'Start load (kg)',    initstr))
+        layout.addWidget(self.MakeStateBox('motor_tachometer', 'Tachometer (rev)', initstr))
+
         layout.addStretch(1)
         self.gb_run.setLayout(layout)
 
@@ -382,42 +443,6 @@ class MainWidget(QWidget):
         layout.rowStretch(1)
         self.gb_status.setLayout(layout)
 
-    def create_gb_figconf(self):
-        self.gb_figconf = QGroupBox("Plots")
-        layout_master = QVBoxLayout()
-        
-        gb = QGroupBox("x-axis length")
-        layout = QGridLayout()        
-        layout.addWidget(QLabel('Speed: '), 1,1)
-        self.cb_xaxislen_speed = QComboBox()
-        self.cb_xaxislen_speed.addItems(self.xlen_names)
-        self.cb_xaxislen_speed.currentIndexChanged.connect(self.changed_xaxislen_speed)
-        layout.addWidget(self.cb_xaxislen_speed, 1,2)
-        layout.addWidget(QLabel('Load: '), 2,1)
-        self.cb_xaxislen_load = QComboBox()
-        self.cb_xaxislen_load.addItems(self.xlen_names)
-        self.cb_xaxislen_load.currentIndexChanged.connect(self.changed_xaxislen_load)
-        layout.addWidget(self.cb_xaxislen_load, 2,2)
-        layout.addWidget(QLabel('Current: '), 3,1)
-        self.cb_xaxislen_current = QComboBox()
-        self.cb_xaxislen_current.addItems(self.xlen_names)
-        self.cb_xaxislen_current.currentIndexChanged.connect(self.changed_xaxislen_current)
-        layout.addWidget(self.cb_xaxislen_current, 3,2)
-        gb.setLayout(layout)
-        layout_master.addWidget(gb)
-        
-        layout_master.addWidget(QLabel(''))        
-        
-        layout_master.addWidget(QLabel('Load measure:'))
-        self.cb_loadmeasure = QComboBox()
-        self.cb_loadmeasure.addItems([self.loadmeasures[key] for key in self.loadmeasures.keys()])
-        self.cb_loadmeasure.currentIndexChanged.connect(self.changed_loadmeasure)
-        layout_master.addWidget(self.cb_loadmeasure)
-        
-        layout_master.addStretch(1)
-        self.gb_figconf.setLayout(layout_master)
-
-        
     ### User actions 
     
     # Motor
@@ -463,16 +488,16 @@ class MainWidget(QWidget):
 
     # Plot control
     
-    def changed_xaxislen_speed(self):
-        self.xlen_selector['speed'] = self.cb_xaxislen_speed.currentIndex()
+    def changed_xaxislen_speed(self, idx):
+        self.xlen_selector['speed'] = idx #self.cb_xaxislen_speed.currentIndex()
         self.plot_speed.setXRange(0, self.xlen[self.xlen_selector['speed']]/60*1.01, padding=0)
 
-    def changed_xaxislen_load(self):
-        self.xlen_selector['load'] = self.cb_xaxislen_load.currentIndex()
+    def changed_xaxislen_load(self, idx):
+        self.xlen_selector['load'] = idx #self.cb_xaxislen_load.currentIndex()
         self.plot_load.setXRange(0, self.xlen[self.xlen_selector['load']]/60*1.01, padding=0)
         
-    def changed_xaxislen_current(self):
-        self.xlen_selector['current'] = self.cb_xaxislen_current.currentIndex()
+    def changed_xaxislen_current(self, idx):
+        self.xlen_selector['current'] = idx #self.cb_xaxislen_current.currentIndex()
         self.plot_current.setXRange(0, self.xlen[self.xlen_selector['current']]/60*1.01, padding=0)
         
     def changed_loadmeasure(self):
@@ -508,6 +533,13 @@ class MainWidget(QWidget):
         self.hist_loadtare += self.ss.loadtare
         self.hist_loadtare -= loadtare_new
         self.ss.set_loadtare(loadtare_new)
+        
+    # Other
+    
+    def clicked_showhide_bno055(self):
+        self.SHOW_BNO055_DETAILED = self.cb_show_bno055.isChecked()
+        if self.SHOW_BNO055_DETAILED: self.gb_BNO055.show()
+        else:                         self.gb_BNO055.hide()
 
     ### State update
     
@@ -560,6 +592,10 @@ class MainWidget(QWidget):
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
         self.plot_speed.setTitle(  self.htmlfont('<b>|Avg. speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
+
+        self.depthbar.setValue(int(self.ss.depth))
+#        self.lbl_depthbar.setText('Depth = %06.1fm'%(self.ss.depth))
+#        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
@@ -618,7 +654,7 @@ class MainWidget(QWidget):
                 if USE_BNO055_FOR_ORIENTATION:
                     str_drilldir = '[%.2f, %.2f, %.2f]'%(self.ds.drilldir[0],self.ds.drilldir[1],self.ds.drilldir[2])
                     self.updateStateBox('orientation_drilldir', str_drilldir,  warn__nothres)
-                    if SHOW_BNO055_DETAILED:
+                    if self.SHOW_BNO055_DETAILED:
     #                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
     #                    self.updateStateBox('orientation_quat',         str_quat,   warn__nothres)
                         str_aclvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
@@ -663,7 +699,7 @@ class MainWidget(QWidget):
 
         ### Disabled widgets if winch encoder is dead
 
-        for f in ['gb_surface_depth','gb_surface_speed', 'gb_run_startdepth','gb_run_deltadepth']:
+        for f in ['gb_surface_depth','gb_surface_speed']:
             lbl = getattr(self, f)
             lbl.setEnabled(self.ss.islive_loadcell)
                         
@@ -672,7 +708,7 @@ class MainWidget(QWidget):
                         
         ### Disabled widgets if load cell is dead
                         
-        for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload',  'gb_run_startload','gb_run_deltaload']:
+        for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload']:
             lbl = getattr(self, f)
             lbl.setEnabled(self.ss.islive_depthcounter)
             

@@ -11,6 +11,8 @@ try:
 except: 
     USE_BNO055_FOR_ORIENTATION = False
 
+DEGS_TO_RPM = 1/6 
+
 class DrillState():
 
     # State variables
@@ -162,7 +164,7 @@ class DrillState():
     
     def get_spin(self):
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
-        return self.gyroscope_z * 1/6 # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
+        return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
     def get_orientation(self, USE_AHRS=True):
     
