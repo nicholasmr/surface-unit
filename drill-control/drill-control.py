@@ -22,7 +22,7 @@ tavg = 3 # time-averging length in seconds for velocity estimate
 
 ALWAYS_SHOW_DRILL_FIELDS = True # ignore if drill is offline and show last recorded redis fields for drill
 
-FS = 14
+FS = 13
 FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 
@@ -131,7 +131,7 @@ class MainWidget(QWidget):
 
         # Graphs (top)
 
-        w_btn = 90
+        w_btn = 100
         s_btn = 15
         
         topLayout = QHBoxLayout() # graphs and associated buttons
@@ -177,10 +177,21 @@ class MainWidget(QWidget):
         current_xlen_btn4 = QPushButton(self.xlen_names[3]); current_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_current(3)); current_xlen_btn4.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn4)
         plotLayout3btn.addStretch(2)
         plotLayout3.addLayout(plotLayout3btn)
+                
+        topLayout.addLayout(plotLayout1,1)
+        topLayout.addLayout(plotLayout2,2)
+        topLayout.addLayout(plotLayout3,1)
+
         
-        plotLayout0 = QVBoxLayout()
+        # State fields (bottom)
+        botLayout = QHBoxLayout()
+        
+        
+        depthbarLayout = QVBoxLayout()
         self.lbl_depthbar = QLabel(self.htmlfont('<b>Depth', FS_GRAPH_TITLE))
-        plotLayout0.addWidget(self.lbl_depthbar)
+        depthbarLayout.addWidget(self.lbl_depthbar)
+        depthbarLayoutInner = QHBoxLayout()
+        depthbarLayoutInner.addStretch(1)
         self.depthbar = QProgressBar()
 #        self.depthbar.setGeometry(400, 150, 40, 200)
 #        self.depthbar.setTextDirection(QProgressBar.BottomToTop)
@@ -192,19 +203,13 @@ class MainWidget(QWidget):
         self.depthbar.setValue(0)
         self.depthbar.setAlignment(Qt.AlignCenter)
         self.depthbar.setInvertedAppearance(True) 
-        plotLayout0.addWidget(self.depthbar)
-        plotLayout0.addWidget(QLabel(''))
-        plotLayout0.addWidget(QLabel(''))
-        plotLayout0.addWidget(QLabel(''))
+        depthbarLayoutInner.addWidget(self.depthbar)
+        depthbarLayoutInner.addStretch(1)
+        depthbarLayout.addLayout(depthbarLayoutInner)
+        depthbarLayout.addWidget(QLabel(''))
+#        depthbarLayout.setAlignment(Qt.AlignCenter)
+        botLayout.addLayout(depthbarLayout,0)
         
-        topLayout.addLayout(plotLayout1,1)
-        topLayout.addLayout(plotLayout0,0)
-        topLayout.addLayout(plotLayout2,2)
-        topLayout.addLayout(plotLayout3,1)
-
-        
-        # State fields (bottom)
-        botLayout = QHBoxLayout()
         botLayout.addWidget(self.gb_surface)
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
@@ -248,7 +253,7 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation")
-        self.gb_orientation.setMinimumWidth(290)
+#        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
