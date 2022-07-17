@@ -49,6 +49,7 @@ warn__pressure                = [700,1100] # mbar
 warn__hammer                  = [0,50]     # percent
 warn__spin                    = [0,10]     # rpm
 warn__corelength              = [0.0,3.5]  # metre
+warn__downholevoltage         = [350,425]  # volt
 
 #----------------------
 # Safe range for surface sensors

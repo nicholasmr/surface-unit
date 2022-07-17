@@ -33,8 +33,11 @@ print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRIL
 print('Using BNO055 for orientation? %s'%('Yes' if USE_BNO055_FOR_ORIENTATION else 'No'))
 
 # GUI colors
+COLOR_GRAYBG = '#f0f0f0'
 COLOR_GREEN = '#66bd63'
 COLOR_RED   = '#f46d43'
+COLOR_DARKRED   = '#b2182b'
+COLOR_DARKGREEN = '#1a9850'
 COLOR_BLUE  = '#3182bd'
 
 #-------------------
@@ -71,7 +74,7 @@ class MainWidget(QWidget):
 
         ### pyqt graphs
 
-        pg.setConfigOptions(background='f0f0f0') # gray
+        pg.setConfigOptions(background=COLOR_GRAYBG) # gray
         pg.setConfigOptions(foreground='k')
 
         # X-axis
@@ -113,7 +116,6 @@ class MainWidget(QWidget):
         # init curves
         lw = 3
         plotpen_black = pg.mkPen(color='k', width=lw)
-        plotpen_blue  = pg.mkPen(color=COLOR_BLUE, width=lw-1)
         self.curve_load    = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_speed   = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_current = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
@@ -197,8 +199,8 @@ class MainWidget(QWidget):
         self.depthbar = DepthProgressBar(DEPTH_MAX)
         depthbarLayoutInner.addWidget(self.depthbar)
         depthbarLayoutInner.addStretch(1)
+        depthbarLayoutInner.setContentsMargins(10, 0, 20, 0)
         depthbarLayout.addLayout(depthbarLayoutInner)
-        depthbarLayout.addWidget(QLabel(''))
         botLayout.addLayout(depthbarLayout,0)
         
         botLayout.addWidget(self.gb_surface)
@@ -602,14 +604,14 @@ class MainWidget(QWidget):
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
-        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
+        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%0.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
         self.updateStateBox('surface_speed',           round(self.ss.speedinst,2),            warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
-        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
+        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__downholevoltage)
         self.updateStateBox('run_peakload',            round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
         self.updateStateBox('run_deltaload',           round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
                 
@@ -641,14 +643,14 @@ class MainWidget(QWidget):
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
-            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:              self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_RED))
+            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:              self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
-            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:                       self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_RED))
+            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:                       self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
-            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:                           self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_RED))
+            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:                           self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
 
 
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
@@ -757,15 +759,18 @@ class DepthProgressBar(QWidget):
     def paintEvent(self, e):
         painter = QtGui.QPainter(self)
 
-        c_ice   = '#737373'
-        c_fluid = '#f0f0f0'
+        c_ice   = '#6baed6'
+        c_icehatch = '#252525' # 737373
+        c_fluid = COLOR_GRAYBG 
         c_drill = '#252525'
+        
+        H, W = painter.device().height(), painter.device().width()
 
         ### backgorund (fluid)
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(c_fluid))
         brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(0, 0, painter.device().width(), painter.device().height())
+        rect = QtCore.QRect(0, 0, W, H)
         painter.fillRect(rect, brush)
         
         ### undrilled ice
@@ -774,16 +779,19 @@ class DepthProgressBar(QWidget):
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(c_ice))
         brush.setStyle(Qt.SolidPattern)
-#        brush.setStyle(Qt.BDiagPattern)
-        rect = QtCore.QRect(0, ystart_ice, painter.device().width(), yend_ice-ystart_ice)
+        rect = QtCore.QRect(0, ystart_ice, W, yend_ice-ystart_ice)
         painter.fillRect(rect, brush)
-
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_icehatch))
+        brush.setStyle(Qt.BDiagPattern)
+        painter.fillRect(rect, brush)
+        
         ### drill position
-        cablewidth = int(0.75/10*painter.device().width())
-        drillwidth = int(7/10*painter.device().width())
-        drillheight = int(1.5/10 * painter.device().height()) # in px
-        y_drill = int(self.curval/self.maxval * painter.device().height()) # in px
-        xc = int(painter.device().width()/2)
+        cablewidth = int(0.75/10*W)
+        drillwidth = int(7/10*W)
+        drillheight = int(1.5/10 * H) # in px
+        y_drill = int(self.curval/self.maxval * H) # in px
+        xc = int(W/2)
         # cable
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(c_drill))
@@ -797,8 +805,10 @@ class DepthProgressBar(QWidget):
         ### Walls
         painter.setBrush(Qt.black)
         painter.setPen(QtGui.QPen(Qt.black, 4, Qt.SolidLine))
-        painter.drawLine(0,0,0,painter.device().height())
-        painter.drawLine(painter.device().width(),0,painter.device().width(),painter.device().height())
+        painter.drawLine(0,0,0,H)
+        painter.drawLine(W,0,W,H)
+        painter.drawLine(0,H,W,H)
+        painter.drawLine(0,0,W,0)
         
         painter.end()
 
