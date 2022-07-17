@@ -173,7 +173,7 @@ def find_and_connect():
                 break
             except Exception as e:
                 encoderDisplay = None
-        return encoderDisplay
+    return encoderDisplay
 
 
 

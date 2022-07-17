@@ -101,7 +101,7 @@ def find_and_connect():
                 break
             except Exception as e:
                 loadcellDisplay = None
-        return loadcellDisplay
+    return loadcellDisplay
 
 
 
