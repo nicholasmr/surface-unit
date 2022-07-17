@@ -96,7 +96,7 @@ def find_and_connect():
                 loadcellDisplay = PMDStrain(port, slaveaddress)
                 if port.startswith("COM"):
                     loadcellDisplay.close_port_after_each_call = True
-                loadcellDisplay.get_status()
+                loadcellDisplay.get_decimalpoint()
                 print("pmdstrain found on {0}".format(port))
                 break
             except Exception as e:
