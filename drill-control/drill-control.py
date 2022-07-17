@@ -39,6 +39,83 @@ COLOR_BLUE  = '#3182bd'
 # Program start
 #-------------------
 
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
+
+class DepthProgressBar(QWidget):
+
+    def __init__(self, iceThickness):
+        super().__init__()
+
+        self.minval = 0 # min depth
+        self.maxval = iceThickness # max depth (bedrock)
+        self.iceval = self.maxval*2/3 # ice depth (last max drilling depth)
+        self.curval = self.maxval*1/3 # current drill depth (position)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
+
+    def sizeHint(self):
+        return QtCore.QSize(80,300)
+        
+    def setValue(self, currentDepth, iceDepth):
+        self.curval = currentDepth
+        self.iceval = iceDepth
+        self.repaint()
+
+    def paintEvent(self, e):
+        painter = QtGui.QPainter(self)
+
+        c_ice   = '#737373'
+        c_fluid = '#f0f0f0'
+        c_drill = '#252525'
+
+        ### backgorund (fluid)
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_fluid))
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(0, 0, painter.device().width(), painter.device().height())
+        painter.fillRect(rect, brush)
+        
+        ### undrilled ice
+        ystart_ice = self.maxval
+        yend_ice   = int(self.iceval/self.maxval * painter.device().height()) # in px
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_ice))
+        brush.setStyle(Qt.SolidPattern)
+#        brush.setStyle(Qt.BDiagPattern)
+        rect = QtCore.QRect(0, ystart_ice, painter.device().width(), yend_ice-ystart_ice)
+        painter.fillRect(rect, brush)
+
+        ### drill position
+        cablewidth = int(0.75/10*painter.device().width())
+        drillwidth = int(7/10*painter.device().width())
+        drillheight = int(1.5/10 * painter.device().height()) # in px
+        y_drill = int(self.curval/self.maxval * painter.device().height()) # in px
+        xc = int(painter.device().width()/2)
+        # cable
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_drill))
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(xc-int(cablewidth/2), 0, cablewidth, y_drill)
+        painter.fillRect(rect, brush)
+        # dirll
+        rect = QtCore.QRect(xc-int(drillwidth/2), y_drill-drillheight, drillwidth, drillheight)
+        painter.fillRect(rect, brush)
+        
+        ### Walls
+        painter.setBrush(Qt.black)
+        painter.setPen(QtGui.QPen(Qt.black, 6, Qt.SolidLine))
+        painter.drawLine(0,0,0,painter.device().height())
+        painter.drawLine(painter.device().width(),0,painter.device().width(),painter.device().height())
+        
+        painter.end()
+
+    def _trigger_refresh(self):
+        self.update()
+
 class MainWidget(QWidget):
 
     runtime0 = None
@@ -185,29 +262,17 @@ class MainWidget(QWidget):
         
         # State fields (bottom)
         botLayout = QHBoxLayout()
-        
-        
+
         depthbarLayout = QVBoxLayout()
         self.lbl_depthbar = QLabel(self.htmlfont('<b>Depth', FS_GRAPH_TITLE))
         depthbarLayout.addWidget(self.lbl_depthbar)
         depthbarLayoutInner = QHBoxLayout()
         depthbarLayoutInner.addStretch(1)
-        self.depthbar = QProgressBar()
-#        self.depthbar.setGeometry(400, 150, 40, 200)
-#        self.depthbar.setTextDirection(QProgressBar.BottomToTop)
-#        self.depthbar.setFormat('%v m')
-#        self.depthbar.setTextVisible(True)
-        self.depthbar.setOrientation(Qt.Vertical)
-        self.depthbar.setMinimum(0)
-        self.depthbar.setMaximum(DEPTH_MAX)           
-        self.depthbar.setValue(0)
-        self.depthbar.setAlignment(Qt.AlignCenter)
-        self.depthbar.setInvertedAppearance(True) 
+        self.depthbar = DepthProgressBar(DEPTH_MAX)
         depthbarLayoutInner.addWidget(self.depthbar)
         depthbarLayoutInner.addStretch(1)
         depthbarLayout.addLayout(depthbarLayoutInner)
         depthbarLayout.addWidget(QLabel(''))
-#        depthbarLayout.setAlignment(Qt.AlignCenter)
         botLayout.addLayout(depthbarLayout,0)
         
         botLayout.addWidget(self.gb_surface)
@@ -600,7 +665,8 @@ class MainWidget(QWidget):
         self.plot_speed.setTitle(  self.htmlfont('<b>|Avg. speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
-        self.depthbar.setValue(int(self.ss.depth))
+        self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
+#        self.depthbar.repaint()
         self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
         ### Update state fields
