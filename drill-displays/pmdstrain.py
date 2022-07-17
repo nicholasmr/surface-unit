@@ -92,12 +92,12 @@ def find_and_connect():
         loadcellDisplay = None
         for port in ports:
             try:
-                print("- testing for codex560 with address {0} on {1}".format(slaveaddress, port))
+                print("- testing for pmdstrain with address {0} on {1}".format(slaveaddress, port))
                 loadcellDisplay = PMDStrain(port, slaveaddress)
                 if port.startswith("COM"):
                     loadcellDisplay.close_port_after_each_call = True
                 loadcellDisplay.get_status()
-                print("Kübler CODEX-560 found on {0}".format(port))
+                print("pmdstrain found on {0}".format(port))
                 break
             except Exception as e:
                 loadcellDisplay = None
