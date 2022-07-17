@@ -82,53 +82,63 @@ class PMDStrain( minimalmodbus.Instrument ):
 
 
 
-
-if __name__ == '__main__':
-    print("Load cell")
-    if (len(sys.argv) > 1):
-        print(sys.argv[1])
-        loadcellDisplay = None
-        while loadcellDisplay is None:
-            try:
-                print("trying again")
-                loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
-                loadcellDisplay.debug=False
-                time.sleep(1)
-            except:
-                pass
-    else:
-        ports=glob.glob("/dev/ttyUSB*")
+def find_and_connect():
+    try:
+        loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
+    except:
+        ports = glob.glob("/dev/ttyUSB*")
+        if len(ports) == 0: #windows
+            ports = [f'COM{x:.0f}' for x in range(5,20)]
         loadcellDisplay = None
         for port in ports:
             try:
-                print("- testing for pmdstrain with adress {0} on {1}".format(slaveaddress,port))
+                print("- testing for codex560 with address {0} on {1}".format(slaveaddress, port))
                 loadcellDisplay = PMDStrain(port, slaveaddress)
-                loadcellDisplay.debug=False
-                loadcellDisplay.serial.readall()
-                loadcellDisplay.get_decimalpoint()
-                print("Load cell found on {0}".format(port))
+                if port.startswith("COM"):
+                    loadcellDisplay.close_port_after_each_call = True
+                loadcellDisplay.get_status()
+                print("Kübler CODEX-560 found on {0}".format(port))
                 break
             except Exception as e:
                 loadcellDisplay = None
-
-        if loadcellDisplay is None:
-            sys.exit("No port found for PMD-Strain (load cell display)!")
+        return loadcellDisplay
 
 
+
+
+if __name__ == '__main__':
+
+    import redis
     redis_conn = redis.StrictRedis(host=REDIS_HOST)
 
+
+    print("Load cell display")
+    loadcellDisplay = None
+
+
     while True:
+        if loadcellDisplay is None:
+            print("trying to connect to load cell display...")
+            loadcellDisplay = find_and_connect()
+
         try:
             loadcellDisplay.serial.readall() #note: sleep at least by 0.01
             time.sleep(0.05)
             loadcellDisplay.get_decimalpoint()
             redis_conn.set("load-cell", loadcellDisplay.get_displayvalue())
-        except IOError:
-            pass
-        except ValueError:
-            pass
-        except TypeError:
-            pass
+        except Exception as e:
+            print("Failed to read from load cell display:", repr(e))
+            redis_conn.set("load-cell", '-9999')
+            loadcellDisplay = None
+            print("waiting 5secs")
+            time.sleep(5.0)
+            continue
+        #except IOError:
+        #    pass
+        #except ValueError:
+        #    pass
+        #except TypeError:
+        #    pass
 
 
 pass
