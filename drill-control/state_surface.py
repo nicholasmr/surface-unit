@@ -57,37 +57,27 @@ class SurfaceState():
             now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
             self.depth     = -encoder["depth"]
-            self.speedinst = -100*encoder["velocity"]
+            self.islive_depthcounter = (int(self.depth) != 9999)
             
-            self.depth_list = np.roll(self.depth_list, -1); 
-            self.depth_list[-1] = self.depth
+            if self.islive_depthcounter:
+                
+                self.speedinst = -100*encoder["velocity"]
+                
+                self.depth_list = np.roll(self.depth_list, -1); 
+                self.depth_list[-1] = self.depth
 
-            self.time_list = np.roll(self.time_list, -1); 
-            self.time_list[-1] = now # new time stamp (seconds)
-            
-            #self.speed = (self.depth_list[-1] - self.depth_list[0]) / (self.dt_intended*(self.Navg-1))
-            self.speedprev = self.speed
-#            speednew = (self.depth_list[-1] - self.depth_list[0]) / (self.time_list[-1] - self.time_list[0])
-            speednew = np.nanmean(np.divide( np.diff(self.depth_list), np.diff(self.time_list) ))
-            speednew *= 100 # m/s -> cm/s 
-            alpha = 0.125
-            self.speed = alpha*speednew + (1-alpha)*self.speedprev
-            #self.speed *= 100 # m/s -> cm/s 
-            
-#####################            
-#            self.speedinst = abs((self.depth-self.depthprev)/self.dt)
-#            self.speedinst *= 100 # m/s -> cm/s 
-#            self.speed = self.calc_avgspeed(self.speedinst, self.dt)
-#####################
-#            oldspeed = self.speed
-#            alpha = 0.05
-#            self.speed = self.speedinst if not smoothload else alpha*self.speedinst + (1-alpha)*oldspeed
-#####################
+                self.time_list = np.roll(self.time_list, -1); 
+                self.time_list[-1] = now # new time stamp (seconds)
+                
+                self.speedprev = self.speed
+                speednew = np.nanmean(np.divide( np.diff(self.depth_list), np.diff(self.time_list) ))
+                speednew *= 100 # m/s -> cm/s 
+                alpha = 0.125
+                self.speed = alpha*speednew + (1-alpha)*self.speedprev
 
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
-#            self.islive_depthcounter = True
-            self.islive_depthcounter = (int(self.depth) != -9999)
+            
         except:
             # probably because not connected?
             self.depth, self.depthtare = 0.0, 0.0 
@@ -99,10 +89,10 @@ class SurfaceState():
         try:
             loadcell = json.loads(self.rc.get('load-cell'))
             loadnew = float(loadcell["load"])
-            self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
-            self.loadnet  = self.load - CABLE_DENSITY*self.depth
-#            self.islive_loadcell = True
-            self.islive_loadcell = (int(self.load) != -9999)
+            self.islive_loadcell = (int(loadnew) != -9999)
+            if self.islive_loadcell:
+                self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
+                self.loadnet  = self.load - CABLE_DENSITY*self.depth
         except:
             # probably because not connected?
             self.load, self.loadnet = 0.0, 0.0

@@ -30,7 +30,7 @@ class DrillState():
     temperature_gear2          = 0
     temperature_baseplate      = 0
     temperature_motor          = 0
-    temperature_vesc           = 0
+#    temperature_vesc           = 0 # = motor_controller_temp
     
     pressure_electronics = 0
     pressure_topplug     = 0
