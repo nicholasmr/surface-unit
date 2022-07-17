@@ -33,11 +33,13 @@ python3 /home/drill/surface-unit/drill-control/drill-control.py &
 
 echo "> Winch encoder (codex560)"
 sleep 1;
-python3 /home/drill/surface-unit/drill-displays/codex560.py /dev/ttyUSB1 &
+#python3 /home/drill/surface-unit/drill-displays/codex560.py /dev/ttyUSB1 &
+python3 /home/drill/surface-unit/drill-displays/codex560.py &
 
 echo "> Load cell (pmdstrain)"
 sleep 1;
-python3 /home/drill/surface-unit/drill-displays/pmdstrain.py /dev/ttyUSB0 &
+#python3 /home/drill/surface-unit/drill-displays/pmdstrain.py /dev/ttyUSB0 &
+python3 /home/drill/surface-unit/drill-displays/pmdstrain.py &
 
 echo "> Launching drill comms (dispatch)";
 sleep 1;
