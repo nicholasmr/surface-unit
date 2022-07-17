@@ -28,7 +28,6 @@ import minimalmodbus
 import struct
 import glob
 import sys
-import redis
 import time
 
 __author__  = "Aslak Grinsted"
@@ -53,11 +52,13 @@ class PMDStrain( minimalmodbus.Instrument ):
 
     def __init__(self, portname, slaveaddress):
         #default is big-endian..
-        minimalmodbus.Instrument.__init__(self, portname, slaveaddress, mode = minimalmodbus.MODE_ASCII )
+        minimalmodbus.Instrument.__init__(self, portname, slaveaddress,
+                                          mode = minimalmodbus.MODE_ASCII)
         self.serial.baudrate = 9600   # Baud
         self.serial.bytesize = 8
         self.serial.parity   = minimalmodbus.serial.PARITY_NONE
         self.serial.stopbits = 1
+        self.timeout = 0.5
         time.sleep(0.2)
         self.get_decimalpoint()
 
@@ -85,8 +86,7 @@ class PMDStrain( minimalmodbus.Instrument ):
 def find_and_connect():
     try:
         loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
-        loadcellDisplay.get_decimalpoint()
-
+        print(f'connected to pmdstrain on {sys.argv[1]}')
     except:
         ports = glob.glob("/dev/ttyUSB*")
         if len(ports) == 0: #windows
@@ -96,8 +96,8 @@ def find_and_connect():
             try:
                 print("- testing for pmdstrain with address {0} on {1}".format(slaveaddress, port))
                 loadcellDisplay = PMDStrain(port, slaveaddress)
-                if port.startswith("COM"):
-                    loadcellDisplay.close_port_after_each_call = True
+                #if port.startswith("COM"):
+                #    loadcellDisplay.close_port_after_each_call = True
                 loadcellDisplay.get_decimalpoint()
                 print("pmdstrain found on {0}".format(port))
                 break
@@ -124,23 +124,24 @@ if __name__ == '__main__':
             loadcellDisplay = find_and_connect()
 
         try:
-            loadcellDisplay.serial.readall() #note: sleep at least by 0.01
+            loadcellDisplay.serial.readline() #note: sleep at least by 0.01
             time.sleep(0.05)
             loadcellDisplay.get_decimalpoint()
             redis_conn.set("load-cell", loadcellDisplay.get_displayvalue())
+            print("load-cell", loadcellDisplay.get_displayvalue())
+        except ValueError:
+            pass
+        except TypeError:
+            pass
         except Exception as e:
             print("Failed to read from load cell display:", repr(e))
             redis_conn.set("load-cell", '-9999')
+            if not loadcellDisplay is None:
+                loadcellDisplay.serial.close()
             loadcellDisplay = None
             print("waiting 5secs")
             time.sleep(5.0)
             continue
-        #except IOError:
-        #    pass
-        #except ValueError:
-        #    pass
-        #except TypeError:
-        #    pass
 
 
 pass

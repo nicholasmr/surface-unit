@@ -157,6 +157,8 @@ class Codex560(minimalmodbus.Instrument):
 def find_and_connect():
     try:
         encoderDisplay = Codex560(sys.argv[1], slaveaddress)
+        encoderDisplay.get_status()
+        print("Kübler CODEX-560 found on {0}".format(sys.argv[1]))
     except:
         ports = glob.glob("/dev/ttyUSB*")
         if len(ports) == 0: #windows
