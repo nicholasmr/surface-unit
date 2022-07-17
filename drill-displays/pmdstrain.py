@@ -68,7 +68,7 @@ class PMDStrain( minimalmodbus.Instrument ):
 
     def get_displayvalue(self):
         """get main counter"""
-        registers = self.read_registers(registeraddress = 0x0000, numberOfRegisters=2)
+        registers = self.read_registers(registeraddress = 0x0000, number_of_registers=2)
         registers = struct.pack("HH",registers[0],registers[1])
         registers = struct.unpack("i",registers)
         return "{\"load\": %f}" % (registers[0] * self.valuemultiplier)
@@ -85,6 +85,8 @@ class PMDStrain( minimalmodbus.Instrument ):
 def find_and_connect():
     try:
         loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
+        loadcellDisplay.get_decimalpoint()
+
     except:
         ports = glob.glob("/dev/ttyUSB*")
         if len(ports) == 0: #windows
@@ -96,12 +98,12 @@ def find_and_connect():
                 loadcellDisplay = PMDStrain(port, slaveaddress)
                 if port.startswith("COM"):
                     loadcellDisplay.close_port_after_each_call = True
-                loadcellDisplay.get_status()
+                loadcellDisplay.get_decimalpoint()
                 print("pmdstrain found on {0}".format(port))
                 break
             except Exception as e:
                 loadcellDisplay = None
-        return loadcellDisplay
+    return loadcellDisplay
 
 
 
