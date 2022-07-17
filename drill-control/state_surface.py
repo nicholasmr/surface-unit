@@ -86,7 +86,8 @@ class SurfaceState():
 
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
-            self.islive_depthcounter = True
+#            self.islive_depthcounter = True
+            self.islive_depthcounter = (int(self.depth) != -9999)
         except:
             # probably because not connected?
             self.depth, self.depthtare = 0.0, 0.0 
@@ -100,7 +101,8 @@ class SurfaceState():
             loadnew = float(loadcell["load"])
             self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
             self.loadnet  = self.load - CABLE_DENSITY*self.depth
-            self.islive_loadcell = True
+#            self.islive_loadcell = True
+            self.islive_loadcell = (int(self.load) != -9999)
         except:
             # probably because not connected?
             self.load, self.loadnet = 0.0, 0.0
