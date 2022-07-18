@@ -226,6 +226,6 @@ if __name__ == "__main__":
         redis_conn.set("depth-encoder", '{"depth": %f, "velocity": %f}' % (curdepth, velocity))
 
         oldtime = curtime * (1 - memory) + oldtime * memory
-        olddepth = curdepth * (1 - memory) + oldtime * memory
+        olddepth = curdepth * (1 - memory) + olddepth * memory
 
 pass
