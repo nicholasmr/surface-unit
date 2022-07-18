@@ -9,6 +9,8 @@ from state_surface import *
 
 from PyQt5.QtCore import * 
 from PyQt5.QtWidgets import * 
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 import pyqtgraph as pg
 
 #-------------------
@@ -31,90 +33,16 @@ print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRIL
 print('Using BNO055 for orientation? %s'%('Yes' if USE_BNO055_FOR_ORIENTATION else 'No'))
 
 # GUI colors
+COLOR_GRAYBG = '#f0f0f0'
 COLOR_GREEN = '#66bd63'
 COLOR_RED   = '#f46d43'
+COLOR_DARKRED   = '#b2182b'
+COLOR_DARKGREEN = '#1a9850'
 COLOR_BLUE  = '#3182bd'
 
 #-------------------
 # Program start
 #-------------------
-
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
-
-class DepthProgressBar(QWidget):
-
-    def __init__(self, iceThickness):
-        super().__init__()
-
-        self.minval = 0 # min depth
-        self.maxval = iceThickness # max depth (bedrock)
-        self.iceval = self.maxval*2/3 # ice depth (last max drilling depth)
-        self.curval = self.maxval*1/3 # current drill depth (position)
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding
-        )
-
-    def sizeHint(self):
-        return QtCore.QSize(80,300)
-        
-    def setValue(self, currentDepth, iceDepth):
-        self.curval = currentDepth
-        self.iceval = iceDepth
-        self.repaint()
-
-    def paintEvent(self, e):
-        painter = QtGui.QPainter(self)
-
-        c_ice   = '#737373'
-        c_fluid = '#f0f0f0'
-        c_drill = '#252525'
-
-        ### backgorund (fluid)
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_fluid))
-        brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(0, 0, painter.device().width(), painter.device().height())
-        painter.fillRect(rect, brush)
-        
-        ### undrilled ice
-        ystart_ice = self.maxval
-        yend_ice   = int(self.iceval/self.maxval * painter.device().height()) # in px
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_ice))
-        brush.setStyle(Qt.SolidPattern)
-#        brush.setStyle(Qt.BDiagPattern)
-        rect = QtCore.QRect(0, ystart_ice, painter.device().width(), yend_ice-ystart_ice)
-        painter.fillRect(rect, brush)
-
-        ### drill position
-        cablewidth = int(0.75/10*painter.device().width())
-        drillwidth = int(7/10*painter.device().width())
-        drillheight = int(1.5/10 * painter.device().height()) # in px
-        y_drill = int(self.curval/self.maxval * painter.device().height()) # in px
-        xc = int(painter.device().width()/2)
-        # cable
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_drill))
-        brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(xc-int(cablewidth/2), 0, cablewidth, y_drill)
-        painter.fillRect(rect, brush)
-        # dirll
-        rect = QtCore.QRect(xc-int(drillwidth/2), y_drill-drillheight, drillwidth, drillheight)
-        painter.fillRect(rect, brush)
-        
-        ### Walls
-        painter.setBrush(Qt.black)
-        painter.setPen(QtGui.QPen(Qt.black, 6, Qt.SolidLine))
-        painter.drawLine(0,0,0,painter.device().height())
-        painter.drawLine(painter.device().width(),0,painter.device().width(),painter.device().height())
-        
-        painter.end()
-
-    def _trigger_refresh(self):
-        self.update()
 
 class MainWidget(QWidget):
 
@@ -129,7 +57,7 @@ class MainWidget(QWidget):
     xlen_samplerate = [1,1,1,1]  
     xlen_selector   = {'speed':0, 'load':0, 'current':0} # default selection
     
-    minYRange_load = 15 # kg
+    minYRange_load = 20 # kg
     minYRange_speed = 10.5 # cm/s
     
     SHOW_BNO055_DETAILED = 0
@@ -146,7 +74,7 @@ class MainWidget(QWidget):
 
         ### pyqt graphs
 
-        pg.setConfigOptions(background='f0f0f0') # gray
+        pg.setConfigOptions(background=COLOR_GRAYBG) # gray
         pg.setConfigOptions(foreground='k')
 
         # X-axis
@@ -188,7 +116,6 @@ class MainWidget(QWidget):
         # init curves
         lw = 3
         plotpen_black = pg.mkPen(color='k', width=lw)
-        plotpen_blue  = pg.mkPen(color=COLOR_BLUE, width=lw-1)
         self.curve_load    = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_speed   = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_current = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
@@ -199,6 +126,7 @@ class MainWidget(QWidget):
         self.create_gb_orientation()
         self.create_gb_temperature()
         self.create_gb_pressure()
+        self.create_gb_other()
         self.create_gb_motor()
         self.create_gb_run()
         self.create_gb_status()
@@ -271,14 +199,17 @@ class MainWidget(QWidget):
         self.depthbar = DepthProgressBar(DEPTH_MAX)
         depthbarLayoutInner.addWidget(self.depthbar)
         depthbarLayoutInner.addStretch(1)
+        depthbarLayoutInner.setContentsMargins(10, 0, 20, 0)
         depthbarLayout.addLayout(depthbarLayoutInner)
-        depthbarLayout.addWidget(QLabel(''))
         botLayout.addLayout(depthbarLayout,0)
         
         botLayout.addWidget(self.gb_surface)
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
-        botLayout.addWidget(self.gb_pressure)
+        botLayoutSub1 = QVBoxLayout()
+        botLayoutSub1.addWidget(self.gb_pressure)
+        botLayoutSub1.addWidget(self.gb_other)
+        botLayout.addLayout(botLayoutSub1)
         botLayout.addWidget(self.gb_motor)
         botLayout.addWidget(self.gb_run)
         botLayoutSub2 = QVBoxLayout()
@@ -290,7 +221,7 @@ class MainWidget(QWidget):
         # Main (parent) layout
         mainLayout = QVBoxLayout()
         mainLayout.addLayout(topLayout, 1)
-        mainLayout.addWidget(QLabel(''), 0)
+        mainLayout.addWidget(QLabel(''), 0) # spacer
         mainLayout.addLayout(botLayout, 0)
         self.setLayout(mainLayout)
         
@@ -304,15 +235,13 @@ class MainWidget(QWidget):
         self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Inst. speed (cm/s)',   initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
         self.gb_run_deltaload           = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
-        self.gb_run_peakload            = self.MakeStateBox('run_peakload',  'Peak load, %is (kg)'%(self.xlen[0]), initstr)
-        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
+        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load, %is (kg)'%(self.xlen[0]), initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
         layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
         layout.addWidget(self.gb_run_deltaload)
         layout.addWidget(self.gb_run_peakload)
-        layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
 
@@ -347,24 +276,33 @@ class MainWidget(QWidget):
     def create_gb_pressure(self, initstr='N/A'):
         self.gb_pressure = QGroupBox("Pressure (mbar)")
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('pressure_topplug',     'Top plug',    initstr))
-        layout.addWidget(self.MakeStateBox('pressure_gear1',       'Gear 1',      initstr))
-        layout.addWidget(self.MakeStateBox('pressure_gear2',       'Gear 2',      initstr))
+        layout.addWidget(self.MakeStateBox('pressure_gear1',       'Gear 1, 2',      initstr))
+#        layout.addWidget(self.MakeStateBox('pressure_gear2',       'Gear 2',      initstr))
         layout.addWidget(self.MakeStateBox('pressure_electronics', 'Electronics', initstr))
-        layout.addWidget(self.MakeStateBox('hammer',               'Hammer (%)',         initstr))
+        layout.addWidget(self.MakeStateBox('pressure_topplug',     'Top plug',    initstr))
         layout.addStretch(1)
         self.gb_pressure.setLayout(layout)
+
+    def create_gb_other(self, initstr='N/A'):
+        self.gb_other = QGroupBox("Other")
+        layout = QVBoxLayout()
+        layout.addWidget(self.MakeStateBox('hammer', 'Hammer (%)', initstr))
+        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
+        layout.addWidget(self.gb_surface_downholevoltage)
+        layout.addStretch(1)
+        self.gb_other.setLayout(layout)
 
     def create_gb_temperature(self, initstr='N/A'):
         self.gb_temperature = QGroupBox("Temperature (C)")
         layout = QVBoxLayout()
+        layout.addWidget(self.MakeStateBox('temperature_gear1',          'Gear 1, 2',           initstr))
+#        layout.addWidget(self.MakeStateBox('temperature_gear2',          'Gear 2',           initstr))
+        layout.addWidget(self.MakeStateBox('temperature_electronics',    'Electronics, Aux.',      initstr))
+#        layout.addWidget(self.MakeStateBox('temperature_electronics',    'Electronics',      initstr))
+#        layout.addWidget(self.MakeStateBox('temperature_auxelectronics', 'Aux. electronics', initstr))
         layout.addWidget(self.MakeStateBox('temperature_topplug',        'Top plug',         initstr))
-        layout.addWidget(self.MakeStateBox('temperature_gear1',          'Gear 1',           initstr))
-        layout.addWidget(self.MakeStateBox('temperature_gear2',          'Gear 2',           initstr))
-        layout.addWidget(self.MakeStateBox('temperature_electronics',    'Electronics',      initstr))
-        layout.addWidget(self.MakeStateBox('temperature_auxelectronics', 'Aux. electronics', initstr))
         layout.addWidget(self.MakeStateBox('temperature_motor',          'Motor',            initstr))
-        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor controller', initstr))
+        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor ctrl. (VESC)', initstr))
         layout.addStretch(1)
         self.gb_temperature.setLayout(layout)
         
@@ -508,7 +446,7 @@ class MainWidget(QWidget):
         self.status_depthcounter = QLabel('Offline')
         layout.addWidget(QLabel('Drill:'),1,1)
         layout.addWidget(QLabel('Load cell:'),2,1)
-        layout.addWidget(QLabel('Depth cntr.:'),3,1)
+        layout.addWidget(QLabel('Winch enc.:'),3,1)
         layout.addWidget(self.status_drill,1,2)
         layout.addWidget(self.status_loadcell,2,2)
         layout.addWidget(self.status_depthcounter,3,2)
@@ -627,7 +565,7 @@ class MainWidget(QWidget):
       
     def updateStateBox(self, id, value, warnthres):
         lbl = getattr(self, id)
-        lbl.setText(str(value))
+        lbl.setText(str(value) if not isinstance(value, list) else ', '.join(value))
         if isinstance(value, float) or isinstance(value, int):
             if warnthres[0] <= value <= warnthres[1]: lbl.setStyleSheet("background: none")
             else:                                     lbl.setStyleSheet("background: %s"%(COLOR_RED))
@@ -666,17 +604,17 @@ class MainWidget(QWidget):
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
-#        self.depthbar.repaint()
-        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%06.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
+        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%0.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
         ### Update state fields
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
         self.updateStateBox('surface_speed',           round(self.ss.speedinst,2),            warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
         self.updateStateBox('surface_loadcable',       round(self.ss.loadnet,PRECISION_LOAD), warn__nothres)
-        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__nothres)
+        self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__downholevoltage)
         self.updateStateBox('run_peakload',            round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
-
+        self.updateStateBox('run_deltaload',           round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
+                
         if self.btn_startrun.isChecked(): 
             self.runtime1 = datetime.datetime.now() # update run time
             if self.runtime0 is not None:
@@ -685,7 +623,6 @@ class MainWidget(QWidget):
                 self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH),                 warn__nothres)    
                 self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),                   warn__nothres)    
                 self.updateStateBox('run_deltadepth', round(self.ss.depth - self.ss.depthtare,PRECISION_DEPTH), warn__corelength)    
-                self.updateStateBox('run_deltaload',  round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
                 
 
         #-----------------------
@@ -706,14 +643,14 @@ class MainWidget(QWidget):
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
-            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:              self.status_drill.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
+            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:              self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
-            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:                       self.status_loadcell.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
+            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:                       self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
-            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_GREEN))
-            else:                           self.status_depthcounter.setStyleSheet("font-weight: bold;   color: %s;"%(COLOR_RED))
+            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
+            else:                           self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
 
 
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
@@ -740,15 +677,16 @@ class MainWidget(QWidget):
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
-                self.updateStateBox('pressure_gear1',       round(self.ds.pressure_gear1,1),       warn__pressure)
-                self.updateStateBox('pressure_gear2',       round(self.ds.pressure_gear2,1),       warn__pressure)
+                self.updateStateBox('pressure_gear1',       (round(self.ds.pressure_gear1,1),round(self.ds.pressure_gear2,1)), warn__pressure)
+#                self.updateStateBox('pressure_gear2',       round(self.ds.pressure_gear2,1),       warn__pressure)
                 self.updateStateBox('hammer',               round(self.ds.hammer,1),               warn__hammer)
 
-                self.updateStateBox('temperature_electronics',    round(self.ds.temperature_electronics,1),    warn__temperature_electronics)
                 self.updateStateBox('temperature_topplug',        round(self.ds.temperature_topplug,1),        warn__temperature_electronics)
-                self.updateStateBox('temperature_gear1',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
-                self.updateStateBox('temperature_gear2',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
-                self.updateStateBox('temperature_auxelectronics', round(self.ds.temperature_auxelectronics,1), warn__temperature_electronics)
+                self.updateStateBox('temperature_gear1',          (round(self.ds.temperature_gear1,1), round(self.ds.temperature_gear1,1)), warn__temperature_electronics)
+#                self.updateStateBox('temperature_gear2',          round(self.ds.temperature_gear1,1),          warn__temperature_electronics)
+                self.updateStateBox('temperature_electronics',    (round(self.ds.temperature_electronics,1),round(self.ds.temperature_auxelectronics,1)), warn__temperature_electronics)
+#                self.updateStateBox('temperature_electronics',    round(self.ds.temperature_electronics,1),    warn__temperature_electronics)
+#                self.updateStateBox('temperature_auxelectronics', round(self.ds.temperature_auxelectronics,1), warn__temperature_electronics)
                 self.updateStateBox('temperature_motor',          round(self.ds.temperature_motor,1),          warn__temperature_motor)    
                 self.updateStateBox('temperature_motorctrl',      round(self.ds.motor_controller_temp,1),      warn__temperature_motor)    
                 
@@ -775,9 +713,6 @@ class MainWidget(QWidget):
             lbl = getattr(self, f)
             lbl.setEnabled(self.ss.islive_loadcell)
                         
-#        if self.ss.isloadcelldead: self.curve_load.hide()
-#        else:                      self.curve_load.show()
-                        
         ### Disabled widgets if load cell is dead
                         
         for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload']:
@@ -796,6 +731,89 @@ class MainWidget(QWidget):
         return "%02i:%02i:%02i"%(hours,minutes,seconds)
         
     def htmlfont(self, text,fsize, color='#000000'): return '<font size="%i" color="%s">%s</font>'%(fsize,color,text)
+        
+
+class DepthProgressBar(QWidget):
+
+    def __init__(self, iceThickness):
+        super().__init__()
+
+        self.minval = 0 # min depth
+        self.maxval = iceThickness # max depth (bedrock)
+        self.iceval = self.maxval*2/3 # ice depth (last max drilling depth)
+        self.curval = self.maxval*1/3 # current drill depth (position)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
+
+    def sizeHint(self):
+        return QtCore.QSize(80,300)
+        
+    def setValue(self, currentDepth, iceDepth):
+        self.curval = currentDepth
+        self.iceval = iceDepth
+        self.repaint()
+
+    def paintEvent(self, e):
+        painter = QtGui.QPainter(self)
+
+        c_ice   = '#6baed6'
+        c_icehatch = '#252525' # 737373
+        c_fluid = COLOR_GRAYBG 
+        c_drill = '#252525'
+        
+        H, W = painter.device().height(), painter.device().width()
+
+        ### backgorund (fluid)
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_fluid))
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(0, 0, W, H)
+        painter.fillRect(rect, brush)
+        
+        ### undrilled ice
+        ystart_ice = self.maxval
+        yend_ice   = int(self.iceval/self.maxval * painter.device().height()) # in px
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_ice))
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(0, ystart_ice, W, yend_ice-ystart_ice)
+        painter.fillRect(rect, brush)
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_icehatch))
+        brush.setStyle(Qt.BDiagPattern)
+        painter.fillRect(rect, brush)
+        
+        ### drill position
+        cablewidth = int(0.75/10*W)
+        drillwidth = int(7/10*W)
+        drillheight = int(1.5/10 * H) # in px
+        y_drill = int(self.curval/self.maxval * H) # in px
+        xc = int(W/2)
+        # cable
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(c_drill))
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(xc-int(cablewidth/2), 0, cablewidth, y_drill)
+        painter.fillRect(rect, brush)
+        # dirll
+        rect = QtCore.QRect(xc-int(drillwidth/2), y_drill-drillheight, drillwidth, drillheight)
+        painter.fillRect(rect, brush)
+        
+        ### Walls
+        painter.setBrush(Qt.black)
+        painter.setPen(QtGui.QPen(Qt.black, 4, Qt.SolidLine))
+        painter.drawLine(0,0,0,H)
+        painter.drawLine(W,0,W,H)
+        painter.drawLine(0,H,W,H)
+        painter.drawLine(0,0,W,0)
+        
+        painter.end()
+
+    def _trigger_refresh(self):
+        self.update()
         
 if __name__ == '__main__':
 
