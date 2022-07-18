@@ -115,9 +115,10 @@ if __name__ == '__main__':
                 loadcellDisplay = None
 
         if loadcellDisplay is None:
+            redis_conn.set("load-cell", '-9999')
             sys.exit("No port found for PMD-Strain (load cell display)!")
 
-            
+
     redis_conn = redis.StrictRedis(host=REDIS_HOST)
 
     while True:
