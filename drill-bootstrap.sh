@@ -22,6 +22,11 @@ else
    echo "NOT OK, no logfiles will be taken!"
 fi
 
+echo "\n> Launching drill control GUI";
+sleep 1;
+#python /home/drill/drill-surface/legacy/drill-surface/drill_surface.py &
+python3 /home/drill/surface-unit/drill-control/drill-control.py &
+
 echo "\n> Load cell (pmdstrain)"
 sleep 1;
 python2 /home/drill/surface-unit/drill-displays-py2/pmdstrain.py /dev/ttyUSB0 &
@@ -35,9 +40,4 @@ python2 /home/drill/surface-unit/drill-displays-py2/codex560.py /dev/ttyUSB1 &
 echo "\n> Launching drill comms (dispatch)";
 sleep 1;
 python /home/drill/surface-unit/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
-
-echo "\n> Launching drill control GUI";
-sleep 1;
-#python /home/drill/drill-surface/legacy/drill-surface/drill_surface.py &
-python3 /home/drill/surface-unit/drill-control/drill-control.py &
 

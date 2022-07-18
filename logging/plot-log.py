@@ -155,7 +155,7 @@ if 1:
             
     ### Velocity
     vel = 100 * abs(np.nan_to_num( np.divide(np.diff(z),np.diff(t))) )
-    vel = savgol_filter(vel, 100, 2) # smoothing
+    vel = savgol_filter(vel, 101, 2) # smoothing
 
     ### Remove empty parts of arrays for incl and azi plots.
     jjmax = jj-1
