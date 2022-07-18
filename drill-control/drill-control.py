@@ -208,6 +208,7 @@ class MainWidget(QWidget):
         botLayout.addWidget(self.gb_temperature)
         botLayoutSub1 = QVBoxLayout()
         botLayoutSub1.addWidget(self.gb_pressure)
+#        botLayoutSub1.addWidget(QLabel('')) # spacer
         botLayoutSub1.addWidget(self.gb_other)
         botLayout.addLayout(botLayoutSub1)
         botLayout.addWidget(self.gb_motor)
@@ -302,7 +303,7 @@ class MainWidget(QWidget):
 #        layout.addWidget(self.MakeStateBox('temperature_auxelectronics', 'Aux. electronics', initstr))
         layout.addWidget(self.MakeStateBox('temperature_topplug',        'Top plug',         initstr))
         layout.addWidget(self.MakeStateBox('temperature_motor',          'Motor',            initstr))
-        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor ctrl. (VESC)', initstr))
+        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor contr. (VESC)', initstr))
         layout.addStretch(1)
         self.gb_temperature.setLayout(layout)
         
@@ -749,22 +750,24 @@ class DepthProgressBar(QWidget):
         )
 
     def sizeHint(self):
-        return QtCore.QSize(80,300)
+        return QtCore.QSize(50,300)
         
     def setValue(self, currentDepth, iceDepth):
         self.curval = currentDepth
+#        self.curval = iceDepth - 20 # debug colors
         self.iceval = iceDepth
         self.repaint()
 
     def paintEvent(self, e):
-        painter = QtGui.QPainter(self)
 
-        c_ice   = '#6baed6'
-        c_icehatch = '#252525' # 737373
-        c_fluid = COLOR_GRAYBG 
-        c_drill = '#252525'
-        
+        painter = QtGui.QPainter(self)
         H, W = painter.device().height(), painter.device().width()
+        tol = 20 # metre
+        
+        c_ice      = '#969696' 
+        c_icehatch = '#252525'
+        c_fluid    = 'white' #COLOR_GRAYBG 
+        c_drill    = COLOR_DARKGREEN if self.curval < self.iceval - tol else COLOR_DARKRED
 
         ### backgorund (fluid)
         brush = QtGui.QBrush()
@@ -775,7 +778,7 @@ class DepthProgressBar(QWidget):
         
         ### undrilled ice
         ystart_ice = self.maxval
-        yend_ice   = int(self.iceval/self.maxval * painter.device().height()) # in px
+        yend_ice   = int(self.iceval/self.maxval * H) # in px
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(c_ice))
         brush.setStyle(Qt.SolidPattern)
@@ -787,21 +790,13 @@ class DepthProgressBar(QWidget):
         painter.fillRect(rect, brush)
         
         ### drill position
-        cablewidth = int(0.75/10*W)
-        drillwidth = int(7/10*W)
-        drillheight = int(1.5/10 * H) # in px
         y_drill = int(self.curval/self.maxval * H) # in px
-        xc = int(W/2)
-        # cable
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(c_drill))
         brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(xc-int(cablewidth/2), 0, cablewidth, y_drill)
+        rect = QtCore.QRect(0, 0, W, y_drill)
         painter.fillRect(rect, brush)
-        # dirll
-        rect = QtCore.QRect(xc-int(drillwidth/2), y_drill-drillheight, drillwidth, drillheight)
-        painter.fillRect(rect, brush)
-        
+
         ### Walls
         painter.setBrush(Qt.black)
         painter.setPen(QtGui.QPen(Qt.black, 4, Qt.SolidLine))

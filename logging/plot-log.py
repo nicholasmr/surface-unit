@@ -92,6 +92,9 @@ quat = np.zeros((flen,4))
 DCM = np.zeros((flen,3,3)) # rotation matrix
 inc, azi = empty_array(flen), empty_array(flen)
 
+### Alarms
+gyroalarm = np.zeros((flen))
+
 #-----------------------
 # Load log file
 #-----------------------
@@ -104,8 +107,6 @@ if 1:
     jj = 0
     for ii, l in enumerate(fh):
 
-        if "depth_encoder" not in l: continue # not uphole message
-
         date_time_obj0 = datetime.datetime.strptime(date_time_str0, '%Y-%m-%d')    
 
         date_time_str1 = l[:23]
@@ -113,11 +114,21 @@ if 1:
         t[ii]  = (date_time_obj1-date_time_obj0).total_seconds()
         th[ii] = t[ii]/(60**2)
 
+        if "GyroSlipAlarm" in l:
+            gyroalarm[ii] = 1
+            continue
+
+        if "depth_encoder" not in l: 
+            continue # not uphole message
+
         kk = l.find('{')
         l = l[kk:]
 
-        z[ii]  = - json.loads(l)['depth_encoder']['depth']
-        w[ii]  = json.loads(l)['load_cell']
+        try:    z[ii] = - json.loads(l)['depth_encoder']['depth']
+        except: z[ii] = np.nan
+        try:    w[ii] = json.loads(l)['load_cell']
+        except: w[ii] = np.nan
+
         #v[ii] is done post loop once depth and times are collected
         H[ii]  = 100 * (float(json.loads(l)['hammer']) / 255.0)
 
@@ -246,7 +257,7 @@ if PLOT_TIMESERIES:
     plt.ylabel('Gear temp. (C)', fontweight=fw, fontsize=fs);
 
     ax2 = axz.twinx()  # instantiate a second axes that shares the same x-axis
-    color = 'tab:purple'
+    color = 'tab:orange'
     ax2.plot(th, Tmc, color=color, lw=lwtwin)
     ax2.set_xticks(np.arange(-5,30,xtick))
     ax2.set_xticks(np.arange(-5,30,xtick/4.), minor=True)
@@ -301,8 +312,10 @@ if PLOT_TIMESERIES:
     color = 'tab:red'
     ax2.plot(th, I, color=color, lw=lwtwin)
     ax2.set_ylabel('Motor current (A)',color=color, fontweight=fw, fontsize=fs)  # we already handled the x-label with ax1
+    ax2.plot(th, gyroalarm*20, color='tab:purple', lw=lwtwin, label='Gyro slip alarm')
     ax2.set_yticks(np.arange(0,15+1,2))
     ax2.set_ylim([0, 15])
+    ax2.legend(loc=2)
 
     #-----
 
