@@ -41,7 +41,3 @@ sleep 1;
 #python /home/drill/drill-surface/legacy/drill-surface/drill_surface.py &
 python3 /home/drill/surface-unit/drill-control/drill-control.py &
 
-#echo "> Drill position GUI";
-#sleep 1;
-#python /home/drill/surface-unit/drill-control/drill-position.py run &
-
