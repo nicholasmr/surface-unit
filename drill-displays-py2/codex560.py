@@ -154,7 +154,7 @@ class Codex560( minimalmodbus.Instrument ):
 ########################
 
 if __name__ == '__main__':
-    print "Winch encoder" 
+    print "Winch encoder"
     try:
         encoderDisplay = Codex560(sys.argv[1], slaveaddress)
     except:
@@ -169,16 +169,17 @@ if __name__ == '__main__':
                 break
             except Exception as e:
                 encoderDisplay = None
-        
+
         if encoderDisplay is None:
+            redis_conn.set("depth-encoder", '{"depth": -9999, "velocity": -9999}')
             sys.exit("No port found for Kübler CODEX-560 encoder!")
 
     redis_conn = redis.StrictRedis(host=REDIS_HOST)
 
-    #When we the drill is moving slowly then we need to make a moving average because the depthencoder only gives us cm-resolution. 
+    #When we the drill is moving slowly then we need to make a moving average because the depthencoder only gives us cm-resolution.
     #w is a constant that controls how much "memory" is in the system when we calculate the velocity.
     efolding_time = 5.0 #Forget history after about 5-10 seconds.;
-    efolding_depth = 0.02 #Forget history after moving 2-4cm we should have almost forgotten previous states. 
+    efolding_depth = 0.02 #Forget history after moving 2-4cm we should have almost forgotten previous states.
 
     #encoderDisplay.debug = True
     olddepth=0.0
@@ -187,16 +188,19 @@ if __name__ == '__main__':
         time.sleep(0.1) #note: sleep at least by 0.01
         curdepth=encoderDisplay.get_main_counter()
         curtime=time.time()
+
         dt = curtime - oldtime
         dz = curdepth - olddepth
-        w = math.exp(-math.fabs(dz) / efolding_depth - dt / efolding_time);
-        velocity=(curdepth-olddepth)/(curtime-oldtime)
+        memory = math.exp(-math.fabs(dz) / efolding_depth - dt / efolding_time)
+        # memory = 0 #forget the past.
+        velocity = dz / dt
+
         redis_conn.set("depth-encoder", "{\"depth\": %f, \"velocity\": %f}" % (curdepth, velocity))
         # redis_conn.set("depth-encoder-velocity", velocity)
         # print("{0} // {1}".format(curdepth,velocity))
 
-        oldtime=curtime
-        olddepth=curdepth
+        oldtime = curtime * (1 - memory) + oldtime * memory
+        olddepth = curdepth * (1 - memory) + olddepth * memory
 
 
 
