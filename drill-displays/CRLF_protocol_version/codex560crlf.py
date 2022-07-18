@@ -33,6 +33,7 @@ import glob
 import sys
 import math
 import serial
+import gc
 
 __author__ = "Aslak Grinsted"
 __email__ = "ag@glaciology.net"
@@ -72,13 +73,15 @@ def find_and_connect():
     ser = None
     for port in ports:
         try:
-            ser = serial.Serial(port, baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits)
+            gc.collect()
+            ser = serial.Serial(port, baudrate=baudrate, bytesize=bytesize, parity=parity,
+                                stopbits=stopbits, timeout=1)
             line = ser.readline().decode("ascii")
             testnumber = parse_line(line)
             print(f'Found {unitname} on {port}')
             break
         except Exception as e:
-            #print(f"no {unitname} on {port}")
+            print(f"no {unitname} on {port}")
             pass
     return ser
 
