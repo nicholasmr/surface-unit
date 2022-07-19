@@ -1,3 +1,2 @@
 0 * * * * ntpdate 0.arch.pool.ntp.org
 0 * * * * /home/drill/sync-logs.sh
-45 23 * * * python3 /home/drill/surface-unit/logging/plot-log.py /mnt/logs/drill.log.`date '+%Y-%m-%d'` 8 24 /mnt/logs/plots
