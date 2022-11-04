@@ -179,7 +179,10 @@ x_opt, y_opt = -0.01, 0.03 # initial sensor orientation guess
 
 dz = 15 # dz is data bin size 
 Z0fit = 75 # ignore misfit with logger at depths shallower than this number
+Z1fit = 1200 # ignore misfit with logger at depths deepter than this number
 I0fit = int(Z0fit/dz)
+I1fit = -1 # no lower bound
+#I1fit = int(Z1fit/dz) 
 z_bin_full = np.arange(0, abs(Z_MIN)+dz, dz) # new z-axis
 z_bin = z_bin_full[1:]
         
@@ -212,7 +215,7 @@ if RUN_SENSOR_ORIENTATION_CALIBRATION:
     def J(xy):
         incm, _ = inc_given_sensor_xyplane(xy[0], xy[1])
         errsq = np.power(incm - incm_logger, 2)
-        J = np.nansum(errsq[I0fit:])
+        J = np.nansum(errsq[I0fit:I1fit])
         return J
         
     paramvec = [x_opt, y_opt] # init guess
@@ -225,6 +228,9 @@ else:
     
 ### Best fit solution    
 incm_drill, incr_drill = inc_given_sensor_xyplane(x_opt, y_opt)
+
+# No calibration solution
+incm_drill_nocal, _ = inc_given_sensor_xyplane(0, 0) 
 
 #-----------------------
 # Plot timer series
@@ -331,7 +337,7 @@ if PLOT_ORIENTATION:
 
     scale = 0.7
     fig = plt.figure(figsize=(7,8))
-    c_drill, c_logger, c_loggernew = '#1f78b4', '0.6', 'k'
+    c_drill, c_drill2, c_logger, c_loggernew = '#1f78b4', '#9ecae1', '0.6', 'k'
     inclims = [0,7]
 
     ax1 = plt.subplot(1,2,1)
@@ -341,6 +347,7 @@ if PLOT_ORIENTATION:
     loggerrawnew = df_loggernew.to_numpy()
     z_ = -z_bin[I0fit:]
 
+    ax1.plot(incm_drill_nocal[I0fit:],  z_, c=c_drill2,  lw=2, ls='--', label='Drill (x,y=0,0)', zorder=5)    
     ax1.plot(incm_drill[I0fit:],  z_, c=c_drill,  lw=2, label='Drill (x,y=%.2f,%.2f)'%(x_opt,y_opt), zorder=5)    
     ax1.plot(incm_logger[I0fit:], z_, c=c_logger, lw=2, label='%s'%fname_logger, zorder=4)
     ax1.plot(loggerrawnew[:,1], -loggerrawnew[:,0], c=c_loggernew, lw=2, label='%s'%fname_loggernew, zorder=3)
