@@ -74,11 +74,11 @@ def find_and_connect():
     for port in ports:
         try:
             gc.collect()
-            ser = serial.Serial(port, baudrate=baudrate, bytesize=bytesize, parity=parity,
-                                stopbits=stopbits, timeout=1)
+            ser = serial.Serial(port, baudrate=baudrate, bytesize=bytesize, parity=parity, stopbits=stopbits, timeout=1)
+            line = ser.readline()  # skip first line post-connect as it might be incomplete
             line = ser.readline().decode("ascii")
             testnumber = parse_line(line)
-            print(f'Found {unitname} on {port}')
+            print(f"Found {unitname} on {port}")
             break
         except Exception as e:
             print(f"no {unitname} on {port}")
