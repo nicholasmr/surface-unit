@@ -62,7 +62,7 @@ else:
 def parse_line(line):
     address, maincounter = line.rstrip().split(" ")
     if int(address) != slaveaddress:
-        raise Exception("wrong {unitname} address")
+        raise Exception(f"wrong {unitname} address")
     if maincounter[0] == "o":  # overflow value
         return -9999.0
     else:
