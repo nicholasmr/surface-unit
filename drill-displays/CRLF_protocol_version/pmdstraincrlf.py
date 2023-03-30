@@ -123,8 +123,9 @@ if __name__ == "__main__":
             redis_conn.set("load-cell", "-9999")
             del serial_connection
             serial_connection = None
-            print("waiting 3secs...")
-            time.sleep(3.0)
+            delay = 0.5 # secs
+            print("...waiting %.1f secs..."%(delay))
+            time.sleep(delay)
             continue
 
         redis_conn.set("load-cell", "%f" % (curload))
