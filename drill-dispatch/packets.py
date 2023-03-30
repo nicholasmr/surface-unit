@@ -42,6 +42,20 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
         ('magnetometer_x', 'h'),
         ('magnetometer_y', 'h'),
         ('magnetometer_z', 'h'),
+
+        ('linearaccel_x', 'h'),
+        ('linearaccel_y', 'h'),
+        ('linearaccel_z', 'h'),
+
+        ('gravity_x', 'h'),
+        ('gravity_y', 'h'),
+        ('gravity_z', 'h'),
+
+        ('quaternion_w', 'h'),
+        ('quaternion_x', 'h'),
+        ('quaternion_y', 'h'),
+        ('quaternion_z', 'h'),
+
     ]
 
     transfer_functions = {
@@ -91,6 +105,19 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
         'magnetometer_x': lambda x: x / 100,
         'magnetometer_y': lambda x: x / 100,
         'magnetometer_z': lambda x: x / 100,
+
+        'linearaccel_x': lambda x: x / 100,
+        'linearaccel_y': lambda x: x / 100,
+        'linearaccel_z': lambda x: x / 100,
+
+        'gravity_x': lambda x: x / 100,
+        'gravity_y': lambda x: x / 100,
+        'gravity_z': lambda x: x / 100,
+
+        'quaternion_w': lambda x: x / 100,
+        'quaternion_x': lambda x: x / 100,
+        'quaternion_y': lambda x: x / 100,
+        'quaternion_z': lambda x: x / 100,
     }
 
     def __init__(self):
@@ -166,7 +193,21 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
             'magnetometer_x': self.magnetometer_x,
             'magnetometer_y': self.magnetometer_y,
             'magnetometer_z': self.magnetometer_z,
+
+            'linearaccel_x': self.linearaccel_x,
+            'linearaccel_y': self.linearaccel_y,
+            'linearaccel_z': self.linearaccel_z,
+
+            'gravity_x': self.gravity_x,
+            'gravity_y': self.gravity_y,
+            'gravity_z': self.gravity_z,
+
+            'quaternion_w': self.quaternion_w,
+            'quaternion_x': self.quaternion_x,
+            'quaternion_y': self.quaternion_y,
+            'quaternion_z': self.quaternion_z,
         }
+        
 
         # This is kind of hacky. Depth and load are tagged on to the packet in uphole.py,
         # although they are technically values in the surface realm. It is to have current

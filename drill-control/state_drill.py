@@ -1,15 +1,9 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2022
+# N. Rathmann <rathmann@nbi.dk>, 2019-2023
 
-import redis, json, datetime, time
+import redis, json, datetime, time, math
 import numpy as np
+from scipy.spatial.transform import Rotation
 from settings import *
-
-try: 
-    # might fail if module not available or clock is incorrect set and reference magnetic field geoid (for a given date) is therefore unavailable.
-    from ahrs.filters import SAAM
-    from ahrs import Quaternion
-except: 
-    USE_BNO055_FOR_ORIENTATION = False
 
 DEGS_TO_RPM = 1/6 
 
@@ -39,29 +33,42 @@ class DrillState():
     
     hammer = 0
     tachometer = 0
-    
-    inclination = 0 # calculated value, not direct sensor value
-    azimuth     = 0 # calculated value, not direct sensor value
-    spin        = 0 # = gyroscope_z
-    quat        = [0,0,0,0] # calculated using AHRS
-    drilldir    = [0,0,1]   # calculated using AHRS
-    
+    spin = 0 # = gyroscope_z
     downhole_voltage = 0.0
     
     # BNO055 triaxial values
+
     accelerometer_x = 0
     accelerometer_y = 0
     accelerometer_z = 0
     magnetometer_x = 0
     magnetometer_y = 0
     magnetometer_z = 0
+
+    linearaccel_x = 0
+    linearaccel_y = 0
+    linearaccel_z = 0
+
+    gravity_x = 0
+    gravity_y = 0
+    gravity_z = 0
+
     gyroscope_x = 0
     gyroscope_y = 0
     gyroscope_z = 0
+
+    quaternion_w = 0
+    quaternion_x = 0
+    quaternion_y = 0
+    quaternion_z = 0
     
     # Inclinometer
     inclination_x = 0
     inclination_y = 0
+
+    # Orientation
+    inclination, azimuth, roll = 0, 0, 0 
+    alpha, beta, gamma = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
     
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
@@ -83,8 +90,8 @@ class DrillState():
             print('DrillState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
-        if USE_BNO055_FOR_ORIENTATION: self.saam = SAAM() # https://ahrs.readthedocs.io/en/latest/filters/saam.html
-        self.refdir = np.array([0,0,1]) # BNO055 chip orientation; used to determine orientation with SAAM
+        #if USE_BNO055_FOR_ORIENTATION: self.saam = SAAM() # https://ahrs.readthedocs.io/en/latest/filters/saam.html
+#        self.refdir = np.array([0,0,1]) # BNO055 chip orientation; used to determine orientation with SAAM
         self.update()
         
 
@@ -101,10 +108,21 @@ class DrillState():
 
         # orientation
         self.spin = round(abs(self.get_spin()), 2)
-        self.inclination, self.azimuth = self.get_orientation() # might be heavy calculation, allowing skipping it if requested.
         self.accelerometer_magnitude = np.sqrt(self.accelerometer_x**2 + self.accelerometer_y**2 + self.accelerometer_z**2)
         self.magnetometer_magnitude  = np.sqrt(self.magnetometer_x**2  + self.magnetometer_y**2  + self.magnetometer_z**2)
+        self.linearaccel_magnitude  = np.sqrt(self.linearaccel_x**2  + self.linearaccel_y**2  + self.linearaccel_z**2)
+        self.gravity_magnitude  = np.sqrt(self.gravity_x**2  + self.gravity_y**2  + self.gravity_z**2)
         self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
+
+        self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
+        rot = Rotation.from_quat(self.quat)
+	#... apply calibration here
+        self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True)
+        self.beta = 180 - self.beta # uncomment if upside down
+	
+        self.inclination = self.beta
+        self.azimuth     = self.alpha
+        self.roll        = self.gamma
 
         # motor 
         self.motor_throttle = 100 * self.motor_duty_cycle
@@ -152,6 +170,7 @@ class DrillState():
             return 0
     
     def set_motorconfig(self, motorid):
+        motor_id = motorid
         if   motor_id == 0: self.rc.publish('downhole','motor-config:parvalux')
         elif motor_id == 1: self.rc.publish('downhole','motor-config:skateboard')
         elif motor_id == 2: self.rc.publish('downhole','motor-config:hacker')
@@ -166,35 +185,15 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
-    def get_orientation(self, USE_AHRS=True):
-    
-        azi, incl = 0, 0
+#    def quat2rotmat(self, q):
+#        s = 1
+#        qr,qi,qj,qk=q
+#        return np.array([ \
+#            [1-2*s*(qj**2+qk**2), 2*s*(qi*qj-qk*qr), 2*s*(qi*qk+qj*qr) ], \
+#            [2*s*(qi*qj+qk*qr), 1-2*s*(qi**2+qk**2), 2*s*(qj*qk-qi*qr) ], \
+#            [2*s*(qi*qk-qj*qr), 2*s*(qj*qk+qi*qr), 1-2*s*(qi**2+qj**2) ], \
+#        ])
 
-        if USE_BNO055_FOR_ORIENTATION:
-            
-            if USE_AHRS:
-                avec = np.array([self.accelerometer_x, self.accelerometer_y, self.accelerometer_z])
-                mvec = np.array([self.magnetometer_x,  self.magnetometer_y,  self.magnetometer_z])
-                if np.linalg.norm(avec) > 0 and np.linalg.norm(mvec) > 0: # orientation information not dead?
-                    self.quat = self.saam.estimate(acc=avec, mag=mvec) # quaternion
-                    self.drilldir = np.matmul(Quaternion(self.quat).to_DCM(), self.refdir) # drill orientation vector: matrix--vector product between rotation matrix (derived from quaternion) and vertical (plumb) direction
-                    incl = np.rad2deg(np.arccos(-self.drilldir[2]))
-                    azi  = np.rad2deg(np.arctan2(self.drilldir[1],self.drilldir[0]))
-            else:
-                azi  = np.rad2deg(math.atan2(self.accelerometer_x, -self.accelerometer_y)) % 360
-                incl = np.rad2deg(vector_angle([self.accelerometer_x, self.accelerometer_y, self.accelerometer_z], parvalux_tube_free_hanging))
-           
-        # Use inclinometer instead...
-        else:
-
-#           JC's calculation        
-#            x = math.tan(np.deg2rad(self.inclination_x))
-#            y = math.tan(np.deg2rad(self.inclination_y))
-#            azi = math.degrees(math.atan2(y, x)) % 360
-            
-            # This calculation gives the angle between (0,0,1) (normalized gravity direction) and the x-y inclinometer plane normal: incl = acos( inner([,,], [0,0,1]) )
-            pitch, roll = np.deg2rad(self.inclination_x), np.deg2rad(self.inclination_y)
-            incl = np.rad2deg( np.arccos(np.cos(pitch)*np.cos(roll)) )
-
-        return (round(incl,2), round(azi,2))
-
+#    def euler_from_quaternion(self, x, y, z, w):
+#        rot = Rotation.from_quat([x,y,z,w])
+#        return rot.as_euler('ZXZ', degrees=True)
