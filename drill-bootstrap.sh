@@ -1,7 +1,8 @@
 #!/bin/bash
+
 echo "*** Drill bootstrap, 2023 season ***";
 
-if [true]
+if false 
 then
     echo "\n> Setting STATIC IP address";
     sudo dhcpcd -S ip_address=10.2.3.10/16 -S routers=10.2.1.1 -S domain_name_servers=10.2.1.1 eth0
@@ -12,16 +13,16 @@ then
     sudo timedatectl set-ntp true &
     sudo ntpdate 0.arch.pool.ntp.org
     sleep 2
-fi
 
-echo -n "\n> Checking USB stick ... "
-sudo mount /dev/sda1 /mnt/logs/ -o umask=000
+    echo -n "\n> Checking USB stick ... "
+    sudo mount /dev/sda1 /mnt/logs/ -o umask=000
 
-if [ $? -eq 0 ]
-then
-   echo "OK"
-else
-   echo "NOT OK, no logfiles will be taken!"
+    if [ $? -eq 0 ]
+        then
+	   echo "OK"
+        else
+	   echo "NOT OK, no logfiles will be taken!"
+        fi
 fi
 
 echo "\n> Launching drill control GUI";
