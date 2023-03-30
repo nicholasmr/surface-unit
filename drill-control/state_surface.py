@@ -88,7 +88,8 @@ class SurfaceState():
         self.loadprev = self.load
         try:
             loadcell = json.loads(self.rc.get('load-cell'))
-            loadnew = float(loadcell["load"])
+#            loadnew = float(loadcell["load"])
+            loadnew = float(loadcell) # new version (2023)
             self.islive_loadcell = (int(loadnew) != -9999)
             if self.islive_loadcell:
                 self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
