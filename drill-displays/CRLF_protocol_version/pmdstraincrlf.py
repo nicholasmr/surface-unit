@@ -46,8 +46,10 @@ stopbits = serial.STOPBITS_ONE
 slaveaddress = 0xF7  # this is the address of the unit.
 
 REDIS_HOST = "localhost"
-
 unitname = "PMD-Strain"  # for printing
+
+delay = 1.5 # delay (secs) if lineread was bad
+DEBUG = 1 # print verbose etc.
 
 # enumerate ports to test...
 if len(sys.argv) > 1:
@@ -123,8 +125,7 @@ if __name__ == "__main__":
             redis_conn.set("load-cell", "-9999")
             del serial_connection
             serial_connection = None
-            delay = 0.5 # secs
-            print("...waiting %.1f secs..."%(delay))
+            if DEBUG: print("...waiting %.1f secs..."%(delay))
             time.sleep(delay)
             continue
 
