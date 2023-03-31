@@ -57,8 +57,8 @@ class DrillState():
     gyroscope_y = 0
     gyroscope_z = 0
 
-    quaternion_w = 0
-    quaternion_x = 0
+    quaternion_w = 1 
+    quaternion_x = 1
     quaternion_y = 0
     quaternion_z = 0
     

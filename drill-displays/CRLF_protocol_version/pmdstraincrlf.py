@@ -48,7 +48,7 @@ slaveaddress = 0xF7  # this is the address of the unit.
 REDIS_HOST = "localhost"
 unitname = "PMD-Strain"  # for printing
 
-delay = 1.5 # delay (secs) if lineread was bad
+delay = 1.5 # delay (secs) if serial lineread() failed
 DEBUG = 1 # print verbose etc.
 
 # enumerate ports to test...
