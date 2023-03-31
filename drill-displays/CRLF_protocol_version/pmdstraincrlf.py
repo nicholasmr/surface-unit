@@ -63,7 +63,7 @@ else:
 def parse_line(line):
     if len(line) != 8 + 2:
         # the meter should always send 8 chars/line +CR/LF if it is in C1 mode.
-        raise Exception(f"{unitname} data must be 8chars per line!")
+        if DEBUG: raise Exception(f"{unitname} data must be 8chars per line!")
     number = line.strip()
     if number[-1].upper() == "R":  # overflow/underflow/error = OR/UR/Err value
         return -9999.0
@@ -72,6 +72,7 @@ def parse_line(line):
 
 
 def find_and_connect():
+    if DEBUG: print(f"Trying to connect to {unitname}")
     ser = None
     for port in ports:
         try:
@@ -80,10 +81,10 @@ def find_and_connect():
             line = ser.readline()  # skip first line post-connect as it might be incomplete
             line = ser.readline().decode("ascii")
             parse_line(line)
-            print(f"Found {unitname} on {port}")
+            if DEBUG: print(f"Found {unitname} on {port}")
             break
         except Exception as e:
-            print(f"no {unitname} on {port}")
+            if DEBUG: print(f"no {unitname} on {port}")
             pass
     return ser
 
@@ -114,18 +115,16 @@ if __name__ == "__main__":
 
     while True:
         if (serial_connection is None) or (serial_connection.closed):
-            print(f"Trying to connect to {unitname}")
             serial_connection = find_and_connect()
 
         try:
             line = serial_connection.readline().decode("ascii")
             curload = parse_line(line)
         except Exception as e:
-            print(f"Failed to read from {unitname}: {repr(e)}")
+            print(f"Failed to read from {unitname}: {repr(e)} ... waiting {delay} secs")
             redis_conn.set("load-cell", "-9999")
             del serial_connection
             serial_connection = None
-            if DEBUG: print("...waiting %.1f secs..."%(delay))
             time.sleep(delay)
             continue
 
