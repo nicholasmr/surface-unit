@@ -2,6 +2,7 @@
 
 echo "*** Drill bootstrap, 2023 season ***";
 
+#if true 
 if false 
 then
     echo "\n> Setting STATIC IP address";
@@ -23,6 +24,8 @@ then
         else
 	   echo "NOT OK, no logfiles will be taken!"
         fi
+else
+    "> ASSUMING NON-DEPLOYED STATE FOR DEBUGGING => NOT SETTING IP-ADDRESS OR MOUNTING USB STICK FOR LOG FILES."
 fi
 
 echo "\n> Launching drill control GUI";
@@ -33,8 +36,7 @@ python3 /home/drill/surface-unit/drill-control/drill-control.py &
 echo "\n> Load cell (pmdstrain)"
 sleep 1;
 #python2 /home/drill/surface-unit/drill-displays-py2/pmdstrain.py /dev/ttyUSB0 &
-#python3 /home/drill/surface-unit/drill-displays/pmdstrain.py /dev/ttyUSB0 &
-python3 /home/drill/surface-unit/drill-displays/CRLF_protocol_version/pmdstraincrlf.py &
+python3 /home/drill/surface-unit/drill-displays/CRLF_protocol_version/pmdstraincrlf.py /dev/ttyUSB0 &
 
 echo "\n> Winch encoder (codex560)"
 sleep 1;
