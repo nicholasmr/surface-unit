@@ -4,24 +4,30 @@ export VERSIONPATH=/home/drill/surface-unit/old-versions/2022
 
 echo "*** Drill bootstrap (version $VERSIONPATH) ***";
 
-echo ">>> Setting STATIC IP address";
-sudo dhcpcd -S ip_address=10.2.3.10/16 -S routers=10.2.1.1 -S domain_name_servers=10.2.1.1 eth0
-sleep 2;
-
-echo ">>> Synchronizing clock"
-sudo systemctl restart systemd-timesyncd.service
-sudo timedatectl set-ntp true &
-sudo ntpdate 0.arch.pool.ntp.org
-sleep 2
-
-echo -n ">>> Checking USB stick ... "
-sudo mount /dev/sda1 /mnt/logs/ -o umask=000
-
-if [ $? -eq 0 ]
+#if true 
+if false 
 then
-   echo "OK"
+    echo ">>> Setting STATIC IP address";
+    sudo dhcpcd -S ip_address=10.2.3.10/16 -S routers=10.2.1.1 -S domain_name_servers=10.2.1.1 eth0
+    sleep 2;
+
+    echo ">>> Synchronizing clock"
+    sudo systemctl restart systemd-timesyncd.service
+    sudo timedatectl set-ntp true &
+    sudo ntpdate 0.arch.pool.ntp.org
+    sleep 2
+
+    echo -n ">>> Checking USB stick ... "
+    sudo mount /dev/sda1 /mnt/logs/ -o umask=000
+
+    if [ $? -eq 0 ]
+    then
+       echo "OK"
+    else
+       echo "NOT OK, no logfiles will be taken!"
+    fi
 else
-   echo "NOT OK, no logfiles will be taken!"
+    echo ">>> ASSUMING NON-DEPLOYED STATE FOR DEBUGGING => NOT SETTING IP-ADDRESS OR MOUNTING USB STICK FOR LOG FILES."
 fi
 
 echo ">>> Launching drill control GUI";
