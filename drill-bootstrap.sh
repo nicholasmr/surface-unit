@@ -25,7 +25,7 @@ then
 	   echo "NOT OK, no logfiles will be taken!"
         fi
 else
-    "> ASSUMING NON-DEPLOYED STATE FOR DEBUGGING => NOT SETTING IP-ADDRESS OR MOUNTING USB STICK FOR LOG FILES."
+    echo "> ASSUMING NON-DEPLOYED STATE FOR DEBUGGING => NOT SETTING IP-ADDRESS OR MOUNTING USB STICK FOR LOG FILES."
 fi
 
 echo "\n> Launching drill control GUI";
