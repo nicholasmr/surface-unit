@@ -39,12 +39,12 @@ sleep 1;
 python3 /home/drill/surface-unit/drill-displays/CRLF_protocol_version/pmdstraincrlf.py /dev/ttyUSB0 &
 
 echo "\n> Winch encoder (codex560)"
-sleep 1;
+sleep 2;
 python2 /home/drill/surface-unit/drill-displays-py2/codex560.py /dev/ttyUSB1 &
 #python3 /home/drill/surface-unit/drill-displays/codex560.py /dev/ttyUSB1 &
 
 echo "\n> Launching drill comms (dispatch)";
-sleep 1;
+sleep 1.5;
 python /home/drill/surface-unit/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
 
 # Added by Rikke for 2023 changes
