@@ -125,6 +125,7 @@ if __name__ == "__main__":
             redis_conn.set("load-cell", "-9999")
             del serial_connection
             serial_connection = None
+            #if DEBUG: print("...waiting %.1f secs..."%(delay))
             time.sleep(delay)
             continue
 
