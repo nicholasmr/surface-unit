@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Exec=lxterminal -e python /home/drill/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0
+StartupNotify=false
+Type=Application
+Terminal=false
+Name=The Matrix
+Path=/home/drill/drill-dispatch/

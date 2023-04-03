@@ -1,0 +1,2 @@
+0 * * * * ntpdate 0.arch.pool.ntp.org
+0 * * * * /home/drill/sync-logs.sh
