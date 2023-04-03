@@ -41,10 +41,6 @@ slaveaddress = 1 # this is the address of the unit.
 REDIS_HOST = "localhost"
 
 
-
-
-
-
 class Codex560( minimalmodbus.Instrument ):
     """Instrument class for Codex 560 process controller.
 
@@ -201,10 +197,6 @@ if __name__ == '__main__':
 
         oldtime = curtime * (1 - memory) + oldtime * memory
         olddepth = curdepth * (1 - memory) + olddepth * memory
-
-
-
-
 
 
     #a.debug = True
