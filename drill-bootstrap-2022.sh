@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSIONPATH=/home/drill/surface-unit/drill-control/old-versions/2022
+export VERSIONPATH=/home/drill/surface-unit/old-versions/2022
 
 echo "*** Drill bootstrap (version $VERSIONPATH) ***";
 
