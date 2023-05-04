@@ -75,6 +75,7 @@ flen = sum(1 for l in open(DRILLLOG, "r"))
 t  = empty_array(flen) # time in seconds
 th = empty_array(flen) # time in hours
 thoff = empty_array(flen) # time in hours, but nan'ed when drill is powered off
+tabs = empty_array(flen) # unix time stamp
 
 ### Depth, speed, etc.
 z  = empty_array(flen) # depth
@@ -113,6 +114,7 @@ if 1:
         date_time_obj1 = datetime.datetime.strptime(date_time_str1, '%Y-%m-%d %H:%M:%S,%f')
         t[ii]  = (date_time_obj1-date_time_obj0).total_seconds()
         th[ii] = t[ii]/(60**2)
+        tabs[ii] = time.mktime(date_time_obj1.timetuple())
 
         if "GyroSlipAlarm" in l:
             gyroalarm[ii] = 1
@@ -156,6 +158,7 @@ if 1:
     ### Velocity
     vel = 100 * abs(np.nan_to_num( np.divide(np.diff(z),np.diff(t))) )
     vel = savgol_filter(vel, 101, 2) # smoothing
+    vel = np.concatenate((vel,[vel[-1],]))
 
     ### Remove empty parts of arrays for incl and azi plots.
     jjmax = jj-1
@@ -284,7 +287,7 @@ if PLOT_TIMESERIES:
 
     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
     color = 'tab:green'
-    ax2.plot(th[:-1], vel, color=color, lw=lwtwin)
+    ax2.plot(th, vel, color=color, lw=lwtwin)
     ax2.set_ylabel('|Speed| (cm/s)', color=color, fontweight=fw, fontsize=fs);
     plt.ylim([0,110]);
 
@@ -326,8 +329,18 @@ if PLOT_TIMESERIES:
     #-----
 
     imgout = '%s/%s--%i-%i.png'%(OUTPATH,date_time_str0,xlims[0],xlims[1])
-    print('Saving %s'%(imgout))
+    print('*** Saving %s'%(imgout))
     plt.savefig(imgout, dpi=300, bbox_inches='tight')
+
+    ### Save time series for easier third-party use
+    
+    fcsv = '%s/drill-logs-processed/drill.log.processed.%s.csv'%(OUTPATH, date_time_str0)
+    print('*** Saving %s'%(fcsv))
+    d = {'unixtime':tabs, 'depth(m)':z, 'speed(cm/s)':vel, 'load(kg)':w, 'hammer':H, \
+            'motor_rpm(RPM)':f, 'motor_current(A)':I, 'motor_temp(deg)':Tmc, 'gear_temp(deg)':Tg}
+    df = pd.DataFrame(data=d)
+    os.system('mkdir -p drill-logs-processed')
+    df.to_csv(fcsv, index=False)
 
 #-----------------------
 # Orientation
