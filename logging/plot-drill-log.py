@@ -72,11 +72,10 @@ I, U, f  = empty_array(flen),empty_array(flen),empty_array(flen) # motor I, U, R
 ### Temperature
 Tg, Tmc, Tm = empty_array(flen), empty_array(flen), empty_array(flen) # temperature gear 1, motor controller, motor
 
-### Accelerometer
-accx, accy, accz = empty_array(flen), empty_array(flen), empty_array(flen) 
-
-### Magnetometer
-magx, magy, magz = empty_array(flen), empty_array(flen), empty_array(flen) 
+### Orientation
+accx, accy, accz = empty_array(flen), empty_array(flen), empty_array(flen) # Accelerometer
+magx, magy, magz = empty_array(flen), empty_array(flen), empty_array(flen) # Magnetometer
+qx, qy, qz, qw   = empty_array(flen), empty_array(flen), empty_array(flen), empty_array(flen) # Quaternion
 
 ### Alarms
 gyroalarm = np.zeros((flen))
@@ -114,8 +113,9 @@ for ii, l in enumerate(fh):
 
     try:    z[ii] = - json.loads(l)['depth_encoder']['depth']
     except: z[ii] = np.nan
+    
     try:    w[ii] = json.loads(l)['load_cell']
-    except: w[ii] = np.nan
+    except: w[ii] = -9999
 
     #v[ii] is done post loop once depth and times are collected
     H[ii]  = 100 * (float(json.loads(l)['hammer']) / 255.0)
@@ -132,11 +132,18 @@ for ii, l in enumerate(fh):
     
     accx[ii],accy[ii],accz[ii] = json.loads(l)['accelerometer_x'], json.loads(l)['accelerometer_y'], json.loads(l)['accelerometer_z']
     magx[ii],magy[ii],magz[ii] = json.loads(l)['magnetometer_x'], json.loads(l)['magnetometer_y'], json.loads(l)['magnetometer_z']
-
+    
+    # don't assume all drill sections send the BNO quat uphole
+    try:    qx[ii], qy[ii], qz[ii], qw[ii] = [json.loads(l)['quaternion_%s'%(x)] for x in ['x','y','z','w']]
+    except: qx[ii], qy[ii], qz[ii], qw[ii] = 0,0,0,0
+    
+    print(l)
+    print(qx[ii], qy[ii], qz[ii], qw[ii])
+    
     ### Make ready for next loop        
     jj +=1
     
-    if not np.isnan(z[ii]) and not np.isnan(w[ii]) and not np.isnan(f[ii]): 
+    if not np.isnan(z[ii]) and not np.isnan(f[ii]): # both drill and depth counter must be online (values registered)
         Icsv.append(ii) # save only rows to .csv when no data is missing
 
 fh.close()
@@ -258,6 +265,10 @@ d = {'unixtime':     [int(x)      for x in tabs[Icsv]], \
      'motorCurrent': [round(x, 2) for x in I[Icsv]], \
      'motorTemp':    [round(x, 2) for x in Tmc[Icsv]], \
      'gearTemp':     [round(x, 2) for x in Tg[Icsv]], \
+     'qx':           [round(x, 4) for x in qx[Icsv]], \
+     'qy':           [round(x, 4) for x in qy[Icsv]], \
+     'qz':           [round(x, 4) for x in qz[Icsv]], \
+     'qw':           [round(x, 4) for x in qw[Icsv]], \
      'magx':         [round(x, 3) for x in magx[Icsv]], \
      'magy':         [round(x, 3) for x in magy[Icsv]], \
      'magz':         [round(x, 3) for x in magz[Icsv]], \

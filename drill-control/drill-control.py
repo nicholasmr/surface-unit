@@ -683,7 +683,7 @@ class MainWidget(QWidget):
                 self.updateStateBox('orientation_inclination',  "%.2f"%(self.ds.inclination), warn__nothres)
                 self.updateStateBox('orientation_azimuth',      "%.1f"%(self.ds.azimuth),     warn__nothres)
                 self.updateStateBox('orientation_roll',         "%.1f"%(self.ds.roll),        warn__nothres)
-                self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.gamma),       warn__nothres)
+                self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),       warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
 #                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])

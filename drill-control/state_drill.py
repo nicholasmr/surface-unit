@@ -58,7 +58,7 @@ class DrillState():
     gyroscope_z = 0
 
     quaternion_w = 1 
-    quaternion_x = 1
+    quaternion_x = 0
     quaternion_y = 0
     quaternion_z = 0
     
@@ -110,19 +110,22 @@ class DrillState():
         self.spin = round(abs(self.get_spin()), 2)
         self.accelerometer_magnitude = np.sqrt(self.accelerometer_x**2 + self.accelerometer_y**2 + self.accelerometer_z**2)
         self.magnetometer_magnitude  = np.sqrt(self.magnetometer_x**2  + self.magnetometer_y**2  + self.magnetometer_z**2)
-        self.linearaccel_magnitude  = np.sqrt(self.linearaccel_x**2  + self.linearaccel_y**2  + self.linearaccel_z**2)
-        self.gravity_magnitude  = np.sqrt(self.gravity_x**2  + self.gravity_y**2  + self.gravity_z**2)
+        self.linearaccel_magnitude   = np.sqrt(self.linearaccel_x**2  + self.linearaccel_y**2  + self.linearaccel_z**2)
+        self.gravity_magnitude       = np.sqrt(self.gravity_x**2  + self.gravity_y**2  + self.gravity_z**2)
         self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
 
         self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
-        rot = Rotation.from_quat(self.quat)
-	#... apply calibration here
-        self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True)
+        try:    rot = Rotation.from_quat(self.quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
+        except: rot = Rotation.from_quat([0,0,0,1])
+	    #... apply calibration here if needed (BNO auto calibrates if put into extreme orientations)
+	    
+        self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations 
+        
         self.beta = 180 - self.beta # uncomment if upside down
 	
-        self.inclination = self.beta
-        self.azimuth     = self.alpha
-        self.roll        = self.gamma
+        self.inclination = self.beta  # pitch (theta)
+        self.azimuth     = self.alpha # yaw   (phi)
+        self.roll        = self.gamma # roll  (psi)
 
         # motor 
         self.motor_throttle = 100 * self.motor_duty_cycle

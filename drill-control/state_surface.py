@@ -56,11 +56,12 @@ class SurfaceState():
         try: 
             now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
-            self.depth     = -encoder["depth"]
-            self.islive_depthcounter = (int(self.depth) != 9999)
+            depth = -encoder["depth"]
+            self.islive_depthcounter = not (int(depth) == 9999 or int(depth) == -9999) 
             
             if self.islive_depthcounter:
-                
+
+                self.depth = depth
                 self.speedinst = -100*encoder["velocity"]
                 
                 self.depth_list = np.roll(self.depth_list, -1); 
