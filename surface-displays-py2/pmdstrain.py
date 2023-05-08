@@ -20,7 +20,7 @@
 
 .. moduleauthor:: Aslak Grinsted <ag@glaciology.net>
 
-Driver for the  PMD-Strain counter, for communication via the Modbus RTU protocol.
+Driver for the PMD-Strain counter, for communication via the Modbus RTU protocol.
 
 """
 
@@ -31,12 +31,16 @@ import sys
 import redis
 import time
 
-__author__  = "Aslak Grinsted"
+__author__  = "Aslak Grinsted and Nicholas Rathmann"
 __email__   = "ag@glaciology.net"
 __license__ = "Apache License, Version 2.0"
 
 slaveaddress = 0xF7 # ------ this is the address of the unit.
+
 REDIS_HOST = "localhost"
+idstr = sys.argv[0] # ID string for printing
+searchLoopSleep = 3 # secs between retrying ports
+
 
 class PMDStrain( minimalmodbus.Instrument ):
 
@@ -79,44 +83,56 @@ class PMDStrain( minimalmodbus.Instrument ):
 
 
 if __name__ == '__main__':
-    print "Load cell"
-    redis_conn = redis.StrictRedis(host=REDIS_HOST)
-    if (len(sys.argv) > 1):
-        print(sys.argv[1])
-        loadcellDisplay = None
-        while loadcellDisplay is None:
-            try:
-                print "'loadcellDisplay is None', sleeping and trying again..."
-                loadcellDisplay = PMDStrain(sys.argv[1], slaveaddress)
-                loadcellDisplay.debug=False
-                time.sleep(1)
-            except:
-                pass
-    else:
-        ports=glob.glob("/dev/ttyUSB*")
-        loadcellDisplay = None
-        for port in ports:
-            try:
-                print("- testing for pmdstrain with adress {0} on {1}".format(slaveaddress,port))
-                loadcellDisplay = PMDStrain(port, slaveaddress)
-                loadcellDisplay.debug=False
-                loadcellDisplay.serial.readall()
-                loadcellDisplay.get_decimalpoint()
-                print("Load cell found on {0}".format(port))
-                break
-            except Exception as e:
-                loadcellDisplay = None
 
-        if loadcellDisplay is None:
-            redis_conn.set("load-cell", '-9999')
-            sys.exit("No port found for PMD-Strain (load cell display)!")
+    redis_conn = redis.StrictRedis(host=REDIS_HOST)
+    display = None
+            
+    while display is None: # instrument search loop
+    
+        print '%s: Searching for instrument with address %i on... '%(idstr, slaveaddress),
+        
+        # Is port provided as cmd argument?
+        if len(sys.argv) == 2:
+            port = sys.argv[1]
+            print "%s "%(port), # compact output to not clutter screen
+            try:    display = PMDStrain(port, slaveaddress)
+            except: display = None
+
+        else:
+            ports = glob.glob("/dev/ttyUSB*")
+            if len(ports) == 0: print 'no ports',
+            for port in ports:
+                print "%s "%(port), # compact output to not clutter screen
+                try:
+                    display = PMDStrain(port, slaveaddress)
+                    display.debug=False
+                    display.serial.readall()
+                    display.get_decimalpoint()
+                    break
+                except:
+                    display = None
+
+        if display is None:
+            print '...failed, trying later.'
+            time.sleep(searchLoopSleep)
+            continue
+        else:
+            print '...found!'%(port)
+            break        
+
+    # Still not found? Then exit            
+    if display is None:
+        redis_conn.set("load-cell", '-9999')
+        sys.exit("%s: Failed to find depth encoder."%(idstr))
+
+    ### Read loop
 
     while True:
         try:
-            loadcellDisplay.serial.readall() #note: sleep at least by 0.01
+            display.serial.readall() #note: sleep at least by 0.01
             time.sleep(0.05)
-            loadcellDisplay.get_decimalpoint()
-            redis_conn.set("load-cell", loadcellDisplay.get_displayvalue())
+            display.get_decimalpoint()
+            redis_conn.set("load-cell", display.get_displayvalue())
         except IOError:
             pass
         except ValueError:

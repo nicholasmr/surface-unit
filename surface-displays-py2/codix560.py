@@ -20,7 +20,7 @@
 
 .. moduleauthor:: Aslak Grinsted <ag@glaciology.net>
 
-Driver for the Kübler Codex 560 counter, for communication via the Modbus RTU protocol.
+Driver for the Kubler Codix 560 counter, for communication via the Modbus RTU protocol.
 
 """
 
@@ -32,17 +32,43 @@ import glob
 import sys
 import math
 
-
-__author__  = "Aslak Grinsted"
+__author__  = "Aslak Grinsted and Nicholas Rathmann"
 __email__   = "ag@glaciology.net"
 __license__ = "Apache License, Version 2.0"
 
 slaveaddress = 1 # this is the address of the unit.
+
 REDIS_HOST = "localhost"
+idstr = sys.argv[0] # ID string for printing
+searchLoopSleep = 3 # secs between retrying ports
 
 
-class Codex560( minimalmodbus.Instrument ):
-    """Instrument class for Codex 560 process controller.
+class Codix560Mem():
+    """
+        When the drill is moving slowly, we need to make a moving average because the depth encoder provides only centimetre resolution.
+        "mem" is a constant that controls how much "memory" is in the system when we calculate the velocity.
+    """
+    def __init__(self):
+        self.efolding_time  = 5.0  # Forget history after about 5-10 seconds
+        self.efolding_depth = 0.02 # Forget history after moving 2-4 centimetre 
+        self.olddepth = 0.0
+        self.oldtime  = time.time()
+        
+    def update(self, curdepth):
+        curtime = time.time()        
+        dt = curtime - self.oldtime
+        dz = curdepth - self.olddepth
+        mem = math.exp( - math.fabs(dz)/efolding_depth - dt/efolding_time)
+        # mem = 0 # memoryless
+        velocity = dz/dt
+        self.oldtime  = (1-mem)*curtime  + mem*oldtime
+        self.olddepth = (1-mem)*curdepth + mem*olddepth
+        return velocity       
+       
+
+class Codix560(minimalmodbus.Instrument):
+
+    """Instrument class for Codix 560 process controller.
 
     Communicates via Modbus RTU protocol (via RS232 or RS485), using the *MinimalModbus* Python module.
 
@@ -62,10 +88,6 @@ class Codex560( minimalmodbus.Instrument ):
         self.serial.timeout = 0.6
         time.sleep(0.05) #dont start reading immediately
 
-
-    #
-    #            GETTER METHODS
-    #
 
     def get_main_counter(self):
         """get main counter"""
@@ -92,9 +114,6 @@ class Codex560( minimalmodbus.Instrument ):
         packedbytes=self.read_long(registeraddress = 0x8014)
         return struct.unpack("BBBB",struct.pack("I",packedbytes))
 
-    #
-    #            SETTER METHODS
-    #
 
     def reset_main_counter(self):
         """Resets the main counter"""
@@ -145,70 +164,68 @@ class Codex560( minimalmodbus.Instrument ):
     #    return
 
 
-########################
-## Testing the module ##
-########################
-
 if __name__ == '__main__':
-    print "Winch encoder"
+
     redis_conn = redis.StrictRedis(host=REDIS_HOST)
-    try:
-        encoderDisplay = Codex560(sys.argv[1], slaveaddress)
-    except:
-        ports=glob.glob("/dev/ttyUSB*")
-        encoderDisplay = None
-        for port in ports:
-            try:
-                print("- testing for codex560 with address {0} on {1}".format(slaveaddress,port))
-                encoderDisplay = Codex560(port, slaveaddress)
-                encoderDisplay.get_status()
-                print("CODEX-560 found on {0}".format(port))
-                break
-            except Exception as e:
-                encoderDisplay = None
+    display = None
+            
+    while display is None: # instrument search loop
+    
+        print '%s: Searching for instrument with address %i on... '%(idstr, slaveaddress),
+        
+        # Is port provided as cmd argument?
+        if len(sys.argv) == 2:
+            port = sys.argv[1]
+            print "%s "%(port), # compact output to not clutter screen
+            try:    display = Codix560(port, slaveaddress)
+            except: display = None
 
-        if encoderDisplay is None:
-            redis_conn.set("depth-encoder", '{"depth": -9999, "velocity": -9999}')
-            sys.exit("No port found for kubler CODEX-560 encoder!")
+        else:
+            ports = glob.glob("/dev/ttyUSB*")
+            if len(ports) == 0: print 'no ports',
+            for port in ports:
+                print "%s "%(port), # compact output to not clutter screen
+                try:
+                    display = Codix560(port, slaveaddress)
+                    display.get_status()
+                    break
+                except:
+                    display = None
 
+        if display is None:
+            print '...failed, trying later.'
+            time.sleep(searchLoopSleep)
+            continue
+        else:
+            print '...found!'%(port)
+            break        
 
-    #When we the drill is moving slowly then we need to make a moving average because the depthencoder only gives us cm-resolution.
-    #w is a constant that controls how much "memory" is in the system when we calculate the velocity.
-    efolding_time = 5.0 #Forget history after about 5-10 seconds.;
-    efolding_depth = 0.02 #Forget history after moving 2-4cm we should have almost forgotten previous states.
+    # Still not found? Then exit            
+    if display is None:
+        redis_conn.set("depth-encoder", '{"depth": -9999, "velocity": -9999}')
+        sys.exit("%s: Failed to find depth encoder."%(idstr))
 
-    #encoderDisplay.debug = True
-    olddepth=0.0
-    oldtime=time.time()
+    ### Read loop
+
+    cmem = Codix560Mem()
+
     while True:
+    
         time.sleep(0.1) #note: sleep at least by 0.01
-        curdepth=encoderDisplay.get_main_counter()
-        curtime=time.time()
-
-        dt = curtime - oldtime
-        dz = curdepth - olddepth
-        memory = math.exp(-math.fabs(dz) / efolding_depth - dt / efolding_time)
-        # memory = 0 #forget the past.
-        velocity = dz / dt
-
+        curdepth = display.get_main_counter()
+        velocity = cmem.update(curdepth)
         redis_conn.set("depth-encoder", "{\"depth\": %f, \"velocity\": %f}" % (curdepth, velocity))
-        # redis_conn.set("depth-encoder-velocity", velocity)
-        # print("{0} // {1}".format(curdepth,velocity))
 
-        oldtime = curtime * (1 - memory) + oldtime * memory
-        olddepth = curdepth * (1 - memory) + olddepth * memory
-
-
-    #a.debug = True
-    #minimalmodbus._print_out( 'Main counter:           {0}'.format(  a.get_main_counter()      ))
-    #time.sleep(0.01)
-    #minimalmodbus._print_out( 'Status:                 {0}'.format(  repr(a.get_status())      ))
-    #minimalmodbus._print_out( 'Secondary counter:      {0}'.format(  a.get_secondary_counter()  ))
-    #minimalmodbus._print_out( 'Preset 1:               {0}'.format(  a.get_preset1()           ))
-    #minimalmodbus._print_out( 'Preset 2:               {0}'.format(  a.get_preset2()           ))
-    #time.sleep(0.01)
-    #minimalmodbus._print_out( 'Decimal places:         {0}'.format(  a.get_decimalplaces()     ))
-    #todo: more tests
-    #minimalmodbus._print_out( 'DONE!' )
+        #a.debug = True
+        #minimalmodbus._print_out( 'Main counter:           {0}'.format(  a.get_main_counter()      ))
+        #time.sleep(0.01)
+        #minimalmodbus._print_out( 'Status:                 {0}'.format(  repr(a.get_status())      ))
+        #minimalmodbus._print_out( 'Secondary counter:      {0}'.format(  a.get_secondary_counter()  ))
+        #minimalmodbus._print_out( 'Preset 1:               {0}'.format(  a.get_preset1()           ))
+        #minimalmodbus._print_out( 'Preset 2:               {0}'.format(  a.get_preset2()           ))
+        #time.sleep(0.01)
+        #minimalmodbus._print_out( 'Decimal places:         {0}'.format(  a.get_decimalplaces()     ))
+        #todo: more tests
+        #minimalmodbus._print_out( 'DONE!' )
 
 pass
