@@ -48,7 +48,7 @@ slaveaddress = 0xF7  # this is the address of the unit.
 REDIS_HOST = "localhost"
 unitname = "PMD-Strain"  # for printing
 
-delay = 1.5 # delay (secs) if serial lineread() failed
+delay = 0.5 # delay (secs) if serial lineread() failed
 DEBUG = 1 # print verbose etc.
 
 # enumerate ports to test...
@@ -72,7 +72,7 @@ def parse_line(line):
 
 
 def find_and_connect():
-    if DEBUG: print(f"Trying to connect to {unitname}")
+    if DEBUG: print(f"Trying to connect to {unitname}... ", end='')
     ser = None
     for port in ports:
         try:
@@ -84,7 +84,7 @@ def find_and_connect():
             if DEBUG: print(f"Found {unitname} on {port}")
             break
         except Exception as e:
-            if DEBUG: print(f"no {unitname} on {port}")
+            if DEBUG: print(f"No {unitname} on {port}")
             pass
     return ser
 
@@ -125,7 +125,6 @@ if __name__ == "__main__":
             redis_conn.set("load-cell", "-9999")
             del serial_connection
             serial_connection = None
-            #if DEBUG: print("...waiting %.1f secs..."%(delay))
             time.sleep(delay)
             continue
 

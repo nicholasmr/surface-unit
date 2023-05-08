@@ -47,8 +47,10 @@ stopbits = serial.STOPBITS_ONE
 slaveaddress = 1  # this is the address of the unit.
 
 REDIS_HOST = "localhost"
-
 unitname = "CODIX560"  # for printing
+
+delay = 0.5 # delay (secs) if serial lineread() failed
+DEBUG = 1 # print verbose etc.
 
 # enumerate ports to test...
 if len(sys.argv) > 1:
@@ -132,12 +134,11 @@ if __name__ == "__main__":
             curdepth = parse_line(line)
             curtime = time.time()
         except Exception as e:
-            print(f"Failed to read from {unitname}: {repr(e)}")
+            print(f"Failed to read from {unitname}: {repr(e)} ... waiting {delay} secs")
             redis_conn.set("depth-encoder", '{"depth": -9999, "velocity": -9999}')
             del serial_connection
             serial_connection = None
-            print("waiting 5secs...")
-            time.sleep(5.0)
+            time.sleep(delay)
             continue
 
         dt = curtime - oldtime

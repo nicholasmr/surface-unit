@@ -39,6 +39,7 @@ slaveaddress = 0xF7 # ------ this is the address of the unit.
 REDIS_HOST = "localhost"
 
 class PMDStrain( minimalmodbus.Instrument ):
+
     """Instrument class for PMD-Strain process controller.
 
     Communicates via Modbus RTU protocol (via RS232 or RS485), using the *MinimalModbus* Python module.
@@ -62,10 +63,6 @@ class PMDStrain( minimalmodbus.Instrument ):
         self.get_decimalpoint()
 
 
-    #
-    #            GETTER METHODS
-    #
-
     def get_displayvalue(self):
         """get main counter"""
         registers = self.read_registers(registeraddress = 0x0000, numberOfRegisters=2)
@@ -79,11 +76,6 @@ class PMDStrain( minimalmodbus.Instrument ):
         decimalpoint = self.read_register(registeraddress = 0x001E) & 0x00FF
         self.valuemultiplier = 10.0**-float(decimalpoint)
         return decimalpoint
-
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -131,6 +123,5 @@ if __name__ == '__main__':
             pass
 	except TypeError:
             pass
-
 
 pass
