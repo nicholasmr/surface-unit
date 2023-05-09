@@ -38,8 +38,8 @@ __license__ = "Apache License, Version 2.0"
 slaveaddress = 0xF7 # ------ this is the address of the unit.
 
 REDIS_HOST = "localhost"
-idstr = sys.argv[0] # ID string for printing
-searchLoopSleep = 3 # secs between retrying ports
+idstr = "pmdstrain" # ID string for printing
+searchLoopSleep = 1 # secs between retrying ports
 
 
 class PMDStrain( minimalmodbus.Instrument ):

@@ -43,8 +43,8 @@ stopbits = serial.STOPBITS_ONE
 slaveaddress = 0xF7  # this is the address of the unit.
 
 REDIS_HOST = "localhost"
-idstr = sys.argv[0] # ID string for printing
-searchLoopSleep = 3 # secs between retrying ports
+idstr = "pmdstraincrlf" # ID string for printing
+searchLoopSleep = 1 # secs between retrying ports
 
 
 def parse_line(line, bad=-9999.0):

@@ -105,9 +105,9 @@ sleep 1;
 echo -e "${INFO}>>> Winch encoder (codix560, CRLF=$CODIX_CRLF) ${NC}"
 if  [ $CODIX_CRLF = 1 ]
 then
-    python3 $VPATH_LATEST/surface-displays-crlf-py3/codex560crlf.py $DEV_CODIX & 
+    python3 $VPATH_LATEST/surface-displays-crlf-py3/codix560crlf.py $DEV_CODIX & 
 else
-    python2 $VPATH_LATEST/surface-displays-py2/codex560.py $DEV_CODIX &
+    python2 $VPATH_LATEST/surface-displays-py2/codix560.py $DEV_CODIX &
 fi
 
 
