@@ -33,10 +33,10 @@ cx = c_dred
 cy = c_dgreen
 cz = c_dblue
 
-lw_default = 3
+lw_default = 4
 alpha0 = 0.09
 
-FS = 16
+FS = 17
 matplotlib.rcParams.update({'font.size': FS})
 
 

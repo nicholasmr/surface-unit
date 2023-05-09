@@ -116,14 +116,13 @@ class DrillState():
         self.gravity_magnitude       = np.sqrt(self.gravity_x**2  + self.gravity_y**2  + self.gravity_z**2)
         self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
 
-        self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
-        try:    rot = Rotation.from_quat(self.quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
-        except: rot = Rotation.from_quat([0,0,0,1])
-	    #... apply calibration here if needed (BNO auto calibrates if put into extreme orientations)
-	    
-        self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations 
-        
-        self.beta = 180 - self.beta # uncomment if upside down
+        if Rotation is not None:
+            self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
+            try:    rot = Rotation.from_quat(self.quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
+            except: rot = Rotation.from_quat([0,0,0,1])
+	        #... apply calibration here if needed (BNO auto calibrates if put into extreme orientations)
+            self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations 
+            self.beta = 180 - self.beta # uncomment if upside down
 	
         self.inclination = self.beta  # pitch (theta)
         self.azimuth     = self.alpha # yaw   (phi)
@@ -190,15 +189,4 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
-#    def quat2rotmat(self, q):
-#        s = 1
-#        qr,qi,qj,qk=q
-#        return np.array([ \
-#            [1-2*s*(qj**2+qk**2), 2*s*(qi*qj-qk*qr), 2*s*(qi*qk+qj*qr) ], \
-#            [2*s*(qi*qj+qk*qr), 1-2*s*(qi**2+qk**2), 2*s*(qj*qk-qi*qr) ], \
-#            [2*s*(qi*qk-qj*qr), 2*s*(qj*qk+qi*qr), 1-2*s*(qi**2+qj**2) ], \
-#        ])
-
-#    def euler_from_quaternion(self, x, y, z, w):
-#        rot = Rotation.from_quat([x,y,z,w])
-#        return rot.as_euler('ZXZ', degrees=True)
+#    def get_inclination_ahrs(self):
