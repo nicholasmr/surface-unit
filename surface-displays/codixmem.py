@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # N. Rathmann
 
-import time
+import time, math
 
 class Codix560Mem():
     """
