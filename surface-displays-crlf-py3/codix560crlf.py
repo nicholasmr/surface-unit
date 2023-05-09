@@ -108,8 +108,8 @@ class Codix560Mem():
         mem = math.exp( - math.fabs(dz)/self.efolding_depth - dt/self.efolding_time)
         # mem = 0 # memoryless
         velocity = dz/dt
-        self.oldtime  = (1-mem)*curtime  + mem*oldtime
-        self.olddepth = (1-mem)*curdepth + mem*olddepth
+        self.oldtime  = (1-mem)*curtime  + mem*self.oldtime
+        self.olddepth = (1-mem)*curdepth + mem*self.olddepth
         return velocity       
         
 
