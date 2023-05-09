@@ -95,9 +95,9 @@ sleep 1;
 echo -e "${INFO}>>> Load cell (pmdstrain, CRLF=$PMDSTRAIN_CRLF) ${NC}"
 if  [ $PMDSTRAIN_CRLF = 1 ]
 then
-    python3 $VPATH_LATEST/surface-displays-crlf-py3/pmdstraincrlf.py $DEV_PMDSTRAIN & 
+    python3 $VPATH_LATEST/surface-displays/pmdstraincrlf.py $DEV_PMDSTRAIN & 
 else
-    python2 $VPATH_LATEST/surface-displays-py2/pmdstrain.py $DEV_PMDSTRAIN &
+    python2 $VPATH_LATEST/surface-displays/pmdstrain.py $DEV_PMDSTRAIN &
 fi
 
 
@@ -105,9 +105,9 @@ sleep 1;
 echo -e "${INFO}>>> Winch encoder (codix560, CRLF=$CODIX_CRLF) ${NC}"
 if  [ $CODIX_CRLF = 1 ]
 then
-    python3 $VPATH_LATEST/surface-displays-crlf-py3/codix560crlf.py $DEV_CODIX & 
+    python3 $VPATH_LATEST/surface-displays/codix560crlf.py $DEV_CODIX & 
 else
-    python2 $VPATH_LATEST/surface-displays-py2/codix560.py $DEV_CODIX &
+    python2 $VPATH_LATEST/surface-displays/codix560.py $DEV_CODIX &
 fi
 
 

@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2023
+
 import sys, math, time
 from math import copysign, fabs, sqrt, pi, sin, cos, asin, acos, atan2, exp, log
 import numpy as np
@@ -6,21 +9,25 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
-
 from matplotlib.widgets import Slider, Button
 
 from pyrotation import *
+from settings import *
+from state_drill import *
 
 flowang = np.deg2rad(180 + 27)
 
+c_green  = '#74c476'
 c_lgreen = '#edf8e9'
-c_dgreen = '#005a32'
+c_dgreen = '#238b45'
 
+c_red  = '#fb6a4a'
 c_lred = '#fee5d9'
-c_dred = '#99000d'
+c_dred = '#cb181d'
 
+c_blue  = '#6baed6'
 c_lblue = '#eff3ff'
-c_dblue = '#084594'
+c_dblue = '#2171b5'
 
 cx = c_dred
 cy = c_dgreen
@@ -31,6 +38,7 @@ alpha0 = 0.5
 
 FS = 16
 matplotlib.rcParams.update({'font.size': FS})
+
 
 def rotate_translate_points(p, rotation, t, method):
     '''
@@ -285,11 +293,16 @@ class RotationVisualizer3D(object):
         Adjust the limite and aspect ratio of a 3D plot.
         '''
         
-        ticks = [-2,-1,0,1,2]
+        ticks = [-1,+1]
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
         ax.set_zticks(ticks)
 
+        ticks = [-2,-1,0,+1,+2]
+        ax.set_xticks(ticks, minor=True)
+        ax.set_yticks(ticks, minor=True)
+        ax.set_zticks(ticks, minor=True)
+        
         ax.set_xlim(-scale, scale)
         ax.set_ylim(-scale, scale)
         ax.set_zlim(-scale, scale/3)
@@ -297,30 +310,8 @@ class RotationVisualizer3D(object):
         ax.set_xlabel('$x$', fontsize=FS+2)
         ax.set_ylabel('$y$', fontsize=FS+2)
         ax.set_zlabel('$z$', fontsize=FS+2)
-        #ax.set_aspect('equal')
 
-    def run(self):        
-
-        #plt.ion()
-        plt.show()
-        #self.fig.canvas.draw()
-        #self.fig.canvas.flush_events()
-
-#        plt.show(False)
-#        plt.draw()
-
-        while True:
-#            self.fig.canvas.draw()
-#         
-#            # This will run the GUI event
-#            # loop until all UI events
-#            # currently waiting have been processed
-#            self.fig.canvas.flush_events()
-            print('tick')
-#            plt.show()
-            time.sleep(1)
-#            plt.draw()
-#            self.s_ey.set_val( abs(np.random()*10) )
+            
 
 class EulerZYXVisualizer3D(RotationVisualizer3D):
     '''
@@ -334,10 +325,20 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         '''
         Constructor.
         '''
-        
+
+        # RAW instrument values
+        self.azim = 0
+        self.incl = 0
+        self.roll = 0
+    
+        # Offsets for true values
+        self.offset_roll = 0
+        self.offset_azim = 0
+                
         self.reset_states()
         self.update_internal_states()
         self.setup_ui()
+
 
     def reset_states(self):
         '''
@@ -348,6 +349,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.euler_z_degree = 0
         self.euler_y_degree = 0
         self.euler_x_degree = 0
+        
 
     def update_internal_states(self):
         '''
@@ -357,9 +359,9 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         Internally, a rotation matrix is used for calculation and plot.
         '''
         
-        self.euler_z_radian = self.euler_z_degree * np.pi / 180
-        self.euler_y_radian = self.euler_y_degree * np.pi / 180
-        self.euler_x_radian = self.euler_x_degree * np.pi / 180
+        self.euler_z_radian = np.deg2rad(self.euler_z_degree)
+        self.euler_y_radian = np.deg2rad(self.euler_y_degree)
+        self.euler_x_radian = np.deg2rad(self.euler_x_degree)
 
         ### MY COORDINATE CHANGE
         self.euler_y_radian = np.pi/2 - self.euler_y_radian # elev -> incl
@@ -374,7 +376,6 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         '''
         
         self.fig = plt.figure(figsize=(15, 10), facecolor='w', edgecolor='k')
-#        plt.ion()
         self.ax3d = self.fig.add_axes([0.0, 0.0, 0.7, 1], projection='3d')
         self.ax3d.view_init(azim=70, elev=20)
         
@@ -395,21 +396,26 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.s_ey.on_changed(self.on_euler_angles_slider_update)
         self.s_ex.on_changed(self.on_euler_angles_slider_update)
 
-        
-        ### Description
         kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
         
-        x0 = 0.67
-        y0 = 0.40
-        dy = 0.035
-        plt.text(x0, y0+1*dy, '------------ Coordinate system ------------', **kwargs_text)
-        plt.text(x0, y0-0*dy, '$\\rightarrow$ Red arrow is direction of drill', **kwargs_text)
-        plt.text(x0, y0-1*dy, '$\\rightarrow$ Green arrow is direction of spring', **kwargs_text)
-        plt.text(x0, y0-2*dy, '$\\rightarrow$ $+x$ axis is along tower when horizontal', **kwargs_text)
+        ### Calibrate
 
+        y0 = 0.575
+        dy = 0.05
+        x0 = 0.67
+        dl = 0.1
+        plt.text(x0, y0, '------------ Offset reference frame ------------', **kwargs_text)
+        axf_zero = self.fig.add_axes([x0+0.05*dl, y0-1.2*dy, dl, dh])
+        bf_zero = Button(axf_zero, 'Set zero')
+        bf_zero.on_clicked(self.offset_reference_frame)
+        plt.bf_zero = bf_zero
+        dy_ = 0.85*dy
+        plt.text(x0+1.5*dl, y0-1.0*dy_, r'$\alpha = \alpha_{raw} - %.2f$'%(self.offset_azim), **kwargs_text)
+        plt.text(x0+1.5*dl, y0-1.9*dy_, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
+        
         ### View buttons
 
-        y0 = 0.3
+        y0 = y0-0.12
         dy = 0.05
         x0_bot =  0.67
         dl_bot = 0.1
@@ -423,6 +429,17 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         plt.bv_reset   = bv_reset
         plt.bv_topdown = bv_topdown
         
+        ### Description
+        
+        x0 = 0.67
+        y0 = y0-0.25
+        dy = 0.035
+        plt.text(x0, y0+1*dy, '------------ Coordinate system ------------', **kwargs_text)
+        plt.text(x0, y0-0*dy, '$\\rightarrow$ Red arrow is direction of drill', **kwargs_text)
+        plt.text(x0, y0-1*dy, '$\\rightarrow$ Green arrow is direction of spring', **kwargs_text)
+        plt.text(x0, y0-2*dy, '$\\rightarrow$ $+x$ axis is along tower when horizontal', **kwargs_text)
+
+       
         self.update_ax3d_plot()
         
     def view_reset(self, *args, **kwargs):
@@ -434,6 +451,12 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         print('view top-down')
         self.ax3d.view_init(azim=90, elev=90)
         plt.draw()
+        
+    def offset_reference_frame(self, *args, **kwargs):
+        print('setting reference frame to zero')
+        self.offset_azim = self.s_ez.val
+        self.offset_roll = self.s_ex.val
+        
         
     def update_ax3d_plot(self):
         '''
@@ -450,8 +473,8 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         x, y, z = np.meshgrid(xy_, xy_, -scale)
         u = z*0 + np.cos(flowang)
         v = z*0 + np.sin(flowang)
-        w = z*0 + 1e-2
-        self.ax3d.quiver(x, y, z, u, v, w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.3, zorder=10)
+        w = z*0 #+ 1e-2
+        self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.5, zorder=10)
 
         ###
 
@@ -483,13 +506,13 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         # ---------- yaw -----------------
         
         # Plot the yaw angle
-        self.plot_arc(self.ax3d, 0, self.euler_z_radian, I, O, r, style='-', color=c_dblue, arrow=True)        
+        self.plot_arc(self.ax3d, 0, self.euler_z_radian, I, O, r, style='--', color=c_blue, arrow=True)        
 
         # ---------- pitch -----------------
         
         # Plot the pitch angle on the ZOX plane after the yaw rotation.
 #        self.plot_arc(self.ax3d, np.pi/2, self.euler_y_radian, Rz, O, r, plane='zox', style='-', color=c_dgreen, arrow=True) # old for elev
-        self.plot_arc(self.ax3d, np.pi, self.euler_y_radian-np.pi/2, Rz, O, r, plane='zox', style='-', color=c_dgreen, arrow=True) # new for incl.
+        self.plot_arc(self.ax3d, np.pi, self.euler_y_radian-np.pi/2, Rz, O, r, plane='zox', style='--', color=c_green, arrow=True) # new for incl.
         
         # Plot x-axis and y-axis after the yaw rotation.
         #self.plot_vector(self.ax3d, nx[0], nx[1], nx[2], style=':', color=c_dred)
@@ -501,7 +524,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         # Plot the roll angle on the YOZ plane after yaw and pitch.
 #        self.plot_disk(self.ax3d, R, O, r, plane='yoz', color='r') 
         self.plot_circle(self.ax3d, R, O, r, plane='yoz', style='-', color='k')
-        self.plot_arc(self.ax3d, 0, self.euler_x_radian, Rzy, O, r, plane='yoz', style='-', color=c_dred, arrow=True)
+        self.plot_arc(self.ax3d, 0, self.euler_x_radian, Rzy, O, r, plane='yoz', style='--', color=c_red, arrow=True)
 
         # Plot z-axis after the yaw rotation and the pitch rotation.
         #self.plot_vector(self.ax3d, mz[0], mz[1], mz[2], style=':', color=c_dblue)
@@ -527,7 +550,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         del val
         
         self.euler_z_degree = self.s_ez.val
-        self.euler_y_degree = self.s_ey.val ### TODO
+        self.euler_y_degree = self.s_ey.val
         self.euler_x_degree = self.s_ex.val
         
         self.update_internal_states()
@@ -535,9 +558,43 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         
 
 
+    def run(self, dt=0.5, debug=False, REDIS_HOST=DRILL_HOST):
+
+        ds = DrillState(redis_host=REDIS_HOST)   
+
+        while True:
+
+            # Let GUI event loop run for this amount before exiting and updating orientation state.
+            # This is similar to plt.pause(dt), but does not steal focus on every update.
+            plt.gcf().canvas.draw_idle()
+            plt.gcf().canvas.start_event_loop(dt)
+
+            if debug:
+                euler_z_degree = abs(np.random.random())*30
+                euler_y_degree = abs(np.random.random())*30
+                euler_x_degree = abs(np.random.random())*30
+            else:
+                ds.update()
+                self.azim = ds.azimuth     # euler_z_degree
+                self.incl = ds.inclination # euler_y_degree
+                self.roll = ds.roll        # euler_x_degree
+                euler_z_degree = self.azim - self.offset_azim
+                euler_y_degree = self.incl 
+                euler_x_degree = self.roll - self.offset_roll
+
+            self.s_ez.set_val(euler_z_degree)
+            self.s_ey.set_val(euler_y_degree)
+            self.s_ex.set_val(euler_x_degree)
+            
+            self.on_euler_angles_slider_update(0)
+            
+            print('Tick dt=%.2f'%(dt))
+
+
 if __name__ == '__main__':
-    
+
+    plt.ion()
     vis = EulerZYXVisualizer3D()
-    vis.run()
+    vis.run(REDIS_HOST='localhost', debug=False)
     pass
 

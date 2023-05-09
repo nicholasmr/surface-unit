@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# N. Rathmann, 2017-2022
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-2023
 
 import sys, time, code # code.interact(local=locals())
 import numpy as np

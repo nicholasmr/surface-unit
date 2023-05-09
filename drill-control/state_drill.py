@@ -1,4 +1,5 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2023
+#!/usr/bin/python
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-2023
 
 import redis, json, datetime, time, math
 import numpy as np
@@ -58,8 +59,8 @@ class DrillState():
     gyroscope_z = 0
 
     quaternion_w = 1 
-    quaternion_x = 0
-    quaternion_y = 0
+    quaternion_x = 1
+    quaternion_y = 1
     quaternion_z = 0
     
     # Inclinometer
