@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Slider, Button, CheckButtons
 
 from pyrotation import *
 from settings import *
@@ -34,7 +34,7 @@ cy = c_dgreen
 cz = c_dblue
 
 lw_default = 3
-alpha0 = 0.5
+alpha0 = 0.09
 
 FS = 16
 matplotlib.rcParams.update({'font.size': FS})
@@ -173,7 +173,7 @@ class RotationVisualizer3D(object):
         y = p[1, :].reshape(s)
         z = p[2, :].reshape(s)
         
-        ax.plot_surface(x, y, z, color=color, linewidth=0, alpha=alpha, antialiased=False)
+        ax.plot_surface(x, y, z, color=color, linewidth=0, alpha=alpha, antialiased=True)
 
     
     def generate_arc_angles(self, start, angle, step=0.02):
@@ -338,6 +338,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.reset_states()
         self.update_internal_states()
         self.setup_ui()
+        self.drill_sync = True
 
 
     def reset_states(self):
@@ -375,88 +376,116 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         Set up the UI and the 3D plot.
         '''
         
-        self.fig = plt.figure(figsize=(15, 10), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(15, 10), facecolor='w', edgecolor='k')
+        plt.get_current_fig_manager().set_window_title('Drill orientation')
         self.ax3d = self.fig.add_axes([0.0, 0.0, 0.7, 1], projection='3d')
         self.ax3d.view_init(azim=70, elev=20)
         
-        # set up control sliders
+        ### set up control sliders
         
-        x0, dy, y0 = 0.75, 0.05, 0.7
+        y0 = 0.85
+        
+        x0, dy = 0.74, 0.05
         dl, dh = 0.2, 0.03
 
-        self.ax_ez = self.fig.add_axes([x0, y0+2*dy, dl, dh], facecolor=c_lblue)
-        self.ax_ex = self.fig.add_axes([x0, y0+0*dy, dl, dh], facecolor=c_lred)
-        self.ax_ey = self.fig.add_axes([x0, y0+1*dy, dl, dh], facecolor=c_lgreen)
+        self.ax_ez = self.fig.add_axes([x0, y0-0*dy, dl, dh], facecolor=c_lblue)
+        self.ax_ex = self.fig.add_axes([x0, y0-2*dy, dl, dh], facecolor=c_lred)
+        self.ax_ey = self.fig.add_axes([x0, y0-1*dy, dl, dh], facecolor=c_lgreen)
         
         self.s_ez = Slider(self.ax_ez, r'Azimuth ($\alpha$)', -180, 180, valinit=self.euler_z_degree, color=c_dblue,  initcolor='k', valstep=1)
         self.s_ey = Slider(self.ax_ey, r'Inclination ($\beta$)', 0, 90,   valinit=self.euler_y_degree, color=c_dgreen, initcolor='k', valstep=0.1)
         self.s_ex = Slider(self.ax_ex, r'Roll ($\gamma$)', -180, 180,  valinit=self.euler_x_degree, color=c_dred,   initcolor='k', valstep=1)
-         
+
         self.s_ez.on_changed(self.on_euler_angles_slider_update)
         self.s_ey.on_changed(self.on_euler_angles_slider_update)
         self.s_ex.on_changed(self.on_euler_angles_slider_update)
-
+                 
         kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
-        
-        ### Calibrate
+        x0_ = 0.93*x0
+        y0_ = y0-3.2*dy
+        self.text_islive = plt.text(x0_, y0_, r'Drills is offline', color=c_dred, fontweight='bold', **kwargs_text)
+        axsync  = self.fig.add_axes([x0_ + 0.66*dl, 0.99*y0_, 0.13, dh])
+        self.b_sync = Button(axsync, 'Disable sync')
+        self.b_sync.on_clicked(self.sync_onoff)
+        plt.b_sync = self.b_sync
 
-        y0 = 0.575
-        dy = 0.05
-        x0 = 0.67
-        dl = 0.1
+        ### Shared below 
+        
+        x0 = 0.67 # title string start
+        x1 = 0.68 # box contet start (adjusted inward slightly)
+        dyt = 0.06 # delta y from title string to box content
+        dl = 0.1 # botton width
+        dy = 0.05 # vertical distance between rows of buttons
+                
+                
+        ### Calibrate/offset 
+
+        y0 = y0-0.23
         plt.text(x0, y0, '------------ Offset reference frame ------------', **kwargs_text)
-        axf_zero = self.fig.add_axes([x0+0.05*dl, y0-1.2*dy, dl, dh])
-        bf_zero = Button(axf_zero, 'Set zero')
+        axf_zero  = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
+        axf_clear = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
+        bf_zero  = Button(axf_zero, 'Set zero')
+        bf_clear = Button(axf_clear, 'Clear')
         bf_zero.on_clicked(self.offset_reference_frame)
+        bf_clear.on_clicked(self.clear_reference_frame)
         plt.bf_zero = bf_zero
+        plt.bf_clear = bf_clear
+        
         dy_ = 0.85*dy
-        plt.text(x0+1.5*dl, y0-1.0*dy_, r'$\alpha = \alpha_{raw} - %.2f$'%(self.offset_azim), **kwargs_text)
-        plt.text(x0+1.5*dl, y0-1.9*dy_, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
+        self.text_alpha = plt.text(x0+1.5*dl, y0-1*dy, r'$\alpha = \alpha_{raw} - %.2f$'%(self.offset_azim), **kwargs_text)
+        self.text_gamma = plt.text(x0+1.5*dl, y0-2*dy, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
         
         ### View buttons
 
-        y0 = y0-0.12
-        dy = 0.05
-        x0_bot =  0.67
-        dl_bot = 0.1
-        plt.text(x0_bot, y0-1*dy, '------------ Change view ------------', **kwargs_text)
-        axv_reset   = self.fig.add_axes([x0_bot+0.05*dl_bot, y0-2*dy, dl_bot, dh])
-        axv_topdown = self.fig.add_axes([x0_bot+1.2*dl_bot, y0-2*dy, dl_bot, dh])
-        bv_reset   = Button(axv_reset, 'Reset')
-        bv_topdown = Button(axv_topdown, 'Top-down')
-        bv_reset.on_clicked(self.view_reset)
+        y0 = y0-0.19
+        plt.text(x0, y0, '------------ Change view ------------', **kwargs_text)
+        axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
+        axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
+        bv_sideways = Button(axv_sideways, 'Sideways')
+        bv_topdown  = Button(axv_topdown, 'Top-down')
+        bv_sideways.on_clicked(self.view_sideways)
         bv_topdown.on_clicked(self.view_topdown)
-        plt.bv_reset   = bv_reset
-        plt.bv_topdown = bv_topdown
+        plt.bv_sideways = bv_sideways
+        plt.bv_topdown  = bv_topdown
         
         ### Description
-        
-        x0 = 0.67
-        y0 = y0-0.25
-        dy = 0.035
-        plt.text(x0, y0+1*dy, '------------ Coordinate system ------------', **kwargs_text)
-        plt.text(x0, y0-0*dy, '$\\rightarrow$ Red arrow is direction of drill', **kwargs_text)
-        plt.text(x0, y0-1*dy, '$\\rightarrow$ Green arrow is direction of spring', **kwargs_text)
-        plt.text(x0, y0-2*dy, '$\\rightarrow$ $+x$ axis is along tower when horizontal', **kwargs_text)
 
-       
+        y0 = y0-0.19
+        dyt_alt = 0.04        
+        dys = 0.035
+        plt.text(x0, y0, '------------ Coordinate system ------------', **kwargs_text)
+        plt.text(x1, y0-dyt_alt-0*dys, '$\\rightarrow$ Red arrow is direction of drill', color=c_dred, **kwargs_text)
+        plt.text(x1, y0-dyt_alt-1*dys, '$\\rightarrow$ Green arrow is direction of spring', color=c_dgreen, **kwargs_text)
+        plt.text(x1, y0-dyt_alt-2*dys, '$\\rightarrow$ $+x$ axis is along tower when horizontal', **kwargs_text)
+        plt.text(x1, y0-dyt_alt-3*dys, '$\\rightarrow$ Angle betw. tower and flow is %i deg.'%(np.rad2deg(flowang)), **kwargs_text)
+
         self.update_ax3d_plot()
+           
         
-    def view_reset(self, *args, **kwargs):
-        print('view reset')
+    def view_sideways(self, *args, **kwargs):
+        print('View = sideways')
         self.ax3d.view_init(azim=70, elev=20)
         plt.draw()
         
     def view_topdown(self, *args, **kwargs):
-        print('view top-down')
+        print('View = top-down')
         self.ax3d.view_init(azim=90, elev=90)
         plt.draw()
         
     def offset_reference_frame(self, *args, **kwargs):
-        print('setting reference frame to zero')
+        print('Setting reference-frame offset')
         self.offset_azim = self.s_ez.val
         self.offset_roll = self.s_ex.val
         
+    def clear_reference_frame(self, *args, **kwargs):
+        print('Clearing reference-frame offset')
+        self.offset_azim = 0
+        self.offset_roll = 0
+        
+    def sync_onoff(self, *args, **kwargs):
+        print('Toggle drill synchronization')
+        self.drill_sync = not self.drill_sync
+        self.b_sync.label.set_text('Disable sync' if self.drill_sync else 'Enable sync')
         
     def update_ax3d_plot(self):
         '''
@@ -466,7 +495,8 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         
         self.ax3d.clear()
 
-        # horizontal flow field 
+        ### Draw horizontal flow field 
+        
         scale = 2
         ds = scale/4
         xy_ = np.arange(-scale+ds, scale, scale/2)
@@ -476,7 +506,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         w = z*0 #+ 1e-2
         self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.5, zorder=10)
 
-        ###
+        ### Draw gibmal geometry
 
         I = np.identity(3)
         r = 2
@@ -485,16 +515,14 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         
         R = self.R
 
-        # Calculate x-axis and y-axis after the yaw rotation. This is needed
-        # to plot the pitch angle.
+        # Calculate x-axis and y-axis after the yaw rotation. This is needed to plot the pitch angle.
         Rz = euler_zyx_to_rotation_matrix(self.euler_z_radian, 0, 0)
         nx = np.asarray((r, 0, 0)).reshape((3, 1))
         nx = np.matmul(Rz, nx).flatten()
         ny = np.asarray((0, r, 0)).reshape((3, 1))
         ny = np.matmul(Rz, ny).flatten()
 
-        # Calculate z-axis after the yaw rotation and the pitch rotation.
-        # This is needed to plot the pitch angle.
+        # Calculate z-axis after the yaw rotation and the pitch rotation. This is needed to plot the pitch angle.
         Rzy = euler_zyx_to_rotation_matrix(self.euler_z_radian, self.euler_y_radian, 0)
         mz = np.asarray((0, 0, r)).reshape((3, 1))
         mz = np.matmul(Rzy, mz).flatten()
@@ -503,12 +531,12 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
 #        self.plot_disk(self.ax3d, I, O, r, plane='xoy', color='w')
         self.plot_circle(self.ax3d, I, O, r, plane='xoy', style=':', color='k')
                 
-        # ---------- yaw -----------------
+        # --- yaw ---
         
         # Plot the yaw angle
         self.plot_arc(self.ax3d, 0, self.euler_z_radian, I, O, r, style='--', color=c_blue, arrow=True)        
 
-        # ---------- pitch -----------------
+        # --- pitch ---
         
         # Plot the pitch angle on the ZOX plane after the yaw rotation.
 #        self.plot_arc(self.ax3d, np.pi/2, self.euler_y_radian, Rz, O, r, plane='zox', style='-', color=c_dgreen, arrow=True) # old for elev
@@ -519,10 +547,10 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         #self.plot_vector(self.ax3d, ny[0], ny[1], ny[2], style=':', color=c_dgreen)
 
 
-        # ---------- roll -----------------
+        # --- roll ---
         
         # Plot the roll angle on the YOZ plane after yaw and pitch.
-#        self.plot_disk(self.ax3d, R, O, r, plane='yoz', color='r') 
+#        self.plot_disk(self.ax3d, R, O, r, plane='yoz', color='0.5') 
         self.plot_circle(self.ax3d, R, O, r, plane='yoz', style='-', color='k')
         self.plot_arc(self.ax3d, 0, self.euler_x_radian, Rzy, O, r, plane='yoz', style='--', color=c_red, arrow=True)
 
@@ -558,22 +586,23 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         
 
 
-    def run(self, dt=0.5, debug=False, REDIS_HOST=DRILL_HOST):
+    def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
 
         ds = DrillState(redis_host=REDIS_HOST)   
 
         while True:
+
+            fignums = plt.get_fignums()
+            if len(fignums)==0 or fignums[0] != 10: sys.exit('Figure closed. Exiting.')
 
             # Let GUI event loop run for this amount before exiting and updating orientation state.
             # This is similar to plt.pause(dt), but does not steal focus on every update.
             plt.gcf().canvas.draw_idle()
             plt.gcf().canvas.start_event_loop(dt)
 
-            if debug:
-                euler_z_degree = abs(np.random.random())*30
-                euler_y_degree = abs(np.random.random())*30
-                euler_x_degree = abs(np.random.random())*30
-            else:
+
+            if self.drill_sync:
+                
                 ds.update()
                 self.azim = ds.azimuth     # euler_z_degree
                 self.incl = ds.inclination # euler_y_degree
@@ -582,19 +611,35 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
                 euler_y_degree = self.incl 
                 euler_x_degree = self.roll - self.offset_roll
 
-            self.s_ez.set_val(euler_z_degree)
-            self.s_ey.set_val(euler_y_degree)
-            self.s_ex.set_val(euler_x_degree)
+                if debug:
+                    euler_z_degree = abs(np.random.random())*30
+                    euler_y_degree = abs(np.random.random())*30
+                    euler_x_degree = abs(np.random.random())*30
+
+    #            else:
+    #                euler_z_degree = self.euler_z_degree
+    #                euler_y_degree = self.euler_y_degree
+    #                euler_x_degree = self.euler_x_degree
+
+                self.s_ez.set_val(euler_z_degree)
+                self.s_ey.set_val(euler_y_degree)
+                self.s_ex.set_val(euler_x_degree)
+
+                self.on_euler_angles_slider_update(0)
+
+            self.text_alpha.set_text(r'$\alpha = \alpha_{raw} %+.2f$'%(self.offset_azim))
+            self.text_gamma.set_text(r'$\gamma = \gamma_{raw} %+.2f$'%(self.offset_roll))
             
-            self.on_euler_angles_slider_update(0)
+            self.text_islive.set_text(r'Drill is %s'%('online' if ds.islive else 'offline'))
+            self.text_islive.set_color(c_dgreen if ds.islive else c_dred)
             
-            print('Tick dt=%.2f'%(dt))
+            if debug: print('Tick dt=%.2f'%(dt))
 
 
 if __name__ == '__main__':
 
     plt.ion()
     vis = EulerZYXVisualizer3D()
-    vis.run(REDIS_HOST='localhost', debug=False)
+    vis.run(REDIS_HOST=REDIS_HOST, debug=False)
     pass
 
