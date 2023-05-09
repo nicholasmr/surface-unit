@@ -1,0 +1,17 @@
+# autostart script for info screen in dome
+# ~/.config/lxsession/LXDE-pi/autostart
+
+@lxpanel --profile LXDE-pi
+@pcmanfm --desktop --profile LXDE-pi
+@xscreensaver -no-splash
+@point-rpi
+
+@xset s noblank
+@xset s off
+@xset -dpms
+
+@sleep 10
+#@bash /home/pi/drill-position/launch_reader.sh &; # OLD, dont use
+@python3 /home/pi/surface-unit/drill-control/drill-position.py info
+@chromium-browser --noerrors ---noerrdialogs --disable-session-crashed-bubble --disable-infobars --disable-restore-session-state --incognito  --window-position=0,0 --window-size=1400,1000 http://10.2.3.17/cycle.html &;
+

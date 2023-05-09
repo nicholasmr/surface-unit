@@ -3,7 +3,8 @@
 
 import redis, json, datetime, time, math
 import numpy as np
-from scipy.spatial.transform import Rotation
+try: from scipy.spatial.transform import Rotation
+except: Rotation = None
 from settings import *
 
 DEGS_TO_RPM = 1/6 
