@@ -334,6 +334,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         # Offsets for true values
         self.offset_roll = 0
         self.offset_azim = 0
+        self.offset_incl = 0
                 
         self.reset_states()
         self.update_internal_states()
@@ -376,14 +377,14 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         Set up the UI and the 3D plot.
         '''
         
-        self.fig = plt.figure(10, figsize=(15, 10), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(20, 10), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
         self.ax3d = self.fig.add_axes([0.0, 0.0, 0.7, 1], projection='3d')
         self.ax3d.view_init(azim=70, elev=20)
         
         ### set up control sliders
         
-        y0 = 0.85
+        y0 = 0.90
         
         x0, dy = 0.74, 0.05
         dl, dh = 0.2, 0.03
@@ -401,18 +402,18 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.s_ex.on_changed(self.on_euler_angles_slider_update)
                  
         kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
-        x0_ = 0.93*x0
+        x0_ = 0.94*x0
         y0_ = y0-3.2*dy
         self.text_islive = plt.text(x0_, y0_, r'Drills is offline', color=c_dred, fontweight='bold', **kwargs_text)
-        axsync  = self.fig.add_axes([x0_ + 0.66*dl, 0.99*y0_, 0.13, dh])
+        axsync = self.fig.add_axes([x0_ + 0.66*dl, 0.99*y0_, 0.13, dh])
         self.b_sync = Button(axsync, 'Disable sync')
         self.b_sync.on_clicked(self.sync_onoff)
         plt.b_sync = self.b_sync
 
         ### Shared below 
         
-        x0 = 0.67 # title string start
-        x1 = 0.68 # box contet start (adjusted inward slightly)
+        x0 = 0.69 # title string start
+        x1 = x0+0.01 # box contet start (adjusted inward slightly)
         dyt = 0.06 # delta y from title string to box content
         dl = 0.1 # botton width
         dy = 0.05 # vertical distance between rows of buttons
@@ -420,24 +421,33 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
                 
         ### Calibrate/offset 
 
-        y0 = y0-0.23
+        y0 = y0-0.24
         plt.text(x0, y0, '------------ Offset reference frame ------------', **kwargs_text)
-        axf_zero  = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
-        axf_clear = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
-        bf_zero  = Button(axf_zero, 'Set zero')
-        bf_clear = Button(axf_clear, 'Clear')
-        bf_zero.on_clicked(self.offset_reference_frame)
-        bf_clear.on_clicked(self.clear_reference_frame)
-        plt.bf_zero = bf_zero
+        axf_azero  = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
+        axf_bzero  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
+        axf_gzero  = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
+        axf_clear  = self.fig.add_axes([x1, y0-dyt-3*dy, dl, dh])
+        bf_azero  = Button(axf_azero, r'Zero $\alpha$')
+        bf_bzero  = Button(axf_bzero, r'Zero $\beta$')
+        bf_gzero  = Button(axf_gzero, r'Zero $\gamma$')
+        bf_clear  = Button(axf_clear, 'Clear')
+        bf_azero.on_clicked(self.offset_alpha)
+        bf_bzero.on_clicked(self.offset_beta)
+        bf_gzero.on_clicked(self.offset_gamma)
+        bf_clear.on_clicked(self.clear_offsets)
+        plt.bf_azero = bf_azero
+        plt.bf_bzero = bf_bzero
+        plt.bf_gzero = bf_gzero
         plt.bf_clear = bf_clear
         
         dy_ = 0.85*dy
         self.text_alpha = plt.text(x0+1.5*dl, y0-1*dy, r'$\alpha = \alpha_{raw} - %.2f$'%(self.offset_azim), **kwargs_text)
-        self.text_gamma = plt.text(x0+1.5*dl, y0-2*dy, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
+        self.text_beta  = plt.text(x0+1.5*dl, y0-2*dy, r'$\beta  = \beta_{raw} - %.2f$'%(self.offset_incl), **kwargs_text)
+        self.text_gamma = plt.text(x0+1.5*dl, y0-3*dy, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
         
         ### View buttons
 
-        y0 = y0-0.19
+        y0 = y0-0.28
         plt.text(x0, y0, '------------ Change view ------------', **kwargs_text)
         axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
         axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
@@ -472,12 +482,19 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.ax3d.view_init(azim=90, elev=90)
         plt.draw()
         
-    def offset_reference_frame(self, *args, **kwargs):
-        print('Setting reference-frame offset')
+    def offset_alpha(self, *args, **kwargs):
+        print('Setting alpha offset')
         self.offset_azim = self.s_ez.val
+        
+    def offset_beta(self, *args, **kwargs):
+        print('Setting beta offset')
+        self.offset_incl = self.s_ey.val
+        
+    def offset_gamma(self, *args, **kwargs):
+        print('Setting gamma offset')
         self.offset_roll = self.s_ex.val
         
-    def clear_reference_frame(self, *args, **kwargs):
+    def clear_offsets(self, *args, **kwargs):
         print('Clearing reference-frame offset')
         self.offset_azim = 0
         self.offset_roll = 0
@@ -608,7 +625,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
                 self.incl = ds.inclination # euler_y_degree
                 self.roll = ds.roll        # euler_x_degree
                 euler_z_degree = self.azim - self.offset_azim
-                euler_y_degree = self.incl 
+                euler_y_degree = self.incl - self.offset_incl
                 euler_x_degree = self.roll - self.offset_roll
 
                 if debug:
@@ -628,6 +645,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
                 self.on_euler_angles_slider_update(0)
 
             self.text_alpha.set_text(r'$\alpha = \alpha_{raw} %+.2f$'%(self.offset_azim))
+            self.text_beta.set_text(r'$\beta = \beta_{raw} %+.2f$'%(self.offset_incl))
             self.text_gamma.set_text(r'$\gamma = \gamma_{raw} %+.2f$'%(self.offset_roll))
             
             self.text_islive.set_text(r'Drill is %s'%('online' if ds.islive else 'offline'))
