@@ -83,7 +83,7 @@ def find_and_connect():
             time.sleep(searchLoopSleep)
             continue
         else:
-            print('...found!'%(port))
+            print('...found!')
             break        
 
     return ser

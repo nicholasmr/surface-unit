@@ -197,7 +197,7 @@ if __name__ == '__main__':
             time.sleep(searchLoopSleep)
             continue
         else:
-            print '...found!'%(port)
+            print '...found!'
             break        
 
     # Still not found? Then exit            
