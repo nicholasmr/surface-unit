@@ -146,7 +146,7 @@ class DrillState():
         # AHRS derived from BNO055 
         magnetometer_vec  = [self.magnetometer_x,  self.magnetometer_y,  self.magnetometer_z]
         accelerometer_vec = [self.accelerometer_x, self.accelerometer_y, self.accelerometer_z]
-        self.inclination_ahrs = get_inclination_ahrs(accelerometer_vec, magnetometer_vec, self.BNO_dir)
+#        self.inclination_ahrs = get_inclination_ahrs(accelerometer_vec, magnetometer_vec, self.BNO_dir)
 
         # Inclinometer based
         self.inclination_icmt = 0
