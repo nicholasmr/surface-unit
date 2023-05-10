@@ -28,7 +28,7 @@ def uphole_worker(arguments, redis, transport):
                 pass
             
             try:
-                packet.load_cell = json.loads(redis.get('load-cell'))['load']
+                packet.load_cell = json.loads(redis.get('load-cell'))
             except:
                 pass
 

@@ -82,7 +82,10 @@ class DrillState():
     # Orientation
     inclination, azimuth, roll = 0, 0, 0 
     alpha, beta, gamma = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
-    
+
+    inclination_ahrs, azimuth_ahrs, roll_ahrs = 0, 0, 0 
+    alpha_ahrs, beta_ahrs, gamma_ahrs = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
+        
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
     islive          = False # True = connection is live, else False
@@ -123,33 +126,42 @@ class DrillState():
 
         ### Orientation
         self.spin = round(abs(self.get_spin()), 2)
-        
-        self.accelerometer_magnitude = np.sqrt(self.accelerometer_x**2 + self.accelerometer_y**2 + self.accelerometer_z**2)
-        self.magnetometer_magnitude  = np.sqrt(self.magnetometer_x**2  + self.magnetometer_y**2  + self.magnetometer_z**2)
-        self.linearaccel_magnitude   = np.sqrt(self.linearaccel_x**2   + self.linearaccel_y**2   + self.linearaccel_z**2)
-        self.gravity_magnitude       = np.sqrt(self.gravity_x**2       + self.gravity_y**2       + self.gravity_z**2)
-        self.gyroscope_magnitude     = np.sqrt(self.gyroscope_x**2     + self.gyroscope_y**2     + self.gyroscope_z**2)
 
+        for field in ['magnetometer', 'accelerometer', 'linearaccel', 'gravity', 'gyroscope']:
+            vecfield    = '%s_vec'%(field)
+            vecfieldmag = '%s_mag'%(field)
+            setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
+            setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
+
+        # Quaternions
+        self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
+        av = +self.accelerometer_vec
+#        av[2] *=-1
+        try:    self.quat_ahrs = saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)
+        except: self.quat_ahrs = [0,0,0,0]
+        self.quat_ahrs = [self.quat_ahrs[3], self.quat_ahrs[0], self.quat_ahrs[1], self.quat_ahrs[2]] # w,x,y,z -> x,y,z,w
+            
         # ... BNO055 sensor fusion (automatic)
-        if Rotation is not None:
-            self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
-            try:    rot = Rotation.from_quat(self.quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
-            except: rot = Rotation.from_quat([0,0,0,1])
-	        #... apply calibration here if needed (BNO auto calibrates if put into extreme orientations)
-            self.alpha, self.beta, self.gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations 
-            self.beta = 180 - self.beta # uncomment if upside down
-	
+        self.alpha, self.beta, self.gamma = quat_to_euler(self.quat)
+        self.beta = 180 - self.beta # uncomment if upside down
         self.inclination = self.beta  # pitch (theta)
         self.azimuth     = self.alpha # yaw   (phi)
         self.roll        = self.gamma # roll  (psi)
 
         # AHRS derived from BNO055 
-        magnetometer_vec  = [self.magnetometer_x,  self.magnetometer_y,  self.magnetometer_z]
-        accelerometer_vec = [self.accelerometer_x, self.accelerometer_y, self.accelerometer_z]
-#        self.inclination_ahrs = get_inclination_ahrs(accelerometer_vec, magnetometer_vec, self.BNO_dir)
-
+        if 0:
+            DCM = Quaternion(self.quat_ahrs).to_DCM()
+            drilldir = -np.matmul(DCM, [0,0,1])
+            self.inclination_ahrs = np.rad2deg(np.arccos(drilldir[2])) # raw inclination data
+        else:
+            self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
+            self.beta_ahrs = 180 - self.beta_ahrs # uncomment if upside down
+            self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
+            self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
+            self.roll_ahrs        = self.gamma_ahrs # roll  (psi)
+        
         # Inclinometer based
-        self.inclination_icmt = 0
+#        self.inclination_icmt = 0
 
         ### Motor
         self.motor_throttle = 100 * self.motor_duty_cycle
@@ -219,4 +231,16 @@ def get_inclination_ahrs(avec, mvec, sensordir):
     drilldir = np.matmul(DCM, sensordir)
     inclination = np.rad2deg(np.arccos(drilldir[2])) 
     return inclination
+
+def quat_to_euler(quat):
+
+    if Rotation is not None:
+        try:    rot = Rotation.from_quat(quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
+        except: rot = Rotation.from_quat([0,0,0,1])
+        alpha, beta, gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations
+    else:
+        alpha, beta, gamma = 0, 0, 0
+
+    return alpha, beta, gamma
+    
 

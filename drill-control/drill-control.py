@@ -252,7 +252,8 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
         layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (deg)',         initstr))
-        layout.addWidget(self.MakeStateBox('orientation_inclination_ahrs', 'Inclination, AHRS (deg)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination_ahrs', 'Inclination, AHRS (deg)', initstr))
+        layout.addWidget(self.MakeStateBox('orientation_azimuth_ahrs',     'Azimuth, AHRS (deg)',     initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
@@ -260,9 +261,10 @@ class MainWidget(QWidget):
         layout_BNO055.addWidget(self.MakeStateBox('orientation_acceleration', 'Acceleration (m/s^2)', initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_magnetometer', 'Magnetometer (mT)',    initstr))   
         layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
+#        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion',         'Quaternion (w,x,y,z)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion',         'Quaternion (x,y,z,w)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
         self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
@@ -619,7 +621,7 @@ class MainWidget(QWidget):
         self.curve_load.setData(x=x,y=y)
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
-        self.plot_speed.setTitle(  self.htmlfont('<b>|Avg. speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
+        self.plot_speed.setTitle(  self.htmlfont('<b>|Speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
@@ -685,25 +687,25 @@ class MainWidget(QWidget):
                 self.updateStateBox('orientation_azimuth',      "%.1f"%(self.ds.azimuth),     warn__nothres)
                 self.updateStateBox('orientation_roll',         "%.1f"%(self.ds.roll),        warn__nothres)
                 self.updateStateBox('orientation_inclination_ahrs',  "%.2f"%(self.ds.inclination_ahrs), warn__nothres)
+                self.updateStateBox('orientation_azimuth_ahrs',      "%.2f"%(self.ds.azimuth_ahrs), warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
-#                    str_quat = '[%.1f, %.1f, %.1f, %.1f]'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3])
-#                    self.updateStateBox('orientation_quat',         str_quat,   warn__nothres)
-                    str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_magnitude)
-                    str_magvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_magnitude)
-                    str_linaclvec = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.linearaccel_x,self.ds.linearaccel_y,self.ds.linearaccel_z, self.ds.linearaccel_magnitude)
-                    str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_magnitude)
-                    str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_magnitude)
-                    str_quatvec   = '%.2f, %.2f, %.2f, %.2f'%(self.ds.quaternion_w,self.ds.quaternion_x,self.ds.quaternion_y, self.ds.quaternion_z)
+                    str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
+                    str_magvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_mag)
+                    str_linaclvec = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.linearaccel_x,self.ds.linearaccel_y,self.ds.linearaccel_z, self.ds.linearaccel_mag)
+                    str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_mag)
+                    str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_mag)
+                    str_quatvec      = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3], np.linalg.norm(self.ds.quat))
+                    str_quatvec_ahrs = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_ahrs[0],self.ds.quat_ahrs[1],self.ds.quat_ahrs[2],self.ds.quat_ahrs[3], np.linalg.norm(self.ds.quat))
                     self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
                     self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
-                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
+#                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
                     self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion',    str_quatvec, warn__nothres)
-#                else:
-#                    self.updateStateBox('orientation_inclinometer', str_incvec,          warn__nothres)
+                    self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
+
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
