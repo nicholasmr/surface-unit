@@ -265,8 +265,8 @@ def drawBoreHole(qp, OVERVIEW):
         ### Level labels for l, lliq, delta l, etc.
         
         rectx, recty = 250, 80
-        x0lbl = int(wl-dx-rectx*0.95)
         wl,wr = LRwall(x0,w)
+        x0lbl = int(wl-dx-rectx*0.95)
         rect_lliq = QRect(x0lbl, int(Y0+mylliq-0.5*recty/2), rectx, recty)
         rect_l    = QRect(x0lbl, int(Y0+myl   -0.5*recty/2), rectx, recty)
         qp.drawLine(wl-6, Y0+myl, wl-dx+6, Y0+myl)

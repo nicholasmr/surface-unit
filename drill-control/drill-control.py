@@ -252,6 +252,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
         layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (deg)',         initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination_ahrs', 'Inclination, AHRS (deg)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
@@ -683,6 +684,7 @@ class MainWidget(QWidget):
                 self.updateStateBox('orientation_inclination',  "%.2f"%(self.ds.inclination), warn__nothres)
                 self.updateStateBox('orientation_azimuth',      "%.1f"%(self.ds.azimuth),     warn__nothres)
                 self.updateStateBox('orientation_roll',         "%.1f"%(self.ds.roll),        warn__nothres)
+                self.updateStateBox('orientation_inclination_ahrs',  "%.2f"%(self.ds.inclination_ahrs), warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:

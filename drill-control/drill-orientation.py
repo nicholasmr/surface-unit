@@ -523,7 +523,7 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         w = z*0 #+ 1e-2
         self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.5, zorder=10)
 
-        ### Draw gibmal geometry
+        ### Draw gimbal geometry
 
         I = np.identity(3)
         r = 2
@@ -601,7 +601,6 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         self.update_internal_states()
         self.update_ax3d_plot()
         
-
 
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
 

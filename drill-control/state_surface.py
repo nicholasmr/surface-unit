@@ -63,18 +63,21 @@ class SurfaceState():
 
                 self.depth = depth
                 self.speedinst = -100*encoder["velocity"]
-                
-                self.depth_list = np.roll(self.depth_list, -1); 
-                self.depth_list[-1] = self.depth
 
-                self.time_list = np.roll(self.time_list, -1); 
-                self.time_list[-1] = now # new time stamp (seconds)
-                
-                self.speedprev = self.speed
-                speednew = np.nanmean(np.divide( np.diff(self.depth_list), np.diff(self.time_list) ))
-                speednew *= 100 # m/s -> cm/s 
-                alpha = 0.125
-                self.speed = alpha*speednew + (1-alpha)*self.speedprev
+                if 0: # Running mean?
+                    self.depth_list = np.roll(self.depth_list, -1); 
+                    self.depth_list[-1] = self.depth
+
+                    self.time_list = np.roll(self.time_list, -1); 
+                    self.time_list[-1] = now # new time stamp (seconds)
+                    
+                    self.speedprev = self.speed
+                    speednew = np.nanmean(np.divide( np.diff(self.depth_list), np.diff(self.time_list) ))
+                    speednew *= 100 # m/s -> cm/s 
+                    alpha = 0.125
+                    self.speed = alpha*speednew + (1-alpha)*self.speedprev
+                else:
+                    self.speed = self.speedinst
 
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
