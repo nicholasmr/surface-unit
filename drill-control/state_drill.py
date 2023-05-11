@@ -133,36 +133,24 @@ class DrillState():
             setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
             setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
 
-        # Quaternions
-        self.quat = [self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w]
-        av = +self.accelerometer_vec
-#        av[2] *=-1
-        try:    self.quat_ahrs = saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)
-        except: self.quat_ahrs = [0,0,0,0]
-        self.quat_ahrs = [self.quat_ahrs[3], self.quat_ahrs[0], self.quat_ahrs[1], self.quat_ahrs[2]] # w,x,y,z -> x,y,z,w
-            
-        # ... BNO055 sensor fusion (automatic)
+        # Quaternion from sensor fuision (SFUSION)
+        self.quat = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
+        self.quat /= np.linalg.norm(self.quat) # normalize
+        self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat # normalized components
+
         self.alpha, self.beta, self.gamma = quat_to_euler(self.quat)
-        self.beta = 180 - self.beta # uncomment if upside down
         self.inclination = self.beta  # pitch (theta)
         self.azimuth     = self.alpha # yaw   (phi)
         self.roll        = self.gamma # roll  (psi)
 
-        # AHRS derived from BNO055 
-        if 0:
-            DCM = Quaternion(self.quat_ahrs).to_DCM()
-            drilldir = -np.matmul(DCM, [0,0,1])
-            self.inclination_ahrs = np.rad2deg(np.arccos(drilldir[2])) # raw inclination data
-        else:
-            self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
-            self.beta_ahrs = 180 - self.beta_ahrs # uncomment if upside down
-            self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
-            self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
-            self.roll_ahrs        = self.gamma_ahrs # roll  (psi)
-        
-        # Inclinometer based
-#        self.inclination_icmt = 0
-
+        # Quaternion from AHRS 
+        try:    self.quat_ahrs = self.wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=-self.magnetometer_vec)) # saam() returns w,x,y,z
+        except: self.quat_ahrs = [1,0,0,0]
+        self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
+        self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
+        self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
+        self.roll_ahrs        = self.gamma_ahrs # roll  (psi)
+            
         ### Motor
         self.motor_throttle = 100 * self.motor_duty_cycle
 
@@ -224,13 +212,15 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
+    def xyzw_to_wxyz(self, q): return np.roll(q,1)
+    def wxyz_to_xyzw(self, q): return np.roll(q,-1)
 
-def get_inclination_ahrs(avec, mvec, sensordir):
-    quat = saam.estimate(acc=avec, mag=mvec)
-    DCM = Quaternion(quat).to_DCM()
-    drilldir = np.matmul(DCM, sensordir)
-    inclination = np.rad2deg(np.arccos(drilldir[2])) 
-    return inclination
+#def get_inclination_ahrs(avec, mvec, sensordir):
+#    quat = saam.estimate(acc=avec, mag=mvec)
+#    DCM = Quaternion(quat).to_DCM()
+#    drilldir = np.matmul(DCM, sensordir)
+#    inclination = np.rad2deg(np.arccos(drilldir[2])) 
+#    return inclination
 
 def quat_to_euler(quat):
 
@@ -238,6 +228,7 @@ def quat_to_euler(quat):
         try:    rot = Rotation.from_quat(quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
         except: rot = Rotation.from_quat([0,0,0,1])
         alpha, beta, gamma = rot.as_euler('ZXZ', degrees=True) # intrinsic rotations
+        beta = 180-beta # to inclination
     else:
         alpha, beta, gamma = 0, 0, 0
 

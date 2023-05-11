@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # N. M. Rathmann <rathmann@nbi.ku.dk>, 2023
 
+import code # code.interact(local=locals())
+
 import sys, math, time
 from math import copysign, fabs, sqrt, pi, sin, cos, asin, acos, atan2, exp, log
 import numpy as np
@@ -11,11 +13,13 @@ from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 from matplotlib.widgets import Slider, Button, CheckButtons
 
-from pyrotation import *
 from settings import *
 from state_drill import *
 
-flowang = np.deg2rad(180 + 27)
+from pyrotation import *
+
+#flowang = np.deg2rad(180 + 27)
+flowang = np.deg2rad(27)
 
 c_green  = '#74c476'
 c_lgreen = '#edf8e9'
@@ -29,9 +33,10 @@ c_blue  = '#6baed6'
 c_lblue = '#eff3ff'
 c_dblue = '#2171b5'
 
-cx = c_dred
 cy = c_dgreen
+cx = c_dred
 cz = c_dblue
+cx,cz = cz,cx
 
 lw_default = 4
 alpha0 = 0.09
@@ -39,6 +44,9 @@ alpha0 = 0.09
 FS = 17
 matplotlib.rcParams.update({'font.size': FS})
 
+##############################################################################################            
+##############################################################################################
+##############################################################################################
 
 def rotate_translate_points(p, rotation, t, method):
     '''
@@ -82,6 +90,9 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
 
+##############################################################################################            
+##############################################################################################
+##############################################################################################
 
 class RotationVisualizer3D(object):
     '''
@@ -311,14 +322,15 @@ class RotationVisualizer3D(object):
         ax.set_ylabel('$y$', fontsize=FS+2)
         ax.set_zlabel('$z$', fontsize=FS+2)
 
-            
+##############################################################################################            
+##############################################################################################
+##############################################################################################
 
-class EulerZYXVisualizer3D(RotationVisualizer3D):
+
+class QuaternionVisualizer3D(RotationVisualizer3D):
     '''
-    This class demonstrates 3D rotation in the Euler angle representation in
-    z-y'-x" (intrinsic) convention with a 3D plot.
-    
-    The user can control the three angles with sliders.
+    This class demonstrates 3D rotation in the unit quaternion representation
+    with a 3D plot.
     '''
 
     def __init__(self):
@@ -326,129 +338,116 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         Constructor.
         '''
 
-        # RAW instrument values
-        self.azim = 0
-        self.incl = 0
-        self.roll = 0
-    
-        # Offsets for true values
-        self.offset_roll = 0
-        self.offset_azim = 0
-        self.offset_incl = 0
-                
+        self.drill_sync = True
+
         self.reset_states()
         self.update_internal_states()
         self.setup_ui()
-        self.drill_sync = True
-
+        
 
     def reset_states(self):
         '''
-        Reset to the initial states, where all three angles are zero, i.e.,
-        no rotation.
+        Reset to the inital states, where no rotation is applied.
         '''
+
+        # Quat coordinates (x,y,z,w)
+        self.qc      = [0,0,0,1]
+        self.qc_ahrs = [0,0,0,1]
         
-        self.euler_z_degree = 0
-        self.euler_y_degree = 0
-        self.euler_x_degree = 0
+        # Calibration quat 
+        self.qc_calib = Rotation.identity().as_quat()
         
+        # Euler angles
+        self.incl, self.azim = 0, 0
+
 
     def update_internal_states(self):
         '''
-        Converting angle states read from the sliders to internal states
-        (i.e., angles in radian, etc.).
-        
-        Internally, a rotation matrix is used for calculation and plot.
+        Converting the values read from the sliders to internal states.
+        Internally, a unit quaternion is used for calculation and plot.
         '''
         
-        self.euler_z_radian = np.deg2rad(self.euler_z_degree)
-        self.euler_y_radian = np.deg2rad(self.euler_y_degree)
-        self.euler_x_radian = np.deg2rad(self.euler_x_degree)
+        # Uncalibrated
+        q_      = Rotation.from_quat(self.qc)
+        q_ahrs_ = Rotation.from_quat(self.qc_ahrs)
 
-        ### MY COORDINATE CHANGE
-        self.euler_y_radian = np.pi/2 - self.euler_y_radian # elev -> incl
-#        self.euler_z_radian = self.euler_z_radian - np.pi
-
-        self.R = euler_zyx_to_rotation_matrix(self.euler_z_radian, self.euler_y_radian, self.euler_x_radian)
-
-
+        # Calibrated        
+        q_calib = Rotation.from_quat(self.qc_calib)
+        q       = q_     *q_calib
+        q_ahrs  = q_ahrs_*q_calib
+        
+        # pyrotation Quaternion() objects
+        self.q      = Quaternion(*self.xyzw_to_wxyz(q.as_quat()))
+        self.q_ahrs = Quaternion(*self.xyzw_to_wxyz(q_ahrs.as_quat()))
+        
+    # copy from state_drill.py
+    def xyzw_to_wxyz(self, q): return np.roll(q,1)
+    def wxyz_to_xyzw(self, q): return np.roll(q,-1)
+    
+        
     def setup_ui(self):
         '''
         Set up the UI and the 3D plot.
         '''
-        
-        self.fig = plt.figure(10, figsize=(20, 10), facecolor='w', edgecolor='k')
+
+        self.fig = plt.figure(10, figsize=(17, 10), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
-        self.ax3d = self.fig.add_axes([0.0, 0.0, 0.7, 1], projection='3d')
-        self.ax3d.view_init(azim=70, elev=20)
+        self.ax3d = self.fig.add_axes([0.0, 0.0, 0.85, 1], projection='3d')
+        self.ax3d.view_init(azim=70+180, elev=30)
         
-        ### set up control sliders
-        
-        y0 = 0.90
-        
-        x0, dy = 0.74, 0.05
-        dl, dh = 0.2, 0.03
-
-        self.ax_ez = self.fig.add_axes([x0, y0-0*dy, dl, dh], facecolor=c_lblue)
-        self.ax_ex = self.fig.add_axes([x0, y0-2*dy, dl, dh], facecolor=c_lred)
-        self.ax_ey = self.fig.add_axes([x0, y0-1*dy, dl, dh], facecolor=c_lgreen)
-        
-        self.s_ez = Slider(self.ax_ez, r'Azimuth ($\alpha$)', -180, 180, valinit=self.euler_z_degree, color=c_dblue,  initcolor='k', valstep=1)
-        self.s_ey = Slider(self.ax_ey, r'Inclination ($\beta$)', 0, 90,   valinit=self.euler_y_degree, color=c_dgreen, initcolor='k', valstep=0.1)
-        self.s_ex = Slider(self.ax_ex, r'Roll ($\gamma$)', -180, 180,  valinit=self.euler_x_degree, color=c_dred,   initcolor='k', valstep=1)
-
-        self.s_ez.on_changed(self.on_euler_angles_slider_update)
-        self.s_ey.on_changed(self.on_euler_angles_slider_update)
-        self.s_ex.on_changed(self.on_euler_angles_slider_update)
-                 
-        kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
-        x0_ = 0.94*x0
-        y0_ = y0-3.2*dy
-        self.text_islive = plt.text(x0_, y0_, r'Drills is offline', color=c_dred, fontweight='bold', **kwargs_text)
-        axsync = self.fig.add_axes([x0_ + 0.66*dl, 0.99*y0_, 0.13, dh])
-        self.b_sync = Button(axsync, 'Disable sync')
-        self.b_sync.on_clicked(self.sync_onoff)
-        plt.b_sync = self.b_sync
-
         ### Shared below 
         
-        x0 = 0.69 # title string start
+        kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
+        
+        y0 = 0.85
+        x0 = 0.74 # title string start
         x1 = x0+0.01 # box contet start (adjusted inward slightly)
-        dyt = 0.06 # delta y from title string to box content
+        
+        dy = 0.06 # vertical distance between rows of buttons
+        dyt = 0.07 # delta y from title string to box content
+        
         dl = 0.1 # botton width
-        dy = 0.05 # vertical distance between rows of buttons
+        dh = 0.04 # button height
+
+        self.ax_fake = self.fig.add_axes([x1, y0, dl, dh])
+        self.ax_fake.axis('off')
+
+        ### Orientation
+
+        plt.text(x0, y0, '----- Orientation -----', fontweight='bold', **kwargs_text)        
+        dy_ = 0.8*dy
+        self.text_incl = plt.text(x1, y0-1*dy_, r'', **kwargs_text)
+        self.text_azim = plt.text(x1, y0-1.8*dy_, r'', **kwargs_text)
                 
                 
         ### Calibrate/offset 
 
-        y0 = y0-0.24
-        plt.text(x0, y0, '------------ Offset reference frame ------------', **kwargs_text)
-        axf_azero  = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
-        axf_bzero  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
-        axf_gzero  = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
-        axf_clear  = self.fig.add_axes([x1, y0-dyt-3*dy, dl, dh])
-        bf_azero  = Button(axf_azero, r'Zero $\alpha$')
-        bf_bzero  = Button(axf_bzero, r'Zero $\beta$')
-        bf_gzero  = Button(axf_gzero, r'Zero $\gamma$')
-        bf_clear  = Button(axf_clear, 'Clear')
-        bf_azero.on_clicked(self.offset_alpha)
-        bf_bzero.on_clicked(self.offset_beta)
-        bf_gzero.on_clicked(self.offset_gamma)
-        bf_clear.on_clicked(self.clear_offsets)
-        plt.bf_azero = bf_azero
-        plt.bf_bzero = bf_bzero
-        plt.bf_gzero = bf_gzero
-        plt.bf_clear = bf_clear
+        y0 = y0-0.17
+
+        plt.text(x0, y0, '----- Calibrate -----', fontweight='bold', **kwargs_text)        
+        dl_ = dl*1.7
+        ax_calib      = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
+        ax_calib_ahrs = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
+        ax_uncalib    = self.fig.add_axes([x1, y0-dyt-2*dy, dl_, dh])
+        b_calib      = Button(ax_calib, r'Calibrate SFUSION')
+        b_calib_ahrs = Button(ax_calib_ahrs, r'Calibrate AHRS')
+        b_uncalib    = Button(ax_uncalib, r'Remove calibration')
+        b_calib.on_clicked(self.set_calibrate)
+        b_calib_ahrs.on_clicked(self.set_calibrate_ahrs)
+        b_uncalib.on_clicked(self.set_uncalibrate)
+        plt.b_calib = b_calib
+        plt.b_calib_ahrs = b_calib_ahrs
+        plt.b_uncalib = b_uncalib
         
-        dy_ = 0.85*dy
-        self.text_alpha = plt.text(x0+1.5*dl, y0-1*dy, r'$\alpha = \alpha_{raw} - %.2f$'%(self.offset_azim), **kwargs_text)
-        self.text_beta  = plt.text(x0+1.5*dl, y0-2*dy, r'$\beta  = \beta_{raw} - %.2f$'%(self.offset_incl), **kwargs_text)
-        self.text_gamma = plt.text(x0+1.5*dl, y0-3*dy, r'$\gamma = \gamma_{raw} - %.2f$'%(self.offset_roll), **kwargs_text)
+        plt.text(x0, y0-4*dy, 'Calibration quaternion:', **kwargs_text)     
+        self.text_calib = plt.text(x0, y0-4.5*dy, '', **kwargs_text)     
         
+
         ### View buttons
 
-        y0 = y0-0.28
-        plt.text(x0, y0, '------------ Change view ------------', **kwargs_text)
+        y0 = y0-0.34
+        
+        plt.text(x0, y0, '----- Change view -----', fontweight='bold', **kwargs_text)
         axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
         axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
         bv_sideways = Button(axv_sideways, 'Sideways')
@@ -458,60 +457,51 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         plt.bv_sideways = bv_sideways
         plt.bv_topdown  = bv_topdown
         
-        ### Description
-
-        y0 = y0-0.19
-        dyt_alt = 0.04        
-        dys = 0.035
-        plt.text(x0, y0, '------------ Coordinate system ------------', **kwargs_text)
-        plt.text(x1, y0-dyt_alt-0*dys, '$\\rightarrow$ Red arrow is direction of drill', color=c_dred, **kwargs_text)
-        plt.text(x1, y0-dyt_alt-1*dys, '$\\rightarrow$ Green arrow is direction of spring', color=c_dgreen, **kwargs_text)
-        plt.text(x1, y0-dyt_alt-2*dys, '$\\rightarrow$ $+x$ axis is along tower when horizontal', **kwargs_text)
-        plt.text(x1, y0-dyt_alt-3*dys, '$\\rightarrow$ Angle betw. tower and flow is %i deg.'%(np.rad2deg(flowang)), **kwargs_text)
-
         self.update_ax3d_plot()
-           
-        
+
+
     def view_sideways(self, *args, **kwargs):
         print('View = sideways')
-        self.ax3d.view_init(azim=70, elev=20)
+        self.ax3d.view_init(azim=70+180, elev=30)
         plt.draw()
+        
         
     def view_topdown(self, *args, **kwargs):
         print('View = top-down')
-        self.ax3d.view_init(azim=90, elev=90)
+        self.ax3d.view_init(azim=90-180, elev=90)
         plt.draw()
         
-    def offset_alpha(self, *args, **kwargs):
-        print('Setting alpha offset')
-        self.offset_azim = self.s_ez.val
         
-    def offset_beta(self, *args, **kwargs):
-        print('Setting beta offset')
-        self.offset_incl = self.s_ey.val
-        
-    def offset_gamma(self, *args, **kwargs):
-        print('Setting gamma offset')
-        self.offset_roll = self.s_ex.val
-        
-    def clear_offsets(self, *args, **kwargs):
-        print('Clearing reference-frame offset')
-        self.offset_azim = 0
-        self.offset_roll = 0
-        
-    def sync_onoff(self, *args, **kwargs):
-        print('Toggle drill synchronization')
-        self.drill_sync = not self.drill_sync
-        self.b_sync.label.set_text('Disable sync' if self.drill_sync else 'Enable sync')
-        
+    def set_calibrate(self, *args, **kwargs):
+        print('Calibrating quaternion (SFUSION) to vertical frame')
+        self.qc_calib = self.get_qc_calib(self.qc)
+            
+    def set_calibrate_ahrs(self, *args, **kwargs):
+        print('Calibrating quaternion (AHRS) to vertical frame')
+        self.qc_calib = self.get_qc_calib(self.qc_ahrs)
+
+    def get_qc_calib(self, qc):
+        E = -np.eye(3)
+        M = Rotation.from_quat(qc).as_matrix()
+        q_calib, _  = Rotation.align_vectors(M[[1,0,2],:],E[[0,1,2],:])
+        qc_calib = q_calib.as_quat()
+        return qc_calib
+
+    def set_uncalibrate(self, *args, **kwargs):
+        print('Removing calibration')
+        self.qc_calib = Rotation.identity().as_quat()
+
+
     def update_ax3d_plot(self):
         '''
         Update the 3D plot based on internal states.
-        All computations of rotation use rotation matrix.
+        
+        All computations of rotation use unit quaternion.
+        
         '''
         
         self.ax3d.clear()
-
+        
         ### Draw horizontal flow field 
         
         scale = 2
@@ -523,84 +513,50 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
         w = z*0 #+ 1e-2
         self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.5, zorder=10)
 
-        ### Draw gimbal geometry
+        ### Draw orientation
 
-        I = np.identity(3)
+        qi = Quaternion.identity()
+        O = np.asarray((0, 0, 0)).reshape((3, 1))
         r = 2
         scale = 2
-        O = np.asarray((0, 0, 0)).reshape((3, 1))
-        
-        R = self.R
 
-        # Calculate x-axis and y-axis after the yaw rotation. This is needed to plot the pitch angle.
-        Rz = euler_zyx_to_rotation_matrix(self.euler_z_radian, 0, 0)
-        nx = np.asarray((r, 0, 0)).reshape((3, 1))
-        nx = np.matmul(Rz, nx).flatten()
-        ny = np.asarray((0, r, 0)).reshape((3, 1))
-        ny = np.matmul(Rz, ny).flatten()
-
-        # Calculate z-axis after the yaw rotation and the pitch rotation. This is needed to plot the pitch angle.
-        Rzy = euler_zyx_to_rotation_matrix(self.euler_z_radian, self.euler_y_radian, 0)
-        mz = np.asarray((0, 0, r)).reshape((3, 1))
-        mz = np.matmul(Rzy, mz).flatten()
+        u = self.q.to_angle_axis()
 
         # Plot the original XOY plane.
-#        self.plot_disk(self.ax3d, I, O, r, plane='xoy', color='w')
-        self.plot_circle(self.ax3d, I, O, r, plane='xoy', style=':', color='k')
-                
-        # --- yaw ---
-        
-        # Plot the yaw angle
-        self.plot_arc(self.ax3d, 0, self.euler_z_radian, I, O, r, style='--', color=c_blue, arrow=True)        
-
-        # --- pitch ---
-        
-        # Plot the pitch angle on the ZOX plane after the yaw rotation.
-#        self.plot_arc(self.ax3d, np.pi/2, self.euler_y_radian, Rz, O, r, plane='zox', style='-', color=c_dgreen, arrow=True) # old for elev
-        self.plot_arc(self.ax3d, np.pi, self.euler_y_radian-np.pi/2, Rz, O, r, plane='zox', style='--', color=c_green, arrow=True) # new for incl.
-        
-        # Plot x-axis and y-axis after the yaw rotation.
-        #self.plot_vector(self.ax3d, nx[0], nx[1], nx[2], style=':', color=c_dred)
-        #self.plot_vector(self.ax3d, ny[0], ny[1], ny[2], style=':', color=c_dgreen)
-
-
-        # --- roll ---
-        
-        # Plot the roll angle on the YOZ plane after yaw and pitch.
-#        self.plot_disk(self.ax3d, R, O, r, plane='yoz', color='0.5') 
-        self.plot_circle(self.ax3d, R, O, r, plane='yoz', style='-', color='k')
-        self.plot_arc(self.ax3d, 0, self.euler_x_radian, Rzy, O, r, plane='yoz', style='--', color=c_red, arrow=True)
-
-        # Plot z-axis after the yaw rotation and the pitch rotation.
-        #self.plot_vector(self.ax3d, mz[0], mz[1], mz[2], style=':', color=c_dblue)
 
         # Plot the original axes.
-        c_ = '0.3'
-        I_ = I # upward-pointing z axis
-        I_ = np.diag([1,1,-1]) # downward-pointing z axis
-        self.plot_xyz_axes(self.ax3d, I_, O, scale=scale, style='-', cx=c_, cy=c_, cz=c_, arrow=True)
-#        self.plot_xyz_axes(self.ax3d, I, O, scale=scale, style='--', cx='r', cy='g', cz='b', arrow=False)
+        cf = '0.4'
+        self.plot_circle(self.ax3d, qi, O, r, plane='xoy', style='-', color=cf, method='q')
+        self.plot_xyz_axes(self.ax3d, qi, O, scale=scale, style='-', cx=cf, cy=cf, cz=cf, arrow=True, method='q')
+#        self.plot_xyz_axes(self.ax3d, qi, O, scale=scale, style=':', cx=cx, cy=cy, cz=cz, arrow=False, method='q')
 
-        # Plot the rotated reference frame.
-        self.plot_xyz_axes(self.ax3d, R, O, scale=2, arrow=True)
-        
+        # Plot the rotated axes.        
+        self.plot_circle(self.ax3d, self.q,      O, r, plane='xoy', style='-', color=c_dred, method='q')
+        self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='--', color=c_dred, method='q')
+        self.plot_xyz_axes(self.ax3d, self.q, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+
+        # Plot the rotation axis
+        #self.plot_vector(self.ax3d, u[0], u[1], u[2], arrow=True)
+
+        # Calib axes
+        lwc = lw_default-1.5
+        self.plot_vector(self.ax3d, -scale*1,0,0,  0,0,0,  style='-', color=c_green, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, 0,-scale*1,0,  0,0,0,  style='-', color=c_blue, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, 0,0,-scale*1,  0,0,0,  style='-', color=c_red, lw=lwc, arrow=True)
+
         self.adjust_axes(self.ax3d, scale=scale)
-        
 
-    def on_euler_angles_slider_update(self, val):
-        '''
-        Event handler of the sliders.
-        '''
-        
-        del val
-        
-        self.euler_z_degree = self.s_ez.val
-        self.euler_y_degree = self.s_ey.val
-        self.euler_x_degree = self.s_ex.val
-        
-        self.update_internal_states()
-        self.update_ax3d_plot()
-        
+        from matplotlib.lines import Line2D
+        custom_lines = [Line2D([0], [0], color=c_dred, ls='-', lw=lw_default), \
+                        Line2D([0], [0], color=c_dred, ls='--', lw=lw_default), \
+                        Line2D([0], [0], color=c_dblue, ls='-', lw=lw_default), \
+                        Line2D([0], [0], color=c_dblue, ls='--', lw=lw_default)]
+                        
+        self.ax3d.legend(custom_lines, ['Drill axis (SFUSION)', 'Drill axis (AHRS)', 'Spring direction (SFUSION)', 'Spring direction (AHRS)'], loc=2, bbox_to_anchor=(-0.18,0.97), fancybox=False)
+
+
+
 
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
 
@@ -616,47 +572,30 @@ class EulerZYXVisualizer3D(RotationVisualizer3D):
             plt.gcf().canvas.draw_idle()
             plt.gcf().canvas.start_event_loop(dt)
 
-
             if self.drill_sync:
-                
+                    
                 ds.update()
-                self.azim = ds.azimuth     # euler_z_degree
-                self.incl = ds.inclination # euler_y_degree
-                self.roll = ds.roll        # euler_x_degree
-                euler_z_degree = self.azim - self.offset_azim
-                euler_y_degree = self.incl - self.offset_incl
-                euler_x_degree = self.roll - self.offset_roll
+                self.qc      = ds.quat
+                self.qc_ahrs = ds.quat_ahrs
+                self.update_internal_states()
 
-                if debug:
-                    euler_z_degree = abs(np.random.random())*30
-                    euler_y_degree = abs(np.random.random())*30
-                    euler_x_degree = abs(np.random.random())*30
+                self.update_ax3d_plot()
 
-    #            else:
-    #                euler_z_degree = self.euler_z_degree
-    #                euler_y_degree = self.euler_y_degree
-    #                euler_x_degree = self.euler_x_degree
-
-                self.s_ez.set_val(euler_z_degree)
-                self.s_ey.set_val(euler_y_degree)
-                self.s_ex.set_val(euler_x_degree)
-
-                self.on_euler_angles_slider_update(0)
-
-            self.text_alpha.set_text(r'$\alpha = \alpha_{raw} %+.2f$'%(self.offset_azim))
-            self.text_beta.set_text(r'$\beta = \beta_{raw} %+.2f$'%(self.offset_incl))
-            self.text_gamma.set_text(r'$\gamma = \gamma_{raw} %+.2f$'%(self.offset_roll))
-            
-            self.text_islive.set_text(r'Drill is %s'%('online' if ds.islive else 'offline'))
-            self.text_islive.set_color(c_dgreen if ds.islive else c_dred)
+                self.text_incl.set_text(r'Inclination = %+.2f'%(self.incl))
+                self.text_azim.set_text(r'Azimuth    = %+.2f'%(self.azim))
+                self.text_calib.set_text(r'(x,y,z,w) = (%.2f, %.2f, %.2f, %.2f)'%(self.qc_calib[0],self.qc_calib[1],self.qc_calib[2],self.qc_calib[3]))     
             
             if debug: print('Tick dt=%.2f'%(dt))
 
 
+##############################################################################################            
+##############################################################################################
+##############################################################################################
+
 if __name__ == '__main__':
 
     plt.ion()
-    vis = EulerZYXVisualizer3D()
+    vis = QuaternionVisualizer3D()
     vis.run(REDIS_HOST=REDIS_HOST, debug=False)
     pass
 

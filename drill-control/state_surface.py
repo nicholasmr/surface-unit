@@ -56,13 +56,13 @@ class SurfaceState():
         try: 
             now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
-            depth = -encoder["depth"]
+            depth = encoder["depth"]
             self.islive_depthcounter = not (int(depth) == 9999 or int(depth) == -9999) 
             
             if self.islive_depthcounter:
 
                 self.depth = depth
-                self.speedinst = -100*encoder["velocity"]
+                self.speedinst = 100*encoder["velocity"] # cm/s
 
                 if 0: # Running mean?
                     self.depth_list = np.roll(self.depth_list, -1); 

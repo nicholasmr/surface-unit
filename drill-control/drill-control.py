@@ -246,14 +246,12 @@ class MainWidget(QWidget):
         self.gb_surface.setLayout(layout)
 
     def create_gb_orientation(self, initstr='N/A'):
-        self.gb_orientation = QGroupBox("Orientation")
+        self.gb_orientation = QGroupBox("Orientation (deg)")
 #        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (deg)',  initstr))
-        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (deg)',      initstr))
-        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (deg)',         initstr))
-        layout.addWidget(self.MakeStateBox('orientation_inclination_ahrs', 'Inclination, AHRS (deg)', initstr))
-        layout.addWidget(self.MakeStateBox('orientation_azimuth_ahrs',     'Azimuth, AHRS (deg)',     initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (SFUSION, AHRS)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUSION, AHRS)',      initstr))
+        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUSION, AHRS)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
@@ -262,8 +260,8 @@ class MainWidget(QWidget):
         layout_BNO055.addWidget(self.MakeStateBox('orientation_magnetometer', 'Magnetometer (mT)',    initstr))   
         layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion',         'Quaternion (x,y,z,w)',    initstr))
+#        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion',         'Quaternion, SFUSION (x,y,z,w)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
@@ -677,17 +675,9 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                str_incvec   = '[%.1f, %.1f]'%(self.ds.inclination_x,self.ds.inclination_x)
-#                self.updateStateBox('orientation_inclination',  round(self.ds.inclination,1), warn__nothres)
-#                self.updateStateBox('orientation_azimuth',      round(self.ds.azimuth,1),     warn__nothres)
-#                self.updateStateBox('orientation_spin',         round(self.ds.spin,1),        warn__spin)
-#                self.updateStateBox('orientation_spin',         '%.2f, %.2f, %.2f'%(self.ds.alpha,self.ds.beta,self.ds.gamma),        warn__nothres)
-
-                self.updateStateBox('orientation_inclination',  "%.2f"%(self.ds.inclination), warn__nothres)
-                self.updateStateBox('orientation_azimuth',      "%.1f"%(self.ds.azimuth),     warn__nothres)
-                self.updateStateBox('orientation_roll',         "%.1f"%(self.ds.roll),        warn__nothres)
-                self.updateStateBox('orientation_inclination_ahrs',  "%.2f"%(self.ds.inclination_ahrs), warn__nothres)
-                self.updateStateBox('orientation_azimuth_ahrs',      "%.2f"%(self.ds.azimuth_ahrs), warn__nothres)
+                self.updateStateBox('orientation_inclination',  "(%.2f, %.2f)"%(self.ds.inclination,self.ds.inclination_ahrs), warn__nothres)
+                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth,self.ds.azimuth_ahrs),     warn__nothres)
+                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
@@ -701,7 +691,7 @@ class MainWidget(QWidget):
                     self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
                     self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
 #                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
-                    self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
+#                    self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion',    str_quatvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
