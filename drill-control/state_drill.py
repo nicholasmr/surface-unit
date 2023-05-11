@@ -135,7 +135,9 @@ class DrillState():
 
         # Quaternion from sensor fuision (SFUSION)
         self.quat = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
-        self.quat /= np.linalg.norm(self.quat) # normalize
+        norm = np.linalg.norm(self.quat)
+        if norm is not None and norm > 1e-1: self.quat /= norm
+        else: self.quat = [1,0,0,0]
         self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat # normalized components
 
         self.alpha, self.beta, self.gamma = quat_to_euler(self.quat)
@@ -144,8 +146,9 @@ class DrillState():
         self.roll        = self.gamma # roll  (psi)
 
         # Quaternion from AHRS 
-        try:    self.quat_ahrs = self.wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=-self.magnetometer_vec)) # saam() returns w,x,y,z
-        except: self.quat_ahrs = [1,0,0,0]
+        self.quat_ahrs = self.wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
+        if np.size(self.quat_ahrs) != 4: self.quat_ahrs = [1,0,0,0]
+#        print(self.quat_ahrs)
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
         self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)

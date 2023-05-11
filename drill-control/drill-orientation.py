@@ -339,6 +339,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         '''
 
         self.drill_sync = True
+        self.show_ahrs = False
 
         self.reset_states()
         self.update_internal_states()
@@ -450,12 +451,16 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.text(x0, y0, '----- Change view -----', fontweight='bold', **kwargs_text)
         axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
         axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
+        axv_ahrs     = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
         bv_sideways = Button(axv_sideways, 'Sideways')
         bv_topdown  = Button(axv_topdown, 'Top-down')
+        bv_ahrs     = Button(axv_ahrs, 'Toggle AHRS')
         bv_sideways.on_clicked(self.view_sideways)
         bv_topdown.on_clicked(self.view_topdown)
+        bv_ahrs.on_clicked(self.toggle_ahrs)
         plt.bv_sideways = bv_sideways
         plt.bv_topdown  = bv_topdown
+        plt.bv_ahrs  = bv_ahrs
         
         self.update_ax3d_plot()
 
@@ -491,6 +496,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         print('Removing calibration')
         self.qc_calib = Rotation.identity().as_quat()
 
+    def toggle_ahrs(self, *args, **kwargs):
+        self.show_ahrs = not self.show_ahrs 
+    
 
     def update_ax3d_plot(self):
         '''
@@ -532,9 +540,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         # Plot the rotated axes.        
         self.plot_circle(self.ax3d, self.q,      O, r, plane='xoy', style='-', color=c_dred, method='q')
-        self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='--', color=c_dred, method='q')
+        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='--', color=c_dred, method='q')
         self.plot_xyz_axes(self.ax3d, self.q, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
-        self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
 
         # Plot the rotation axis
         #self.plot_vector(self.ax3d, u[0], u[1], u[2], arrow=True)
