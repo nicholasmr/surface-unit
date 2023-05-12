@@ -147,9 +147,9 @@ class DrillState():
         q_calib = Rotation.from_quat(self.quat_calib)
 
         # Quaternion from sensor fuision (SFUSION)
-        self.quat_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
+        self.quat_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
         norm = np.linalg.norm(self.quat_sfus)
-        if norm is not None and norm > 1e-1: self.quat_sfus /= norm
+        if norm is not None and norm > 1e-1: self.quat_sfus /= float(norm)
         else: self.quat_sfus = [1,0,0,0]
         self.quat_sfus = (Rotation.from_quat(self.quat_sfus)*q_calib).as_quat() # apply calibration
         self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat_sfus # normalized components
@@ -241,7 +241,8 @@ class DrillState():
         self.rc.set('quat-calib-w',self.quat_calib[3])
         
     def get_quat_calib(self):
-        self.quat_calib = [float(self.rc.get('quat-calib-%s'%(i))) for i in ['x','y','z','w']]
+        try:    self.quat_calib = [float(self.rc.get('quat-calib-%s'%(i))) for i in ['x','y','z','w']]
+        except: self.quat_calib = Rotation.identity().as_quat()
         if not np.all(self.quat_calib): self.quat_calib = Rotation.identity().as_quat()
         return self.quat_calib
         

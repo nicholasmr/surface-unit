@@ -135,10 +135,7 @@ for ii, l in enumerate(fh):
     
     # don't assume all drill sections send the BNO quat uphole
     try:    qx[ii], qy[ii], qz[ii], qw[ii] = [json.loads(l)['quaternion_%s'%(x)] for x in ['x','y','z','w']]
-    except: qx[ii], qy[ii], qz[ii], qw[ii] = 0,0,0,0
-    
-    print(l)
-    print(qx[ii], qy[ii], qz[ii], qw[ii])
+    except: qx[ii], qy[ii], qz[ii], qw[ii] = 0,0,0,1
     
     ### Make ready for next loop        
     jj +=1

@@ -16,31 +16,31 @@ def uphole_worker(arguments, redis, transport):
         packet_type = packet.__class__
         
         if packet_type == DownholeState:
+        
             # HACK: piggyback the current depth and load on the packet. Motivation
             # for that design choice in packets.py ;-)
             #
             # A "proper" way to do it would be to listen on the `uphole' Redis
             # queue, and at the recipt of a packet from downhole, gather the
             # load, depth, and put it all in something like a CSV file.
-            try:
-                packet.depth_encoder = json.loads(redis.get('depth-encoder'))
-            except:
-                pass
+          
+            try:    packet.depth_encoder = json.loads(redis.get('depth-encoder'))
+            except: pass
             
-            try:
-                packet.load_cell = json.loads(redis.get('load-cell'))
-            except:
-                pass
+            try:    packet.load_cell = json.loads(redis.get('load-cell'))
+            except: pass
+
+            # Orientation calibration quaternion set on surface
+            for i in ['x','y','z','w']:
+                try:    setattr(packet, 'quat_calib_%s'%(i), json.loads(redis.get('quat-calib-%s'%(i))))
+                except: setattr(packet, 'quat_calib_%s'%(i), 1 if i=='w' else 0) # set to identity rotation
 
             redis_conn.set("drill-state", packet.as_json())
 
-        try:
-            logger.info(packet.as_json())
-        except:
-            print("Couldn't log packet %s" % packet_type.__name__)
+        try:    logger.info(packet.as_json())
+        except: print("Couldn't log packet %s" % packet_type.__name__)
             
         redis_conn.publish("uphole", packet_type.__name__)
-
 
     try:
         logfile = open("packet_log.txt" , "a")

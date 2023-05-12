@@ -30,9 +30,9 @@ PLOT_AZIM = 0
 RUN_SENSOR_ORIENTATION_CALIBRATION = 1
 
 # How to determine orientation
-METHOD_AHRS_DCM  = 0
-METHOD_AHRS_QUAT = 1
+METHOD_AHRS_QUAT = 1 # use this one!
 METHOD_SFUS_QUAT = 0  # only 2023 data output the sensor fusion (SFUS) quats
+#METHOD_AHRS_DCM  = 0 # alt DCM implementation
 
 # Inclination cutoff for average
 incl_max = 6.2
@@ -41,15 +41,14 @@ incl_max = 6.2
 dazim = -180
 
 # Initial sensor orientation guess
-x_opt, y_opt, z_opt = 0, 0, 0
-#x_opt, y_opt = -0.0083, 0.0057
+alpha_opt = beta_opt = gamma_opt = 0
 
 # Data bin size 
 dz = 15 
 
 # y axis limits
 Z_MAX = 0 
-Z_MIN = -3000
+Z_MIN = -3100
 
 # Fit rangge
 Z0fit = 200 # ignore misfit with logger at depths shallower than this number
@@ -123,6 +122,7 @@ def empty_array(len):
 flen = sum(1 for l in open(DRILLLOG, "r"))
 z  = empty_array(flen) # depth
 quat = np.zeros((flen,4))
+quat_calib = np.zeros((flen,4))
 DCM = np.zeros((flen,3,3)) # rotation matrix
 
 ### Loop through rows and get drill orientation for a given time
@@ -146,11 +146,14 @@ for ii, l in enumerate(fh):
         q = saam.estimate(acc=avec, mag=mvec) # quaternion
 
         if np.size(q) != 4 or np.linalg.norm(q) < 1-1e-3: 
-            quat[jj,:]  = None # bad normalization => ignored later on
-            DCM[jj,:,:] = None
+            quat[jj,:]       = None # bad normalization => ignored later on
+            quat_calib[jj,:] = None 
+            DCM[jj,:,:]      = None
         else:               
-            quat[jj,:]  = wxyz_to_xyzw(q)
-            DCM[jj,:,:] = Rotation.from_quat(quat[jj,:]).as_matrix() # same
+            quat[jj,:]        = wxyz_to_xyzw(q)
+            try:    quat_calib[jj,:] = np.array([json.loads(l)['quat-calib-%s'%(i)] for i in ['x','y','z','w']])
+            except: quat_calib[jj,:] = None
+            DCM[jj,:,:]       = Rotation.from_quat(quat[jj,:]).as_matrix() # same
 #            DCM[jj,:,:] = Quaternion(q).to_DCM() # same
     else:
         quat[jj,:] = np.array([ json.loads(l)['quaternion_x'], json.loads(l)['quaternion_y'], json.loads(l)['quaternion_z'], json.loads(l)['quaternion_w'] ]) 
@@ -168,68 +171,66 @@ DCM = DCM[0:(jjmax+1), :,:]
 quat = quat[0:(jjmax+1),:] 
 Z = z[0:(jjmax+1)]
 
+
 #-----------------------
 # BNO055 orientation calibration
 #-----------------------
 
-if METHOD_AHRS_DCM:
-    def incl_from_sensor_rot(x, y):
-        sensordir = -np.array([x,y,np.sqrt(1-x**2-y**2)]) # presumed BNO055 sensor orientation
-        drilldir = np.array([np.matmul(DCM[ii,:,:], sensordir) for ii in np.arange(jjmax+1)]) 
-        incl_raw = np.rad2deg(np.arccos(drilldir[:,2])) # raw inclination data
-        incl_raw[incl_raw>incl_max] = np.nan
-        df = pd.DataFrame(zip(Z,incl_raw), columns = ['depth','inclination'])
-        incl_mean, _ = binned_stats(df['inclination'], df['depth'])
-        azim_mean, azim_raw = 0*incl_mean, 0*incl_raw
-        return incl_mean, incl_raw, azim_mean, azim_raw, Z
-else:
-    def incl_from_sensor_rot(rotx, roty):
-        I = np.nonzero(~np.isnan(quat[:,0]))[0] # ignore badly normalized or missing data
-        q0 = Rotation.from_quat(quat[I,:]) 
-        qx = Rotation.from_euler('x', rotx, degrees=True)
-        qy = Rotation.from_euler('y', roty, degrees=True)
-#        qz = Rotation.from_euler('y', roty, degrees=True)
-        q = qy*qx*q0 # apply calibration # rotated sensor plane 
-        eulerangles = q.as_euler('ZXZ', degrees=True) # intrinsic rotations
-        incl_raw = np.zeros(len(Z))*np.nan
-        azim_raw = np.zeros(len(Z))*np.nan
-        incl_raw[I] = 180-eulerangles[:,1] # to inclination
-        azim_raw[I] = eulerangles[:,0] + 180
-        Irm = np.nonzero(incl_raw>incl_max)[0]
-        incl_raw[Irm] = np.nan
-        azim_raw[Irm] = np.nan
-        df = pd.DataFrame(zip(Z,incl_raw), columns = ['depth','inclination'])
-        incl_mean, _ = binned_stats(df['inclination'], df['depth'])
-        df = pd.DataFrame(zip(Z,azim_raw), columns = ['depth','azimuth'])
-        azim_mean, _ = binned_stats(df['azimuth'], df['depth'])
-        return incl_mean, incl_raw, azim_mean, azim_raw, Z
+def incl_from_sensor_rot__DCM(x, y):
+    sensordir = -np.array([x,y,np.sqrt(1-x**2-y**2)]) # presumed BNO055 sensor orientation
+    drilldir = np.array([np.matmul(DCM[ii,:,:], sensordir) for ii in np.arange(jjmax+1)]) 
+    incl_raw = np.rad2deg(np.arccos(drilldir[:,2])) # raw inclination data
+    incl_raw[incl_raw>incl_max] = np.nan
+    df = pd.DataFrame(zip(Z,incl_raw), columns = ['depth','inclination'])
+    incl_mean, _ = binned_stats(df['inclination'], df['depth'])
+    azim_mean, azim_raw = 0*incl_mean, 0*incl_raw
+    return incl_mean, incl_raw, azim_mean, azim_raw, Z
+    
+
+def incl_from_sensor_rot__quat(alpha, beta, gamma):
+    r = Rotation.from_euler('ZXZ', [alpha, beta, gamma], degrees=True)
+    I = np.nonzero(~np.isnan(quat[:,0]))[0] # ignore badly normalized or missing data
+    q0 = Rotation.from_quat(quat[I,:]) 
+    q = r*q0 # apply calibration # rotated sensor plane 
+    eulerangles = q.as_euler('ZXZ', degrees=True) # intrinsic rotations
+    incl_raw = np.zeros(len(Z))*np.nan
+    azim_raw = np.zeros(len(Z))*np.nan
+    incl_raw[I] = 180-eulerangles[:,1] # to inclination
+    azim_raw[I] = eulerangles[:,0] + 180
+    Irm = np.nonzero(incl_raw>incl_max)[0]
+    incl_raw[Irm] = np.nan
+    azim_raw[Irm] = np.nan
+    df = pd.DataFrame(zip(Z,incl_raw), columns = ['depth','inclination'])
+    incl_mean, _ = binned_stats(df['inclination'], df['depth'])
+    df = pd.DataFrame(zip(Z,azim_raw), columns = ['depth','azimuth'])
+    azim_mean, _ = binned_stats(df['azimuth'], df['depth'])
+    return incl_mean, incl_raw, azim_mean, azim_raw, Z
 
 
 if RUN_SENSOR_ORIENTATION_CALIBRATION:
-    print('*** Estimating drill orientation from sensor data')
+
+    print('*** Estimating sensor orientation from sensor data')
 
     # Misfit measure
-    def J(xy):
-        incl_mean, _, _, _, _ = incl_from_sensor_rot(xy[0], xy[1])
+    def J(x):
+        incl_mean, _, _, _, _ = incl_from_sensor_rot__quat(x[0],x[1],x[2])
         errsq = np.power(incl_mean - incl_mean_logger, 2)
         J = np.nansum(errsq[I0fit:I1fit])
         return J
         
-    paramvec = [x_opt, y_opt] # init guess
-#    bounds = [(-0.1,0.1), (-0.1,0.1)]
-    if METHOD_AHRS_DCM: bounds = [(-0.1,0.1), (-0.01,0.01)]
-    else:               bounds = [(-2,+2), (-2,+2)] 
-    res = minimize(J, paramvec, method='L-BFGS-B', bounds=bounds, tol=1e-4, options={'gtol': 1e-2, 'disp': True})
-    x_opt, y_opt = res.x[0], res.x[1] # best fit
-    print('... done: (x_opt, y_opt) = (%f,%f)'%(x_opt,y_opt))
+    paramvec = [0,0,0] # init guess
+    res = minimize(J, paramvec, method='L-BFGS-B', tol=1e-3, options={'gtol': 1e-3, 'disp': True})
+    euler_opt = res.x[:] # best fit
+    alpha_opt, beta_opt, gamma_opt = euler_opt
+    print('... done: (alpha_opt, beta_opt, gamma_opt) = (%f, %f, %f)'%(alpha_opt, beta_opt, gamma_opt))
 else:
-    print('*** Using pre-defined BNO055 sensor orientation: (x_opt, y_opt) = (%f,%f)'%(x_opt,y_opt))
+    print('*** Using pre-defined sensor orientation: (alpha_opt, beta_opt, gamma_opt) = (%f, %f, %f)'%(alpha_opt, beta_opt, gamma_opt))
     
 # Best fit solution    
-incl_mean, incl_raw, azim_mean, azim_raw, depth_drill = incl_from_sensor_rot(x_opt, y_opt)
+incl_mean, incl_raw, azim_mean, azim_raw, depth_drill = incl_from_sensor_rot__quat(*euler_opt)
 
 # No calibration
-incl0_mean, incl0_raw, azim0_mean, azim0_raw, _ = incl_from_sensor_rot(0, 0) 
+incl0_mean, incl0_raw, azim0_mean, azim0_raw, _ = incl_from_sensor_rot__quat(*[0]*3) 
 
 #-----------------------
 # Plot
@@ -238,7 +239,7 @@ incl0_mean, incl0_raw, azim0_mean, azim0_raw, _ = incl_from_sensor_rot(0, 0)
 print('*** Plotting')
 
 scale = 0.7
-fig = plt.figure(figsize=(7.5*(2 if PLOT_AZIM else 1),8))
+fig = plt.figure(figsize=(7.8*(2 if PLOT_AZIM else 1),8))
 
 c_logger = 'k'
 c_drill  = '#e31a1c'
@@ -253,8 +254,8 @@ if PLOT_AZIM:
     ax3 = plt.subplot(1,cols,3, sharey=ax1)
     ax4 = plt.subplot(1,cols,4, sharey=ax1)
 
-lbl_calibrated = 'Calibrated (x,y=%.3f,%.3f)'%(x_opt,y_opt)
-lbl_uncalibrated = 'Uncalibrated (x,y=0,0)'
+lbl_calibrated = 'Calibrated (a,b,g)=(%.1f, %.1f, %.1f)'%(alpha_opt, beta_opt, gamma_opt)
+lbl_uncalibrated = 'Uncalibrated (a,b,g)=(0, 0, 0)'
 
 zz = -z_bin[I0fit:] # z axis of binned (mean) profiles
 

@@ -45,7 +45,7 @@ cx,cz = cz,cx
 lw_default = 4
 alpha0 = 0.09
 
-FS = 16
+FS = 15
 matplotlib.rcParams.update({'font.size': FS})
 
 ##############################################################################################            
@@ -399,7 +399,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         y0 = 0.95
 
-        x0 = 0.70 # title string start
+        x0 = 0.68 # title string start
         x1 = x0+0.01 # box contet start (adjusted inward slightly)
         
         dy = 0.06 # vertical distance between rows of buttons
@@ -414,11 +414,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.text(x0, y0, '----- Calibration proceedure -----', fontweight='bold', **kwargs_text)        
 
         plt.text(x0, y0-0.7*dy, \
-'''Drill orientation must be re-calibrated after every power-on:
+'''Drill orientation must be re-calibrated every power-on:
 1) After turning on power, immediately rotate drill twice when still horizontal on tower.
 2) Quickly tilt tower to vertical (plumb) and repeat.
 3) When vertical, rotate drill so spring is in direction opposite of driller's cabin (light blue arrow).
-4) Press "Calibrate plumb" button; drill orientation arrows (dark) should now align with tower frame-of-reference arrows (light). 
+4) Press "Calibrate AHRS plumb" button; drill orientation (dark) arrows should now align with the tower frame of reference (light arrows). 
 5) Raise tower to horizontal (or 45 deg.) position and verify spring direction is *approximately* unchanged.
 ''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
 
@@ -533,7 +533,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         u = z*0 + np.cos(flowang)
         v = z*0 + np.sin(flowang)
         w = z*0 #+ 1e-2
-        self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color='0.5', arrow_length_ratio=0.5, zorder=10)
+        c = '0.45'
+        self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color=c, arrow_length_ratio=0.5, zorder=10)
+        i = -1
+        dy = dx = scale/5
+        self.ax3d.text(x[i,i][0]+dx,y[i,i][0]+dy,z[0,0][0], 'Ice flow', 'x', color=c, fontweight='bold', fontsize=FS-1)
 
         ### Draw orientation
 
