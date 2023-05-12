@@ -249,9 +249,9 @@ class MainWidget(QWidget):
         self.gb_orientation = QGroupBox("Orientation (deg)")
 #        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (SFUSION, AHRS)',  initstr))
-        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUSION, AHRS)',      initstr))
-        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUSION, AHRS)',         initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (AHRS, SFUS)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (AHRS, SFUS)',      initstr))
+        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (AHRS, SFUSION)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
@@ -261,8 +261,8 @@ class MainWidget(QWidget):
         layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion',         'Quaternion, SFUSION (x,y,z,w)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_sfus',    'Quaternion, SFUS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
         self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
@@ -675,9 +675,9 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  "(%.2f, %.2f)"%(self.ds.inclination,self.ds.inclination_ahrs), warn__nothres)
-                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth,self.ds.azimuth_ahrs),     warn__nothres)
-                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll,self.ds.roll_ahrs),        warn__nothres)
+                self.updateStateBox('orientation_inclination',  "(%.2f, %.2f)"%(self.ds.inclination_ahrs,self.ds.inclination_sfus), warn__nothres)
+                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_ahrs,self.ds.azimuth_sfus),     warn__nothres)
+                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_ahrs,self.ds.roll_sfus),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
@@ -686,14 +686,14 @@ class MainWidget(QWidget):
                     str_linaclvec = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.linearaccel_x,self.ds.linearaccel_y,self.ds.linearaccel_z, self.ds.linearaccel_mag)
                     str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_mag)
                     str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_mag)
-                    str_quatvec      = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat[0],self.ds.quat[1],self.ds.quat[2],self.ds.quat[3], np.linalg.norm(self.ds.quat))
-                    str_quatvec_ahrs = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_ahrs[0],self.ds.quat_ahrs[1],self.ds.quat_ahrs[2],self.ds.quat_ahrs[3], np.linalg.norm(self.ds.quat))
+                    str_quatvec_sfus = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_sfus[0],self.ds.quat_sfus[1],self.ds.quat_sfus[2],self.ds.quat_sfus[3], np.linalg.norm(self.ds.quat_sfus))
+                    str_quatvec_ahrs = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_ahrs[0],self.ds.quat_ahrs[1],self.ds.quat_ahrs[2],self.ds.quat_ahrs[3], np.linalg.norm(self.ds.quat_ahrs))
                     self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
                     self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
 #                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
 #                    self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
-                    self.updateStateBox('orientation_quaternion',    str_quatvec, warn__nothres)
+                    self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
                     self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
 
 

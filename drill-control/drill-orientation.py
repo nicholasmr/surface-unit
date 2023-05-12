@@ -343,7 +343,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         '''
 
         self.drill_sync = True
-        self.show_ahrs = False
+        
+        self.show_ahrs = True
+        self.show_sfus = False
 
         self.reset_states()
         self.update_internal_states()
@@ -356,7 +358,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         '''
 
         # Quat coordinates (x,y,z,w)
-        self.qc      = [0,0,0,1]
+        self.qc_sfus = [0,0,0,1]
         self.qc_ahrs = [0,0,0,1]
         
         # Calibration quat 
@@ -373,7 +375,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         '''
 
         # pyrotation Quaternion() objects
-        self.q      = Quaternion(*self.xyzw_to_wxyz(self.qc))
+        self.q_sfus = Quaternion(*self.xyzw_to_wxyz(self.qc_sfus))
         self.q_ahrs = Quaternion(*self.xyzw_to_wxyz(self.qc_ahrs))
         
     # copy from state_drill.py
@@ -425,37 +427,46 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         y0 = y0-0.45
         plt.text(x0, y0, '----- Calibrate -----', fontweight='bold', **kwargs_text)        
-        dl_ = dl*1.4
-        ax_calib      = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
-        ax_uncalib    = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
-        b_calib      = Button(ax_calib, r'Calibrate plumb')
-        b_uncalib    = Button(ax_uncalib, r'Clear calibration')
-        b_calib.on_clicked(self.set_calibrate)
+        dl_ = dl*1.8
+        ax_calib_ahrs = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
+        ax_calib_sfus = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
+        ax_uncalib    = self.fig.add_axes([x1, y0-dyt-2*dy, dl_, dh])
+        b_calib_ahrs = Button(ax_calib_ahrs, r'Calibrate AHRS plumb')
+        b_calib_sfus = Button(ax_calib_sfus, r'Calibrate SFUS plumb')
+        b_uncalib    = Button(ax_uncalib,    r'Clear calibration')
+        b_calib_ahrs.on_clicked(self.set_calibrate_ahrs)
+        b_calib_sfus.on_clicked(self.set_calibrate_sfus)
         b_uncalib.on_clicked(self.set_uncalibrate)
-        plt.b_calib = b_calib
+        plt.b_calib_ahrs = b_calib_ahrs
+        plt.b_calib_sfus = b_calib_sfus
         plt.b_uncalib = b_uncalib
         
-        plt.text(x0, y0-3*dy, 'Calibration quaternion:', **kwargs_text)     
-        self.text_calib = plt.text(x0, y0-3.5*dy, '', **kwargs_text)     
+        plt.text(x0, y0-4*dy, 'Calibration quaternion:', **kwargs_text)     
+        self.text_calib = plt.text(x0, y0-4.5*dy, '', **kwargs_text)     
         
 
         ### View buttons
 
-        y0 = y0-0.28
+        y0 = y0-0.32
         
         plt.text(x0, y0, '----- Change view -----', fontweight='bold', **kwargs_text)
         axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
         axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
-        axv_ahrs     = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
         bv_sideways = Button(axv_sideways, 'Sideways')
         bv_topdown  = Button(axv_topdown, 'Top-down')
-        bv_ahrs     = Button(axv_ahrs, 'Toggle AHRS')
         bv_sideways.on_clicked(self.view_sideways)
         bv_topdown.on_clicked(self.view_topdown)
-        bv_ahrs.on_clicked(self.toggle_ahrs)
         plt.bv_sideways = bv_sideways
         plt.bv_topdown  = bv_topdown
-        plt.bv_ahrs  = bv_ahrs
+
+        axv_ahrs = self.fig.add_axes([x1+1.2*dl, y0-dyt-0*dy, dl, dh])
+        axv_sfus = self.fig.add_axes([x1+1.2*dl, y0-dyt-1*dy, dl, dh])
+        bv_ahrs = Button(axv_ahrs, 'Toggle AHRS')
+        bv_sfus = Button(axv_sfus, 'Toggle SFUS')
+        bv_ahrs.on_clicked(self.toggle_ahrs)
+        bv_sfus.on_clicked(self.toggle_sfus)
+        plt.bv_ahrs = bv_ahrs
+        plt.bv_sfus = bv_sfus
         
         self.update_ax3d_plot()
 
@@ -472,20 +483,21 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.draw()
         
         
-    def set_calibrate(self, *args, **kwargs):
-        print('Calibrating quaternion (SFUSION) to vertical frame')
-        self.qc_calib = self.get_qc_calib(self.qc)
-        self.ds.set_quat_calib(self.qc_calib)
-        
-#    def set_calibrate_ahrs(self, *args, **kwargs):
-#        print('Calibrating quaternion (AHRS) to vertical frame')
-#        self.qc_calib = self.get_qc_calib(self.qc_ahrs)
-
     def set_uncalibrate(self, *args, **kwargs):
         print('Removing calibration')
         self.qc_calib = Rotation.identity().as_quat()
         self.ds.set_quat_calib(self.qc_calib)
-
+        
+    def set_calibrate_sfus(self, *args, **kwargs):
+        print('Calibrating quaternion (SFUS) to vertical frame')
+        self.qc_calib = self.get_qc_calib(self.qc_sfus)
+        self.ds.set_quat_calib(self.qc_calib)
+        
+    def set_calibrate_ahrs(self, *args, **kwargs):
+        print('Calibrating quaternion (AHRS) to vertical frame')
+        self.qc_calib = self.get_qc_calib(self.qc_ahrs)
+        self.ds.set_quat_calib(self.qc_calib)
+        
     def get_qc_calib(self, qc):
         E = np.eye(3)
         E[2,:] *= -1
@@ -498,6 +510,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
     def toggle_ahrs(self, *args, **kwargs):
         self.show_ahrs = not self.show_ahrs 
     
+    def toggle_sfus(self, *args, **kwargs):
+        self.show_sfus = not self.show_sfus
+        
 
     def update_ax3d_plot(self):
         '''
@@ -527,7 +542,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         r = 2
         scale = 2
 
-        u = self.q.to_angle_axis()
+#        u = self.q.to_angle_axis()
 
         # Plot the original XOY plane.
 
@@ -538,10 +553,10 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 #        self.plot_xyz_axes(self.ax3d, qi, O, scale=scale, style=':', cx=cx, cy=cy, cz=cz, arrow=False, method='q')
 
         # Plot the rotated axes.        
-        self.plot_circle(self.ax3d, self.q,      O, r, plane='xoy', style='-', color=c_dred, method='q')
-        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='--', color=c_dred, method='q')
-        self.plot_xyz_axes(self.ax3d, self.q, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
-        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_sfus: self.plot_circle(self.ax3d, self.q_sfus, O, r, plane='xoy', style='--', color=c_dred, method='q')
+        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='-', color=c_dred, method='q')
+        if self.show_sfus: self.plot_xyz_axes(self.ax3d, self.q_sfus, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
 
         # Calib axes
         lwc = lw_default-1.5
@@ -555,10 +570,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         custom_lines = [\
                         Line2D([0], [0], color=c_dred, ls='-', lw=lw_default), \
                         Line2D([0], [0], color=c_dblue, ls='-', lw=lw_default), \
-                        Line2D([0], [0], color=c_green, ls='-', lw=lw_default)\
+                        Line2D([0], [0], color=c_green, ls='-', lw=lw_default),\
+                        Line2D([0], [0], color=c_red, ls='-', lw=lw_default),\
                         ]
                         
-        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', 'Trench/tower direction', ], loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
+        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', 'Trench/tower direction', 'Plumb line'], loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
 
 
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
@@ -579,7 +595,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             if self.drill_sync:
                     
                 self.ds.update()
-                self.qc      = self.ds.quat
+                self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
                 self.update_internal_states()
 

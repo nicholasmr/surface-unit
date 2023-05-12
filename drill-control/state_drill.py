@@ -134,6 +134,7 @@ class DrillState():
 #        print(ds)
 
         ### Orientation
+        
         self.spin = round(abs(self.get_spin()), 2)
 
         for field in ['magnetometer', 'accelerometer', 'linearaccel', 'gravity', 'gyroscope']:
@@ -146,20 +147,20 @@ class DrillState():
         q_calib = Rotation.from_quat(self.quat_calib)
 
         # Quaternion from sensor fuision (SFUSION)
-        self.quat = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
-        norm = np.linalg.norm(self.quat)
-        if norm is not None and norm > 1e-1: self.quat /= norm
-        else: self.quat = [1,0,0,0]
-        self.quat = (Rotation.from_quat(self.quat)*q_calib).as_quat() # apply calibration
-        self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat # normalized components
+        self.quat_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
+        norm = np.linalg.norm(self.quat_sfus)
+        if norm is not None and norm > 1e-1: self.quat_sfus /= norm
+        else: self.quat_sfus = [1,0,0,0]
+        self.quat_sfus = (Rotation.from_quat(self.quat_sfus)*q_calib).as_quat() # apply calibration
+        self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat_sfus # normalized components
 
-        self.alpha, self.beta, self.gamma = quat_to_euler(self.quat)
-        self.inclination = self.beta  # pitch (theta)
-        self.azimuth     = self.alpha # yaw   (phi)
-        self.roll        = self.gamma # roll  (psi)
+        self.alpha_sfus, self.beta_sfus, self.gamma_sfus = quat_to_euler(self.quat_sfus)
+        self.inclination_sfus = self.beta_sfus  # pitch (theta)
+        self.azimuth_sfus     = self.alpha_sfus # yaw   (phi)
+        self.roll_sfus        = self.gamma_sfus # roll  (psi)
 
         # Quaternion from AHRS 
-        self.quat_ahrs = self.wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
+        self.quat_ahrs = wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
         if np.size(self.quat_ahrs) != 4: self.quat_ahrs = [1,0,0,0]
         self.quat_ahrs = (Rotation.from_quat(self.quat_ahrs)*q_calib).as_quat() # apply calibration
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
@@ -168,9 +169,11 @@ class DrillState():
         self.roll_ahrs        = self.gamma_ahrs # roll  (psi)
             
         ### Motor
+        
         self.motor_throttle = 100 * self.motor_duty_cycle
 
         ### Rename
+        
         if hasattr(self, 'aux_temperature_electronics'):
             self.temperature_auxelectronics = self.aux_temperature_electronics        
             self.temperature_topplug        = self.aux_temperature_topplug
@@ -178,10 +181,12 @@ class DrillState():
             self.temperature_gear2          = self.aux_temperature_gear2
         
         ### AUX
+        
         self.hammer      = 100 * self.hammer/HAMMER_MAX
         self.motorconfig = self.rc.get('motor-config')
         
         ### Is live?
+        
         now = datetime.datetime.now()
         lastreceived = datetime.datetime.strptime(self.received, '%Y-%m-%d %H:%M:%S')
         dt = (now - lastreceived).total_seconds()
@@ -228,9 +233,6 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
-    def xyzw_to_wxyz(self, q): return np.roll(q,1)
-    def wxyz_to_xyzw(self, q): return np.roll(q,-1)
-    
     def set_quat_calib(self, qc):
         self.quat_calib = qc # x,y,z,w
         self.rc.set('quat-calib-x',self.quat_calib[0])
@@ -262,5 +264,8 @@ def quat_to_euler(quat):
         alpha, beta, gamma = 0, 0, 0
 
     return alpha, beta, gamma
+    
+def xyzw_to_wxyz(q): return np.roll(q,1)
+def wxyz_to_xyzw(q): return np.roll(q,-1)
     
 
