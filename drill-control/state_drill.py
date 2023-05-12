@@ -4,18 +4,25 @@
 import redis, json, datetime, time, math
 import numpy as np
 from settings import *
+import warnings
+warnings.filterwarnings('ignore', message='.*Gimbal', )
 
-try: 
-    from scipy.spatial.transform import Rotation
-except: 
-    Rotation = None
+from scipy.spatial.transform import Rotation
+from ahrs.filters import SAAM
+from ahrs import Quaternion
+saam = SAAM()
 
-try:
-    from ahrs.filters import SAAM
-    from ahrs import Quaternion
-    saam = SAAM()
-except:
-    samm = None
+#try: 
+#    from scipy.spatial.transform import Rotation
+#except: 
+#    Rotation = None
+#
+#try:
+#    from ahrs.filters import SAAM
+#    from ahrs import Quaternion
+#    saam = SAAM()
+#except:
+#    samm = None
 
 DEGS_TO_RPM = 1/6 
 
@@ -86,6 +93,8 @@ class DrillState():
     inclination_ahrs, azimuth_ahrs, roll_ahrs = 0, 0, 0 
     alpha_ahrs, beta_ahrs, gamma_ahrs = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
         
+    quat_calib = Rotation.identity().as_quat()
+        
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
     islive          = False # True = connection is live, else False
@@ -133,11 +142,15 @@ class DrillState():
             setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
             setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
 
+        self.quat_calib = self.get_quat_calib()
+        q_calib = Rotation.from_quat(self.quat_calib)
+
         # Quaternion from sensor fuision (SFUSION)
         self.quat = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w])
         norm = np.linalg.norm(self.quat)
         if norm is not None and norm > 1e-1: self.quat /= norm
         else: self.quat = [1,0,0,0]
+        self.quat = (Rotation.from_quat(self.quat)*q_calib).as_quat() # apply calibration
         self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat # normalized components
 
         self.alpha, self.beta, self.gamma = quat_to_euler(self.quat)
@@ -148,7 +161,7 @@ class DrillState():
         # Quaternion from AHRS 
         self.quat_ahrs = self.wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
         if np.size(self.quat_ahrs) != 4: self.quat_ahrs = [1,0,0,0]
-#        print(self.quat_ahrs)
+        self.quat_ahrs = (Rotation.from_quat(self.quat_ahrs)*q_calib).as_quat() # apply calibration
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
         self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
@@ -217,6 +230,19 @@ class DrillState():
 
     def xyzw_to_wxyz(self, q): return np.roll(q,1)
     def wxyz_to_xyzw(self, q): return np.roll(q,-1)
+    
+    def set_quat_calib(self, qc):
+        self.quat_calib = qc # x,y,z,w
+        self.rc.set('quat-calib-x',self.quat_calib[0])
+        self.rc.set('quat-calib-y',self.quat_calib[1])
+        self.rc.set('quat-calib-z',self.quat_calib[2])
+        self.rc.set('quat-calib-w',self.quat_calib[3])
+        
+    def get_quat_calib(self):
+        self.quat_calib = [float(self.rc.get('quat-calib-%s'%(i))) for i in ['x','y','z','w']]
+        if not np.all(self.quat_calib): self.quat_calib = Rotation.identity().as_quat()
+        return self.quat_calib
+        
 
 #def get_inclination_ahrs(avec, mvec, sensordir):
 #    quat = saam.estimate(acc=avec, mag=mvec)
