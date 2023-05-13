@@ -61,6 +61,7 @@ class DrillState():
     accelerometer_x = 0
     accelerometer_y = 0
     accelerometer_z = 0
+    
     magnetometer_x = 0
     magnetometer_y = 0
     magnetometer_z = 0
@@ -77,11 +78,11 @@ class DrillState():
     gyroscope_y = 0
     gyroscope_z = 0
 
-    quaternion_w = 1 
-    quaternion_x = 1
-    quaternion_y = 1
+    quaternion_x = 0
+    quaternion_y = 0
     quaternion_z = 0
-    
+    quaternion_w = 1
+        
     # Inclinometer
     inclination_x = 0
     inclination_y = 0
@@ -161,6 +162,7 @@ class DrillState():
         if np.size(self.quat0_ahrs) != 4: self.quat0_ahrs = [1,0,0,0]
         
         self.quat_ahrs = self.apply_quat_calib(self.quat0_ahrs) # apply calibration
+
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
         self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)

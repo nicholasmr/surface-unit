@@ -251,7 +251,7 @@ class MainWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (SFUS, AHRS)',  initstr))
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
-        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
+#        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
         layout.addWidget(self.MakeStateBox('orientation_qcalib',       'Calibration quaternion (x,y,z,w)',   initstr))
 
@@ -262,8 +262,8 @@ class MainWidget(QWidget):
         layout_BNO055.addWidget(self.MakeStateBox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_sfus',    'Quaternion, SFUS (x,y,z,w)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
         self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
@@ -678,7 +678,7 @@ class MainWidget(QWidget):
                 ### Update state fields
                 self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
                 self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
-                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
+#                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
                 self.updateStateBox('orientation_qcalib',       "[%.2f, %.2f, %.2f, %.2f]"%(self.ds.quat_calib[0],self.ds.quat_calib[1],self.ds.quat_calib[2],self.ds.quat_calib[3]),  warn__nothres)
 

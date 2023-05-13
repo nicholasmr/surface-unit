@@ -1,3 +1,4 @@
 drill: 10.2.3.10
 info: 10.2.3.22
 drill-aux: 10.2.3.15
+drilllogplotter @bob: 10.2.3.18 (usr: drill, psw: same as drill computer)

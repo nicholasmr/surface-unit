@@ -76,6 +76,7 @@ Tg, Tmc, Tm = empty_array(flen), empty_array(flen), empty_array(flen) # temperat
 accx, accy, accz = empty_array(flen), empty_array(flen), empty_array(flen) # Accelerometer
 magx, magy, magz = empty_array(flen), empty_array(flen), empty_array(flen) # Magnetometer
 qx, qy, qz, qw   = empty_array(flen), empty_array(flen), empty_array(flen), empty_array(flen) # Quaternion
+inclx, incly     = empty_array(flen), empty_array(flen)
 
 ### Alarms
 gyroalarm = np.zeros((flen))
@@ -133,9 +134,12 @@ for ii, l in enumerate(fh):
     accx[ii],accy[ii],accz[ii] = json.loads(l)['accelerometer_x'], json.loads(l)['accelerometer_y'], json.loads(l)['accelerometer_z']
     magx[ii],magy[ii],magz[ii] = json.loads(l)['magnetometer_x'], json.loads(l)['magnetometer_y'], json.loads(l)['magnetometer_z']
     
-    # don't assume all drill sections send the BNO quat uphole
+    # ...don't assume all drill sections send the BNO quat uphole
     try:    qx[ii], qy[ii], qz[ii], qw[ii] = [json.loads(l)['quaternion_%s'%(x)] for x in ['x','y','z','w']]
     except: qx[ii], qy[ii], qz[ii], qw[ii] = 0,0,0,1
+    
+    try:    inclx[ii], incly[ii] = [json.loads(l)['inclination_x'], json.loads(l)['inclination_y']]
+    except: inclx[ii], incly[ii] = 0, 0
     
     ### Make ready for next loop        
     jj +=1
@@ -266,6 +270,8 @@ d = {'unixtime':     [int(x)      for x in tabs[Icsv]], \
      'qy':           [round(x, 4) for x in qy[Icsv]], \
      'qz':           [round(x, 4) for x in qz[Icsv]], \
      'qw':           [round(x, 4) for x in qw[Icsv]], \
+     'inclx':        [round(x, 4) for x in inclx[Icsv]], \
+     'incly':        [round(x, 4) for x in incly[Icsv]], \
      'magx':         [round(x, 3) for x in magx[Icsv]], \
      'magy':         [round(x, 3) for x in magy[Icsv]], \
      'magz':         [round(x, 3) for x in magz[Icsv]], \
