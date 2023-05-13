@@ -249,9 +249,9 @@ class MainWidget(QWidget):
         self.gb_orientation = QGroupBox("Orientation (deg)")
 #        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (AHRS, SFUS)',  initstr))
-        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (AHRS, SFUS)',      initstr))
-        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (AHRS, SFUSION)',         initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (SFUS, AHRS)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
+        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
         layout.addWidget(self.MakeStateBox('orientation_qcalib',       'Calibration quaternion (x,y,z,w)',   initstr))
 
@@ -676,9 +676,9 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  "(%.2f, %.2f)"%(self.ds.inclination_ahrs,self.ds.inclination_sfus), warn__nothres)
-                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_ahrs,self.ds.azimuth_sfus),     warn__nothres)
-                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_ahrs,self.ds.roll_sfus),        warn__nothres)
+                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
+                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
+                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
                 self.updateStateBox('orientation_qcalib',       "[%.2f, %.2f, %.2f, %.2f]"%(self.ds.quat_calib[0],self.ds.quat_calib[1],self.ds.quat_calib[2],self.ds.quat_calib[3]),  warn__nothres)
 
@@ -717,7 +717,7 @@ class MainWidget(QWidget):
                 self.updateStateBox('motor_current',    round(self.ds.motor_current,1),  warn__motor_current)
                 self.updateStateBox('motor_speed',      round(self.ds.motor_rpm,1),      warn__motor_rpm)    
                 self.updateStateBox('motor_voltage',    round(self.ds.motor_voltage,1),  warn__nothres)    
-                self.updateStateBox('motor_throttle',   round(self.ds.motor_throttle,0), warn__nothres)
+                self.updateStateBox('motor_throttle',   int(self.ds.motor_throttle), warn__nothres)
                 self.updateStateBox('motor_tachometer', round(self.ds.tachometer*TACHO_PRE_REV,2), warn__nothres)
         
         ### Disabled widgets if drill state is dead

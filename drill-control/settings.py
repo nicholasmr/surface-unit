@@ -32,7 +32,7 @@ HAMMER_MAX = 255
 TACHO_PRE_REV = 1/560
 
 # Decimal point precisions for physical displays of surface unit
-PRECISION_LOAD  = 2
+PRECISION_LOAD  = 1
 PRECISION_DEPTH = 2
 
 # Presumed max depth of core site

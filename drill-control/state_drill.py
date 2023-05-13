@@ -143,26 +143,24 @@ class DrillState():
             setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
             setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
 
-        self.quat_calib = self.get_quat_calib()
-        q_calib = Rotation.from_quat(self.quat_calib)
 
         # Quaternion from sensor fuision (SFUSION)
-        self.quat_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
-        norm = np.linalg.norm(self.quat_sfus)
-        if norm is not None and norm > 1e-1: self.quat_sfus /= float(norm)
-        else: self.quat_sfus = [1,0,0,0]
-        self.quat_sfus = (Rotation.from_quat(self.quat_sfus)*q_calib).as_quat() # apply calibration
-        self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w = self.quat_sfus # normalized components
-
+        self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
+        norm = np.linalg.norm(self.quat0_sfus)
+        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm)
+        else: self.quat0_sfus = [1,0,0,0]
+        
+        self.quat_sfus = self.apply_quat_calib(self.quat0_sfus) # apply calibration
         self.alpha_sfus, self.beta_sfus, self.gamma_sfus = quat_to_euler(self.quat_sfus)
         self.inclination_sfus = self.beta_sfus  # pitch (theta)
         self.azimuth_sfus     = self.alpha_sfus # yaw   (phi)
         self.roll_sfus        = self.gamma_sfus # roll  (psi)
 
         # Quaternion from AHRS 
-        self.quat_ahrs = wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
-        if np.size(self.quat_ahrs) != 4: self.quat_ahrs = [1,0,0,0]
-        self.quat_ahrs = (Rotation.from_quat(self.quat_ahrs)*q_calib).as_quat() # apply calibration
+        self.quat0_ahrs = wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
+        if np.size(self.quat0_ahrs) != 4: self.quat0_ahrs = [1,0,0,0]
+        
+        self.quat_ahrs = self.apply_quat_calib(self.quat0_ahrs) # apply calibration
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
         self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
@@ -245,6 +243,11 @@ class DrillState():
         except: self.quat_calib = Rotation.identity().as_quat()
         if not np.all(self.quat_calib): self.quat_calib = Rotation.identity().as_quat()
         return self.quat_calib
+        
+    def apply_quat_calib(self, quat0):
+        q_calib = Rotation.from_quat(self.get_quat_calib())
+        q       = Rotation.from_quat(quat0)
+        return (q_calib*q).as_quat()
         
 
 #def get_inclination_ahrs(avec, mvec, sensordir):

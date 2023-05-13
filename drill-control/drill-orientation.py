@@ -22,7 +22,7 @@ cs_azim = 0
 #cs_azim = 180
 flowang = np.deg2rad(cs_azim-180 + 27)
 
-azim0, elev0 = 70+cs_azim, 20
+azim0, elev0 = -68+cs_azim, 22
 
 
 c_green  = '#74c476'
@@ -37,10 +37,13 @@ c_blue  = '#6baed6'
 c_lblue = '#eff3ff'
 c_dblue = '#2171b5'
 
-cy = c_dgreen
-cx = c_dred
-cz = c_dblue
-cx,cz = cz,cx
+cx = '0.5'
+cy = c_dblue
+cz = c_dred
+
+cex = c_green
+cey = c_blue
+cez = c_red
 
 lw_default = 4
 alpha0 = 0.09
@@ -343,9 +346,10 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         '''
 
         self.drill_sync = True
+        self.view_followdrill = False
         
-        self.show_ahrs = True
-        self.show_sfus = False
+        self.show_sfus = True
+        self.show_ahrs = False
 
         self.reset_states()
         self.update_internal_states()
@@ -388,7 +392,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         Set up the UI and the 3D plot.
         '''
 
-        self.fig = plt.figure(10, figsize=(16, 9.5), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(16, 9.7), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
         self.ax3d = self.fig.add_axes([0.0, 0.0, 0.8, 1], projection='3d')
         self.ax3d.view_init(azim=azim0, elev=elev0)
@@ -397,7 +401,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         kwargs_text = {'fontsize':FS-1, 'transform':plt.gcf().transFigure}
         
-        y0 = 0.95
+        y0 = 0.97
 
         x0 = 0.68 # title string start
         x1 = x0+0.01 # box contet start (adjusted inward slightly)
@@ -411,25 +415,25 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.ax_fake = self.fig.add_axes([x1, y0, dl, dh])
         self.ax_fake.axis('off')
 
-        plt.text(x0, y0, '----- Calibration proceedure -----', fontweight='bold', **kwargs_text)        
+        plt.text(x0, y0, '----- Calibration procedure for EGRIP -----', fontweight='bold', **kwargs_text)        
 
         plt.text(x0, y0-0.7*dy, \
 '''Drill orientation must be re-calibrated every power-on:
-1) After turning on power, immediately rotate drill twice when still horizontal on tower.
+1) After turning on power, immediately rotate drill twice while horizontal on tower.
 2) Quickly tilt tower to vertical (plumb) and repeat.
-3) When vertical, rotate drill so spring is in direction opposite of driller's cabin (light blue arrow).
-4) Press "Calibrate AHRS plumb" button; drill orientation (dark) arrows should now align with the tower frame of reference (light arrows). 
-5) Raise tower to horizontal (or 45 deg.) position and verify spring direction is *approximately* unchanged.
+3) When vertical, rotate drill so the *true* direction of spring opposite of driller's cabin.
+4) Press "Calibrate SFUS plumb" button; drill axis and spring direction should now align with the trench frame of reference. 
+5) Raise tower to 45 deg. or horizontal position and verify spring direction is (approximately) unchanged.
 ''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
 
                 
         ### Calibrate/offset 
 
-        y0 = y0-0.45
-        plt.text(x0, y0, '----- Calibrate -----', fontweight='bold', **kwargs_text)        
+        y0 = y0-0.43
+        plt.text(x0, y0, '----- Calibrate drill+spring orientation -----', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.8
-        ax_calib_ahrs = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
-        ax_calib_sfus = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
+        ax_calib_ahrs = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
+        ax_calib_sfus = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
         ax_uncalib    = self.fig.add_axes([x1, y0-dyt-2*dy, dl_, dh])
         b_calib_ahrs = Button(ax_calib_ahrs, r'Calibrate AHRS plumb')
         b_calib_sfus = Button(ax_calib_sfus, r'Calibrate SFUS plumb')
@@ -450,17 +454,21 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         y0 = y0-0.32
         
         plt.text(x0, y0, '----- Change view -----', fontweight='bold', **kwargs_text)
-        axv_sideways = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
-        axv_topdown  = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
-        bv_sideways = Button(axv_sideways, 'Sideways')
-        bv_topdown  = Button(axv_topdown, 'Top-down')
+        axv_sideways   = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
+        axv_topdown    = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
+        axv_alongdrill = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
+        bv_sideways   = Button(axv_sideways, 'Sideways')
+        bv_topdown    = Button(axv_topdown, 'Top-down')
+        bv_alongdrill = Button(axv_alongdrill, 'Along drill')
         bv_sideways.on_clicked(self.view_sideways)
         bv_topdown.on_clicked(self.view_topdown)
-        plt.bv_sideways = bv_sideways
-        plt.bv_topdown  = bv_topdown
+        bv_alongdrill.on_clicked(self.view_alongdrill)
+        plt.bv_sideways   = bv_sideways
+        plt.bv_topdown    = bv_topdown
+        plt.bv_alongdrill = bv_alongdrill
 
-        axv_ahrs = self.fig.add_axes([x1+1.2*dl, y0-dyt-0*dy, dl, dh])
-        axv_sfus = self.fig.add_axes([x1+1.2*dl, y0-dyt-1*dy, dl, dh])
+        axv_ahrs = self.fig.add_axes([x1+1.3*dl, y0-dyt-1*dy, dl, dh])
+        axv_sfus = self.fig.add_axes([x1+1.3*dl, y0-dyt-0*dy, dl, dh])
         bv_ahrs = Button(axv_ahrs, 'Toggle AHRS')
         bv_sfus = Button(axv_sfus, 'Toggle SFUS')
         bv_ahrs.on_clicked(self.toggle_ahrs)
@@ -473,13 +481,20 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
     def view_sideways(self, *args, **kwargs):
         print('View = sideways')
+        self.view_followdrill = False
         self.ax3d.view_init(azim=azim0, elev=elev0)
         plt.draw()
         
         
     def view_topdown(self, *args, **kwargs):
         print('View = top-down')
-        self.ax3d.view_init(azim=90-cs_azim, elev=90)
+        self.view_followdrill = False
+        self.ax3d.view_init(azim=-90-cs_azim, elev=90)
+        plt.draw()
+        
+    def view_alongdrill(self, *args, **kwargs):
+        print('View = top-down')
+        self.view_followdrill = True
         plt.draw()
         
         
@@ -490,21 +505,24 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
     def set_calibrate_sfus(self, *args, **kwargs):
         print('Calibrating quaternion (SFUS) to vertical frame')
-        self.qc_calib = self.get_qc_calib(self.qc_sfus)
+        self.qc_calib = self.get_qc_calib(self.qc0_sfus)
         self.ds.set_quat_calib(self.qc_calib)
         
     def set_calibrate_ahrs(self, *args, **kwargs):
         print('Calibrating quaternion (AHRS) to vertical frame')
-        self.qc_calib = self.get_qc_calib(self.qc_ahrs)
+        self.qc_calib = self.get_qc_calib(self.qc0_ahrs)
         self.ds.set_quat_calib(self.qc_calib)
         
-    def get_qc_calib(self, qc):
-        E = np.eye(3)
-        E[2,:] *= -1
-        M = Rotation.from_quat(qc).as_matrix()
-        q_calib, _  = Rotation.align_vectors(M[[1,0,2],:],E[[0,1,2],:])
-        qc_calib = q_calib.as_quat()
-        return qc_calib
+    def get_qc_calib(self, qc_sensor):
+        """
+        https://gamedev.stackexchange.com/questions/153254/calibration-using-quaternion
+        https://math.stackexchange.com/questions/4643647/quaternion-calibration-sensor
+        """
+        q_sensor = Rotation.from_quat(qc_sensor) # current sensor orientation (w.r.t. world)
+#        q_calib_frame = Rotation.identity() # debug
+        q_calibstate = Rotation.from_euler('y', 180, degrees=True) # presumed drill orientation when calibrated (hanging plumb with spring away from driller's cabin)
+        q_calib = q_calibstate*q_sensor.inv() 
+        return q_calib.as_quat() # i.e. qc_calib
 
 
     def toggle_ahrs(self, *args, **kwargs):
@@ -524,20 +542,24 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         self.ax3d.clear()
 
+        if self.view_followdrill:
+            azim, incl, roll = quat_to_euler(self.qc_sfus)
+            self.ax3d.view_init(azim=azim+90, elev=90-incl)
+
         ### Draw horizontal flow field 
         
         scale = 2
         ds = scale/4
         xy_ = np.arange(-scale+ds, scale, scale/2)
         x, y, z = np.meshgrid(xy_, xy_, -scale)
-        u = z*0 + np.cos(flowang)
-        v = z*0 + np.sin(flowang)
-        w = z*0 #+ 1e-2
-        c = '0.45'
-        self.ax3d.quiver(x,y,z, u,v,w, length=0.45, lw=2.5, color=c, arrow_length_ratio=0.5, zorder=10)
-        i = -1
+        c = '0.5'
+        r = scale/5
+        for x0,y0 in zip(x.flatten(),y.flatten()):
+            self.plot_vector(self.ax3d, x0+r*np.cos(flowang),y0+r*sin(flowang),-scale,  x0,y0,-scale,  style='-', color=c, lw=lw_default-2, arrow=True)
+
+        i,j = -1,0
         dy = dx = scale/5
-        self.ax3d.text(x[i,i][0]+dx,y[i,i][0]+dy,z[0,0][0], 'Ice flow', 'x', color=c, fontweight='bold', fontsize=FS-1)
+        self.ax3d.text(x[i,i][0]+0*dx,y[j,j][0]-1.4*dy,z[0,0][0], 'Ice flow', 'x', color=c, fontweight='bold', fontsize=FS-1)
 
         ### Draw orientation
 
@@ -546,10 +568,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         r = 2
         scale = 2
 
-#        u = self.q.to_angle_axis()
-
         # Plot the original XOY plane.
-
         # Plot the original axes.
         cf = '0.4'
         self.plot_circle(self.ax3d, qi, O, r, plane='xoy', style='-', color=cf, method='q')
@@ -557,16 +576,16 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 #        self.plot_xyz_axes(self.ax3d, qi, O, scale=scale, style=':', cx=cx, cy=cy, cz=cz, arrow=False, method='q')
 
         # Plot the rotated axes.        
-        if self.show_sfus: self.plot_circle(self.ax3d, self.q_sfus, O, r, plane='xoy', style='--', color=c_dred, method='q')
-        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='-', color=c_dred, method='q')
-        if self.show_sfus: self.plot_xyz_axes(self.ax3d, self.q_sfus, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
-        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_sfus: self.plot_circle(self.ax3d, self.q_sfus, O, r, plane='xoy', style='-', color=c_dred, method='q')
+        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='--', color=c_dred, method='q')
+        if self.show_sfus: self.plot_xyz_axes(self.ax3d, self.q_sfus, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
 
         # Calib axes
         lwc = lw_default-1.5
-        self.plot_vector(self.ax3d, scale*1,0,0,  0,0,0,  style='-', color=c_green, lw=lwc, arrow=True)
-        self.plot_vector(self.ax3d, 0,scale*1,0,  0,0,0,  style='-', color=c_blue, lw=lwc, arrow=True)
-        self.plot_vector(self.ax3d, 0,0,-scale*1,  0,0,0,  style='-', color=c_red, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, scale*1,0,0,  0,0,0,  style='-', color=cex, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, 0,scale*1,0,  0,0,0,  style='-', color=cey, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, 0,0,-scale*1,  0,0,0,  style='-', color=cez, lw=lwc, arrow=True)
 
         self.adjust_axes(self.ax3d, scale=scale)
 
@@ -574,11 +593,12 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         custom_lines = [\
                         Line2D([0], [0], color=c_dred, ls='-', lw=lw_default), \
                         Line2D([0], [0], color=c_dblue, ls='-', lw=lw_default), \
-                        Line2D([0], [0], color=c_green, ls='-', lw=lw_default),\
-                        Line2D([0], [0], color=c_red, ls='-', lw=lw_default),\
+                        Line2D([0], [0], color=cex, ls='-', lw=lw_default),\
+                        Line2D([0], [0], color=cey, ls='-', lw=lw_default),\
+                        Line2D([0], [0], color=cez, ls='-', lw=lw_default),\
                         ]
                         
-        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', 'Trench/tower direction', 'Plumb line'], loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
+        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', '$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line'], loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
 
 
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
@@ -599,10 +619,19 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             if self.drill_sync:
                     
                 self.ds.update()
-                self.qc_sfus = self.ds.quat_sfus
-                self.qc_ahrs = self.ds.quat_ahrs
-                self.update_internal_states()
+                if 0:
+                    self.qc0_sfus = Rotation.identity().as_quat()
+                    self.qc0_ahrs = Rotation.identity().as_quat()
+                    self.qc_sfus = Rotation.identity().as_quat()
+                    self.qc_ahrs = Rotation.identity().as_quat()
+    
+                else:
+                    self.qc0_sfus = self.ds.quat0_sfus
+                    self.qc0_ahrs = self.ds.quat0_ahrs
+                    self.qc_sfus = self.ds.quat_sfus
+                    self.qc_ahrs = self.ds.quat_ahrs
 
+                self.update_internal_states()
                 self.update_ax3d_plot()
 
 #                self.text_incl.set_text(r'Inclination = %+.2f'%(self.incl))
