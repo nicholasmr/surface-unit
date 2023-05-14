@@ -31,9 +31,10 @@ def uphole_worker(arguments, redis, transport):
             except: pass
 
             # Orientation calibration quaternion set on surface
-            for i in ['x','y','z','w']:
-                try:    setattr(packet, 'quat_calib_%s'%(i), json.loads(redis.get('quat-calib-%s'%(i))))
-                except: setattr(packet, 'quat_calib_%s'%(i), 1 if i=='w' else 0) # set to identity rotation
+            for method in ['sfus','ahrs']:
+                for i in ['x','y','z','w']:
+                    try:    setattr(packet, 'quat%s_calib_%s'%(i,method), json.loads(redis.get('quat%s-calib-%s'%(i,method))))
+                    except: setattr(packet, 'quat%s_calib_%s'%(i,method), 1 if i=='w' else 0) # set to identity rotation
 
             redis_conn.set("drill-state", packet.as_json())
 

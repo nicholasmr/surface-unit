@@ -8,22 +8,21 @@ import warnings
 warnings.filterwarnings('ignore', message='.*Gimbal', )
 
 from scipy.spatial.transform import Rotation
-from ahrs.filters import SAAM
+import ahrs
+from ahrs.filters import SAAM, FLAE, QUEST
 from ahrs import Quaternion
+
+wmm = ahrs.utils.WMM() 
+egrip_N, egrip_E = 75.63248, -35.98911
+wmm.magnetic_field(egrip_N, egrip_E) 
+magnetic_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
+
 saam = SAAM()
-
-#try: 
-#    from scipy.spatial.transform import Rotation
-#except: 
-#    Rotation = None
-#
-#try:
-#    from ahrs.filters import SAAM
-#    from ahrs import Quaternion
-#    saam = SAAM()
-#except:
-#    samm = None
-
+flae =  FLAE(magnetic_dip=magnetic_dip)
+#quest = QUEST(magnetic_dip=magnetic_dip)
+ahrsestimator = flae
+ 
+ 
 DEGS_TO_RPM = 1/6 
 
 
@@ -94,7 +93,8 @@ class DrillState():
     inclination_ahrs, azimuth_ahrs, roll_ahrs = 0, 0, 0 
     alpha_ahrs, beta_ahrs, gamma_ahrs = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
         
-    quat_calib = Rotation.identity().as_quat()
+    quat_calib_sfus = Rotation.identity().as_quat()
+    quat_calib_ahrs = Rotation.identity().as_quat()
         
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
@@ -144,6 +144,7 @@ class DrillState():
             setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
             setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
 
+        self.update_quat_calib()
 
         # Quaternion from sensor fuision (SFUSION)
         self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
@@ -151,17 +152,18 @@ class DrillState():
         if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm)
         else: self.quat0_sfus = [1,0,0,0]
         
-        self.quat_sfus = self.apply_quat_calib(self.quat0_sfus) # apply calibration
+        self.quat_sfus = self.apply_quat_calib(self.quat0_sfus, self.quat_calib_sfus) # apply calibration
         self.alpha_sfus, self.beta_sfus, self.gamma_sfus = quat_to_euler(self.quat_sfus)
         self.inclination_sfus = self.beta_sfus  # pitch (theta)
         self.azimuth_sfus     = self.alpha_sfus # yaw   (phi)
         self.roll_sfus        = self.gamma_sfus # roll  (psi)
 
         # Quaternion from AHRS 
-        self.quat0_ahrs = wxyz_to_xyzw(saam.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z
-        if np.size(self.quat0_ahrs) != 4: self.quat0_ahrs = [1,0,0,0]
+        self.quat0_ahrs = wxyz_to_xyzw(ahrsestimator.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z, so this is in x,y,z,w
+        if np.size(self.quat0_ahrs) != 4: self.quat0_ahrs = [0,0,0,-1]
+        self.quat0_ahrs *= -1 # follow SFUS sign convention
         
-        self.quat_ahrs = self.apply_quat_calib(self.quat0_ahrs) # apply calibration
+        self.quat_ahrs = self.apply_quat_calib(self.quat0_ahrs, self.quat_calib_ahrs) # apply calibration
 
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
@@ -233,31 +235,25 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
-    def set_quat_calib(self, qc):
-        self.quat_calib = qc # x,y,z,w
-        self.rc.set('quat-calib-x',self.quat_calib[0])
-        self.rc.set('quat-calib-y',self.quat_calib[1])
-        self.rc.set('quat-calib-z',self.quat_calib[2])
-        self.rc.set('quat-calib-w',self.quat_calib[3])
+    def set_quat_calib(self, qc, method):
+        setattr(self, 'quat_calib_%s'%(method), qc) # x,y,z,w
+        self.rc.set('quatx-calib-%s'%(method), qc[0])
+        self.rc.set('quaty-calib-%s'%(method), qc[1])
+        self.rc.set('quatz-calib-%s'%(method), qc[2])
+        self.rc.set('quatw-calib-%s'%(method), qc[3])
         
-    def get_quat_calib(self):
-        try:    self.quat_calib = [float(self.rc.get('quat-calib-%s'%(i))) for i in ['x','y','z','w']]
-        except: self.quat_calib = Rotation.identity().as_quat()
-        if not np.all(self.quat_calib): self.quat_calib = Rotation.identity().as_quat()
-        return self.quat_calib
-        
-    def apply_quat_calib(self, quat0):
-        q_calib = Rotation.from_quat(self.get_quat_calib())
+    def update_quat_calib(self):
+        for method in ['sfus','ahrs']:
+            try:    quat_calib = [float(self.rc.get('quat%s-calib-%s'%(i, method))) for i in ['x','y','z','w']]
+            except: quat_calib = Rotation.identity().as_quat()
+            if not np.all(quat_calib): quat_calib = Rotation.identity().as_quat()
+            setattr(self, 'quat_calib_%s'%(method), quat_calib)
+            
+    def apply_quat_calib(self, quat0, quat_calib):
         q       = Rotation.from_quat(quat0)
+        q_calib = Rotation.from_quat(quat_calib)
         return (q_calib*q).as_quat()
         
-
-#def get_inclination_ahrs(avec, mvec, sensordir):
-#    quat = saam.estimate(acc=avec, mag=mvec)
-#    DCM = Quaternion(quat).to_DCM()
-#    drilldir = np.matmul(DCM, sensordir)
-#    inclination = np.rad2deg(np.arccos(drilldir[2])) 
-#    return inclination
 
 def quat_to_euler(quat):
 

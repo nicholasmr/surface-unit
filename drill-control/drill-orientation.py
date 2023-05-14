@@ -395,7 +395,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         Set up the UI and the 3D plot.
         '''
 
-        self.fig = plt.figure(10, figsize=(16, 9.7), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(17, 9.7), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
         self.ax3d = self.fig.add_axes([0.0, 0.0, 0.8, 1], projection='3d')
         self.ax3d.view_init(azim=azim0, elev=elev0)
@@ -420,14 +420,16 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         plt.text(x0, y0, '----- Calibration procedure for EGRIP -----', fontweight='bold', **kwargs_text)        
 
-#        plt.text(x0, y0-0.7*dy, \
-#'''Drill orientation must be re-calibrated every power-on:
-#1) After turning on power, immediately rotate drill twice while horizontal on tower.
-#2) Quickly tilt tower to vertical (plumb) and repeat.
-#3) When vertical, rotate drill so the *true* direction of spring opposite of driller's cabin.
-#4) Press "Calibrate SFUS plumb" button; drill axis and spring direction should now align with the trench frame of reference. 
-#5) Raise tower to 45 deg. or horizontal position and verify spring direction is (approximately) unchanged.
-#''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
+        plt.text(x0, y0-0.7*dy, \
+'''Drill orientation must be re-calibrated every power-on:
+1) After turning on power, leave the drill completely still for 10s to calibrate the gyroscope.
+2) Rotate the drill slowly in approx. 45 deg. increments (leaving it for a few seconds each time) while horizontal on tower (use e.g. spirit level).
+3) Tilt tower to approx. 45 deg and repeat.
+4) Tilt tower to vertical (plumb) and repeat.
+5) When vertical, rotate drill so the *true* direction of spring opposite of driller's cabin.
+6) Press "Calibrate SFUS plumb" button; spring direction should now align with the trench frame of reference. 
+7) Raise tower to 45 deg. or horizontal position and verify spring direction is approx. unchanged.
+''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
 
                 
         ### Calibrate/offset 
@@ -435,26 +437,30 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         y0 = y0-0.43
         plt.text(x0, y0, '----- Calibrate drill+spring orientation -----', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
+
         ax_calib_ahrs = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
         ax_calib_sfus = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
-#        ax_calib_ahrs1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-1*dy, dl_, dh])
-#        ax_calib_sfus1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-0*dy, dl_, dh])
-        ax_uncalib    = self.fig.add_axes([x1, y0-dyt-2*dy, dl_, dh])
         b_calib_ahrs = Button(ax_calib_ahrs, r'AHRS plumb')
         b_calib_sfus = Button(ax_calib_sfus, r'SFUS plumb')
-#        b_calib_ahrs1 = Button(ax_calib_ahrs1, r'AHRS horiz.')
-#        b_calib_sfus1 = Button(ax_calib_sfus1, r'SFUS horiz.')
-        b_uncalib    = Button(ax_uncalib,    r'Clear all')
         b_calib_ahrs.on_clicked(self.set_calibrate_ahrs)
         b_calib_sfus.on_clicked(self.set_calibrate_sfus)
-#        b_calib_ahrs1.on_clicked(self.set_calibrate_ahrs1)
-#        b_calib_sfus1.on_clicked(self.set_calibrate_sfus1)
-        b_uncalib.on_clicked(self.set_uncalibrate)
         plt.b_calib_ahrs = b_calib_ahrs
         plt.b_calib_sfus = b_calib_sfus
-#        plt.b_calib_ahrs1 = b_calib_ahrs1
-#        plt.b_calib_sfus1 = b_calib_sfus1
+
+        ax_calib_ahrs1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-1*dy, dl_, dh])
+        ax_calib_sfus1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-0*dy, dl_, dh])
+        b_calib_ahrs1 = Button(ax_calib_ahrs1, r'AHRS horiz.')
+        b_calib_sfus1 = Button(ax_calib_sfus1, r'SFUS horiz.')
+        b_calib_ahrs1.on_clicked(self.set_calibrate_ahrs1)
+        b_calib_sfus1.on_clicked(self.set_calibrate_sfus1)
+        plt.b_calib_ahrs1 = b_calib_ahrs1
+        plt.b_calib_sfus1 = b_calib_sfus1
+
+        ax_uncalib = self.fig.add_axes([x1, y0-dyt-2*dy, dl_, dh])
+        b_uncalib  = Button(ax_uncalib,    r'Clear all')
+        b_uncalib.on_clicked(self.set_uncalibrate)
         plt.b_uncalib = b_uncalib
+
         
         plt.text(x0, y0-4*dy, 'Calibration quaternion:', **kwargs_text)     
         self.text_calib = plt.text(x0, y0-4.5*dy, '', **kwargs_text)     
@@ -511,23 +517,24 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
     def set_uncalibrate(self, *args, **kwargs):
         self.qc_calib = Rotation.identity().as_quat()
-        self.ds.set_quat_calib(self.qc_calib)
+        self.ds.set_quat_calib(self.qc_calib, 'sfus')
+        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
         
     def set_calibrate_sfus(self, *args, **kwargs):
         self.qc_calib = self.get_qc_calib(self.qc0_sfus, calib_ang0)
-        self.ds.set_quat_calib(self.qc_calib)
+        self.ds.set_quat_calib(self.qc_calib, 'sfus')
         
     def set_calibrate_ahrs(self, *args, **kwargs):
         self.qc_calib = self.get_qc_calib(self.qc0_ahrs, calib_ang0)
-        self.ds.set_quat_calib(self.qc_calib)
+        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
         
-#    def set_calibrate_sfus1(self, *args, **kwargs):
-#        self.qc_calib = self.get_qc_calib(self.qc0_sfus, calib_ang1)
-#        self.ds.set_quat_calib(self.qc_calib, 1, 180-calib_ang1)
-#        
-#    def set_calibrate_ahrs1(self, *args, **kwargs):
-#        self.qc_calib = self.get_qc_calib(self.qc0_ahrs, calib_ang1)
-#        self.ds.set_quat_calib(self.qc_calib, 1, 180-calib_ang1)
+    def set_calibrate_sfus1(self, *args, **kwargs):
+        self.qc_calib = self.get_qc_calib_horiz(self.qc0_sfus)
+        self.ds.set_quat_calib(self.qc_calib, 'sfus')
+        
+    def set_calibrate_ahrs1(self, *args, **kwargs):
+        self.qc_calib = self.get_qc_calib_horiz(self.qc0_ahrs)
+        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
         
     def get_qc_calib(self, qc_sensor, roty):
         """
@@ -538,6 +545,17 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 #        q_calib_frame = Rotation.identity() # debug
         q_calibstate = Rotation.from_euler('y', roty, degrees=True) # presumed drill orientation when calibrated (hanging plumb with spring away from driller's cabin)
         q_calib = q_calibstate*q_sensor.inv() 
+        return q_calib.as_quat() # i.e. qc_calib
+
+    def get_qc_calib_horiz(self, qc_sensor):
+
+        R = Rotation.from_quat(qc_sensor)
+        r = R.apply([0,1,0]) # raw spring direction
+        ang = np.rad2deg(np.arctan2(r[1],r[0]))
+        ang = ang - 90 # rotate into global +y
+        R = Rotation.from_quat(qc_sensor)
+        r = R.apply([0,0,1]) # raw drill axis orientation
+        q_calib = Rotation.from_rotvec(ang*r, degrees=True)
         return q_calib.as_quat() # i.e. qc_calib
 
 
@@ -615,13 +633,15 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                         Line2D([0], [0], color=cez, ls='-', lw=lw_default),\
                         ]
                         
-        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', '$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line'], loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
+        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', '$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line'], loc=2, bbox_to_anchor=(-0.1,0.97), fancybox=False)
+
+#        self.plot_vector(self.ax3d, r[0],r[1],r[2],  0,0,0,  style=':', color='k', lw=lwc, arrow=True)
 
 
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
 
         self.ds = DrillState(redis_host=REDIS_HOST)   
-        self.qc_calib = self.ds.get_quat_calib()
+#        self.qc_calib = self.ds.get_quat_calib()
 
         while True:
 
