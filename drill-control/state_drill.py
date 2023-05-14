@@ -59,10 +59,10 @@ class DrillState():
 
     accelerometer_x = 0
     accelerometer_y = 0
-    accelerometer_z = 0
+    accelerometer_z = 9.8
     
     magnetometer_x = 0
-    magnetometer_y = 0
+    magnetometer_y = 22000 * 1e-9
     magnetometer_z = 0
 
     linearaccel_x = 0
@@ -71,7 +71,7 @@ class DrillState():
 
     gravity_x = 0
     gravity_y = 0
-    gravity_z = 0
+    gravity_z = 9.82
 
     gyroscope_x = 0
     gyroscope_y = 0
@@ -93,9 +93,11 @@ class DrillState():
     inclination_ahrs, azimuth_ahrs, roll_ahrs = 0, 0, 0 
     alpha_ahrs, beta_ahrs, gamma_ahrs = 0, 0, 0 # Euler angles for intrinsic rotations Z-X'-Z'' 
         
-    quat_calib_sfus = Rotation.identity().as_quat()
-    quat_calib_ahrs = Rotation.identity().as_quat()
-        
+    quat0_ahrs = np.array([0,0,0,1])
+    quat0_sfus = np.array([0,0,0,1])
+
+    oricalib = np.array([0,0,0])
+            
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
     islive          = False # True = connection is live, else False
@@ -116,17 +118,14 @@ class DrillState():
             print('DrillState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
-        self.set_bnodir(0,0)
         self.update()
-        
+                
 
     def get(self, attr):
         try:    return getattr(self, attr)
         except: return None
 
-    def set_bnodir(self, x0, y0):
-        self.BNO_dir = -np.array([x0, y0, np.sqrt(1 - x0**2 - y0**2)]) # assumed BNO sensor orientation (needed for AHRS)
-            
+
     def update(self):
     
         try:    ds = json.loads(self.rc.get('drill-state')) # redis state
@@ -144,15 +143,20 @@ class DrillState():
             setattr(self, vecfield, np.array([getattr(self, '%s_%s'%(field,i)) for i in ['x','y','z']]))
             setattr(self, vecfieldmag, np.linalg.norm(getattr(self,vecfield)))
 
-        self.update_quat_calib()
+        self.update_oricalib()
 
         # Quaternion from sensor fuision (SFUSION)
-        self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
-        norm = np.linalg.norm(self.quat0_sfus)
-        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm)
-        else: self.quat0_sfus = [1,0,0,0]
-        
-        self.quat_sfus = self.apply_quat_calib(self.quat0_sfus, self.quat_calib_sfus) # apply calibration
+        if 1:
+            self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
+            norm = np.linalg.norm(self.quat0_sfus)
+            if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm)
+            else: self.quat0_sfus = np.array([1,0,0,0])
+        else: 
+            # debug
+            self.quat0_sfus = Rotation.from_euler('ZXZ', [60, 90+4 + 1*50, 68], degrees=True).as_quat()
+            
+      
+        self.quat_sfus = self.apply_oricalib(self.quat0_sfus, self.oricalib) # apply calibration
         self.alpha_sfus, self.beta_sfus, self.gamma_sfus = quat_to_euler(self.quat_sfus)
         self.inclination_sfus = self.beta_sfus  # pitch (theta)
         self.azimuth_sfus     = self.alpha_sfus # yaw   (phi)
@@ -160,11 +164,10 @@ class DrillState():
 
         # Quaternion from AHRS 
         self.quat0_ahrs = wxyz_to_xyzw(ahrsestimator.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # saam() returns w,x,y,z, so this is in x,y,z,w
-        if np.size(self.quat0_ahrs) != 4: self.quat0_ahrs = [0,0,0,-1]
+        if np.size(self.quat0_ahrs) != 4 or self.quat0_ahrs[0] is None or np.isnan(self.quat0_ahrs[0]): self.quat0_ahrs = np.array([0,0,0,-1])
         self.quat0_ahrs *= -1 # follow SFUS sign convention
-        
-        self.quat_ahrs = self.apply_quat_calib(self.quat0_ahrs, self.quat_calib_ahrs) # apply calibration
 
+        self.quat_ahrs = self.apply_oricalib(self.quat0_ahrs, self.oricalib) # apply calibration
         self.alpha_ahrs, self.beta_ahrs, self.gamma_ahrs = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = self.beta_ahrs  # pitch (theta)
         self.azimuth_ahrs     = self.alpha_ahrs # yaw   (phi)
@@ -235,25 +238,47 @@ class DrillState():
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
-    def set_quat_calib(self, qc, method):
-        setattr(self, 'quat_calib_%s'%(method), qc) # x,y,z,w
-        self.rc.set('quatx-calib-%s'%(method), qc[0])
-        self.rc.set('quaty-calib-%s'%(method), qc[1])
-        self.rc.set('quatz-calib-%s'%(method), qc[2])
-        self.rc.set('quatw-calib-%s'%(method), qc[3])
+    def set_oricalib_horiz(self, quat0):
+        Rsensor = Rotation.from_quat(quat0) 
+        azim, incl, roll = Rsensor.as_euler('ZYZ', degrees=True)
+        self.rc.set('oricalib-azim'%(), -azim)
+        self.rc.set('oricalib-roll'%(), -roll)
+    
+    def set_oricalib_vert(self, quat0, clear=False):
+        if clear:
+            incl = 0
+        else:
+            Rsensor = Rotation.from_quat(quat0) 
+            azim, incl, roll = Rsensor.as_euler('ZYZ', degrees=True)
+            incl = 180-incl
+        self.rc.set('oricalib-incl'%(), incl)
+    
+    def update_oricalib(self):
+        try:    self.oricalib = [float(self.rc.get('oricalib-%s'%(ang))) for ang in ['azim','incl','roll']]
+        except: self.oricalib = [0,0,0]
         
-    def update_quat_calib(self):
-        for method in ['sfus','ahrs']:
-            try:    quat_calib = [float(self.rc.get('quat%s-calib-%s'%(i, method))) for i in ['x','y','z','w']]
-            except: quat_calib = Rotation.identity().as_quat()
-            if not np.all(quat_calib): quat_calib = Rotation.identity().as_quat()
-            setattr(self, 'quat_calib_%s'%(method), quat_calib)
-            
-    def apply_quat_calib(self, quat0, quat_calib):
-        q       = Rotation.from_quat(quat0)
-        q_calib = Rotation.from_quat(quat_calib)
-        return (q_calib*q).as_quat()
+    def apply_oricalib(self, quat0, oricalib):
+
+        azim, incl, roll = oricalib
+        q0 = Rotation.from_quat(quat0)
         
+        # apply rotation around z-axis so drill azimuth zero is along tower
+        qz = Rotation.from_rotvec(azim*np.array([0,0,1]), degrees=True)
+        
+        # rotate drill around drill-axis to zero the roll when spring pointing away from driller's cabin
+        q1 = qz*q0 # new drill orientation, aligned with tower
+        drillax = q1.apply(np.array([0,0,1])) # drill axis
+        qroll = Rotation.from_rotvec(roll*drillax, degrees=True)
+        
+        # adjust inclination so zero when plumb, as measured on tower. 
+        q2 = qroll*qz*q0
+        springax = q2.apply(np.array([0,1,0])) # drill axis
+        qtilt = Rotation.from_rotvec(incl*springax, degrees=True)
+        
+        # combine all rotations
+        q_calib = qtilt * qroll * qz * q0
+        return q_calib.as_quat()        
+
 
 def quat_to_euler(quat):
 
@@ -270,4 +295,3 @@ def quat_to_euler(quat):
 def xyzw_to_wxyz(q): return np.roll(q,1)
 def wxyz_to_xyzw(q): return np.roll(q,-1)
     
-
