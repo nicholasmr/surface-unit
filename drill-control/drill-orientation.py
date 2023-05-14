@@ -369,7 +369,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.qc_ahrs = [0,0,0,1]
         
         # Calibration quat 
-        self.qc_calib = Rotation.identity().as_quat()
+        self.qc_calib_sfus = Rotation.identity().as_quat()
+        self.qc_calib_ahrs = Rotation.identity().as_quat()
         
         # Euler angles
         self.incl, self.azim = 0, 0
@@ -462,8 +463,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.b_uncalib = b_uncalib
 
         
-        plt.text(x0, y0-4*dy, 'Calibration quaternion:', **kwargs_text)     
-        self.text_calib = plt.text(x0, y0-4.5*dy, '', **kwargs_text)     
+        plt.text(x0, y0-3.7*dy, 'Calibration quaternion:', **kwargs_text)     
+        self.text_calib_sfus = plt.text(x0, y0-4.2*dy, '', **kwargs_text)
+        self.text_calib_ahrs = plt.text(x0, y0-4.65*dy, '', **kwargs_text)
         
 
         ### View buttons
@@ -516,25 +518,25 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         
     def set_uncalibrate(self, *args, **kwargs):
-        self.qc_calib = Rotation.identity().as_quat()
-        self.ds.set_quat_calib(self.qc_calib, 'sfus')
-        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
+        self.qc_calib_sfus = self.qc_calib_ahrs = Rotation.identity().as_quat()
+        self.ds.set_quat_calib(self.qc_calib_sfus, 'sfus')
+        self.ds.set_quat_calib(self.qc_calib_ahrs, 'ahrs')
         
     def set_calibrate_sfus(self, *args, **kwargs):
-        self.qc_calib = self.get_qc_calib(self.qc0_sfus, calib_ang0)
-        self.ds.set_quat_calib(self.qc_calib, 'sfus')
+        self.qc_calib_sfus = self.get_qc_calib(self.qc0_sfus, calib_ang0)
+        self.ds.set_quat_calib(self.qc_calib_sfus, 'sfus')
         
     def set_calibrate_ahrs(self, *args, **kwargs):
-        self.qc_calib = self.get_qc_calib(self.qc0_ahrs, calib_ang0)
-        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
+        self.qc_calib_ahrs = self.get_qc_calib(self.qc0_ahrs, calib_ang0)
+        self.ds.set_quat_calib(self.qc_calib_ahrs, 'ahrs')
         
     def set_calibrate_sfus1(self, *args, **kwargs):
-        self.qc_calib = self.get_qc_calib_horiz(self.qc0_sfus)
-        self.ds.set_quat_calib(self.qc_calib, 'sfus')
+        self.qc_calib_sfus = self.get_qc_calib_horiz(self.qc0_sfus)
+        self.ds.set_quat_calib(self.qc_calib_sfus, 'sfus')
         
     def set_calibrate_ahrs1(self, *args, **kwargs):
-        self.qc_calib = self.get_qc_calib_horiz(self.qc0_ahrs)
-        self.ds.set_quat_calib(self.qc_calib, 'ahrs')
+        self.qc_calib_ahrs = self.get_qc_calib_horiz(self.qc0_ahrs)
+        self.ds.set_quat_calib(self.qc_calib_ahrs, 'ahrs')
         
     def get_qc_calib(self, qc_sensor, roty):
         """
@@ -641,7 +643,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
     def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
 
         self.ds = DrillState(redis_host=REDIS_HOST)   
-#        self.qc_calib = self.ds.get_quat_calib()
+
+        self.qc_calib_ahrs = self.ds.quat_calib_ahrs
+        self.qc_calib_sfus = self.ds.quat_calib_sfus
 
         while True:
 
@@ -674,7 +678,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 #                self.text_incl.set_text(r'Inclination = %+.2f'%(self.incl))
 #                self.text_azim.set_text(r'Azimuth    = %+.2f'%(self.azim))
 
-                self.text_calib.set_text(r'(x,y,z,w) = (%.2f, %.2f, %.2f, %.2f)'%(self.qc_calib[0],self.qc_calib[1],self.qc_calib[2],self.qc_calib[3]))     
+                self.text_calib_sfus.set_text(r'SFUS (x,y,z,w) = (%.2f, %.2f, %.2f, %.2f)'%(self.qc_calib_sfus[0],self.qc_calib_sfus[1],self.qc_calib_sfus[2],self.qc_calib_sfus[3]))     
+                self.text_calib_ahrs.set_text(r'AHRS (x,y,z,w) = (%.2f, %.2f, %.2f, %.2f)'%(self.qc_calib_ahrs[0],self.qc_calib_ahrs[1],self.qc_calib_ahrs[2],self.qc_calib_ahrs[3]))     
             
             if debug: print('Tick dt=%.2f'%(dt))
 
