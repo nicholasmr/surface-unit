@@ -429,9 +429,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 '''Drill orientation must be re-calibrated every power-on:
 1) After turning on power, leave the drill completely still for 10s to calibrate the gyroscope.
 2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for at least 6 seconds each time.
-3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and hit "Calibrate SFUS and AHRS horiz"; drill and spring direction should now align with the trench frame of reference. 
+3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and hit calibrate "SFUS horiz." and "AHRS horiz."; drill and spring direction should now align with the trench frame of reference. 
 4) Tilt tower to vertical and repeat 90 deg. rotations, but do not hit calibrate.
-5) Rotate drill back to horizontal. If drill axis and spring direction do not **approx.** match the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!
+5) Rotate drill back to horizontal. If drill axis and spring direction do not *approx. match* the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!
 
 ''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
 
