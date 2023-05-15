@@ -253,7 +253,8 @@ class MainWidget(QWidget):
         layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
-        layout.addWidget(self.MakeStateBox('orientation_qcalib',       'Calibration quaternion (x,y,z,w)',   initstr))
+        layout.addWidget(self.MakeStateBox('orientation_calib_sfus',   'SFUS calib. (azim, incl, roll)',   initstr))
+        layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
         layout_BNO055 = QVBoxLayout()
@@ -680,7 +681,8 @@ class MainWidget(QWidget):
                 self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
-                self.updateStateBox('orientation_qcalib',       "[%.2f, %.2f, %.2f, %.2f]"%(self.ds.quat_calib[0],self.ds.quat_calib[1],self.ds.quat_calib[2],self.ds.quat_calib[3]),  warn__nothres)
+                self.updateStateBox('orientation_calib_sfus',   "[%i, %.1f, %i]"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
+                self.updateStateBox('orientation_calib_ahrs',   "[%i, %.1f, %i]"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
                     str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
