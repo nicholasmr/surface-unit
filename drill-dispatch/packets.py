@@ -218,6 +218,12 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
         if hasattr(self, 'load_cell'):
             d.update({'load_cell': self.load_cell})
 
+        for method in ['sfus','ahrs']:
+            for i in ['azim','incl','roll']:
+                field = 'oricalib_%s_%s'%(method,i)
+                if hasattr(self, field):
+                    d.update({field: getattr(self, field)})
+    
         return d
 
     def get_inclination(self):

@@ -606,7 +606,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                             loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
 
 
-    def run(self, dt=0.5, debug=False, REDIS_HOST=REDIS_HOST):
+    def run(self, dt=0.8, debug=False, REDIS_HOST=REDIS_HOST):
 
         self.ds = DrillState(redis_host=REDIS_HOST)   
 

@@ -35,7 +35,7 @@ def uphole_worker(arguments, redis, transport):
                 for i in ['azim','incl','roll']:
                     field = 'oricalib_%s_%s'%(method,i)
                     try:    setattr(packet, field, json.loads(redis.get('oricalib-%s-%s'%(method,i))))
-                    except: setattr(packet, field, 1 if i=='w' else 0) # set to identity rotation
+                    except: setattr(packet, field, 0) 
 
             redis_conn.set("drill-state", packet.as_json())
 

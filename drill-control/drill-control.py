@@ -18,7 +18,7 @@ import pyqtgraph as pg
 #-------------------
 
 DT           = 1/8 # update rate in seconds for GUI/surface state
-DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
+DTFRAC_DRILL = 7 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
 
 tavg = 3 # time-averging length in seconds for velocity estimate
 
