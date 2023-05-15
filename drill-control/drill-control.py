@@ -27,6 +27,7 @@ ALWAYS_SHOW_DRILL_FIELDS = True # ignore if drill is offline and show last recor
 FS = 13
 FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
+os.system('mkdir -p %s'%(PATH_SCREENSHOT))
 
 # Print settings
 print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRILL))

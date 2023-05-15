@@ -1,2 +1,3 @@
-0 * * * * ntpdate 0.arch.pool.ntp.org
-0 * * * * /home/drill/sync-logs.sh
+#0 * * * * ntpdate 0.arch.pool.ntp.org
+45 12,18,23 * * * bash /home/drill/surface-unit/make-daily-drilllog-plot.sh
+
