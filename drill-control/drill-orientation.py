@@ -355,8 +355,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.drill_sync = True
         self.view_followdrill = False
         
-        self.show_sfus = True
-        self.show_ahrs = False
+        self.show_sfus = 1
+        self.show_ahrs = 1
 
         self.reset_states()
         self.update_internal_states()
@@ -472,6 +472,10 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         self.text_calib_sfus = plt.text(x0, y0-3.8*dy, '', **kwargs_text)
         self.text_calib_ahrs = plt.text(x0, y0-4.4*dy, '', **kwargs_text)
+        
+        x0_, y0_ = 0.4, 0.95
+        self.text_AHRSest  = plt.text(x0_, y0_, '', **kwargs_text)
+        self.text_AHRSvals = plt.text(x0_, y0_-0.03, '', **kwargs_text)
 
         ### View buttons
 
@@ -605,10 +609,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', '$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line'], \
                             loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
 
+    def run(self, dt=0.8, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
 
-    def run(self, dt=0.8, debug=False, REDIS_HOST=REDIS_HOST):
-
-        self.ds = DrillState(redis_host=REDIS_HOST)   
+        self.ds = DrillState(redis_host=REDIS_HOST, AHRS_estimator=AHRS_estimator)   
 
         while True:
 
@@ -638,6 +641,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 self.text_calib_sfus.set_text(r'SFUS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]) )
                 self.text_calib_ahrs.set_text(r'AHRS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
 
+                self.text_AHRSest.set_text('AHRS estimator: %s'%(self.ds.AHRS_estimator))
+                self.text_AHRSvals.set_text('(incl, azim) = (%.1f, %i)'%(self.ds.inclination_ahrs, self.ds.azimuth_ahrs))
+                
 #                print('SFUS incl, azim = %.2f, %.2f'%(self.ds.inclination_sfus,self.ds.azimuth_sfus))
 #                print('AHRS incl, azim = %.2f, %.2f'%(self.ds.inclination_ahrs,self.ds.azimuth_ahrs))
             
@@ -652,6 +658,6 @@ if __name__ == '__main__':
 
     plt.ion()
     vis = QuaternionVisualizer3D()
-    vis.run(REDIS_HOST=REDIS_HOST, debug=False)
+    vis.run(REDIS_HOST=REDIS_HOST, debug=False, AHRS_estimator=sys.argv[1])
     pass
 

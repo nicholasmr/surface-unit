@@ -9,20 +9,24 @@ warnings.filterwarnings('ignore', message='.*Gimbal', )
 
 from scipy.spatial.transform import Rotation
 import ahrs
-from ahrs.filters import SAAM, FLAE, QUEST
+from ahrs.filters import SAAM, FLAE, QUEST, OLEQ, FQA
 from ahrs import Quaternion
 
-wmm = ahrs.utils.WMM() 
-egrip_N, egrip_E = 75.63248, -35.98911
-wmm.magnetic_field(egrip_N, egrip_E) 
-magnetic_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
+egrip_N, egrip_E, egrip_height = 75.63248, -35.98911, 2.6
 
-saam = SAAM()
-flae =  FLAE(magnetic_dip=magnetic_dip)
-#quest = QUEST(magnetic_dip=magnetic_dip)
-ahrsestimator = saam
-  
-DEGS_TO_RPM = 1/6 
+wmm = ahrs.utils.WMM(datetime.datetime.now(), latitude=egrip_N, longitude=egrip_E, height=egrip_height) 
+mag_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
+mag_ref = np.array([wmm.X, wmm.Y, wmm.Z])
+print('mag_ref = (%.1f, %.1f, %.1f) %.1f'%(mag_ref[0],mag_ref[1],mag_ref[2], np.linalg.norm(mag_ref)))
+frame = 'NED'
+
+AHRS_estimators = {
+    'SAAM': SAAM(),
+    'FLAE': FLAE(magnetic_dip=mag_dip),
+    'OLEQ': OLEQ(magnetic_ref=mag_ref, frame=frame),
+    'FQA' : FQA(mag_ref=mag_ref)
+}
+
 
 class DrillState():
 
@@ -93,7 +97,7 @@ class DrillState():
 
     oricalib_ahrs = np.array([0,0,0]) # azim, incl, roll
     oricalib_sfus = np.array([0,0,0])
-            
+    
     ### Communication status 
     # Was the drill state update recently?
     received        = '2022-01-01 00:00:00'
@@ -104,7 +108,7 @@ class DrillState():
     rc = None 
     
     
-    def __init__(self, redis_host=LOCAL_HOST):
+    def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='SAAM'):
     
         # redis connection (rc) object
         try:    
@@ -114,6 +118,7 @@ class DrillState():
             print('DrillState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
+        self.AHRS_estimator = AHRS_estimator
         self.update()
                 
 
@@ -153,19 +158,21 @@ class DrillState():
             self.quat0_sfus = Rotation.from_euler('ZXZ', [60, 90+4 + 1*50, 68], degrees=True).as_quat()
       
         self.quat_sfus = self.apply_oricalib(self.quat0_sfus, self.oricalib_sfus) # apply calibration
+#        self.quat_sfus = self.quat0_sfus # no calibration
         alpha, beta, gamma = quat_to_euler(self.quat_sfus)
         self.inclination_sfus = beta  # pitch (theta)
         self.azimuth_sfus     = alpha # yaw   (phi)
         self.roll_sfus        = gamma # roll  (psi)
 
         # Quaternion from AHRS 
-        self.quat0_ahrs = wxyz_to_xyzw(ahrsestimator.estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # notee estimate() returns w,x,y,z ordered quats
+        self.quat0_ahrs = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # note estimate() returns w,x,y,z ordered quats
         self.quat0_ahrs = np.array(self.quat0_ahrs, dtype=np.float64)
         if np.size(self.quat0_ahrs) != 4 or np.any(np.isnan(self.quat0_ahrs)): self.quat0_ahrs = np.array([0,0,0,-1])
-#        if np.size(self.quat0_ahrs) != 4 or np.any(self.quat0_ahrs == None) or np.any(np.isnan(self.quat0_ahrs)): self.quat0_ahrs = np.array([0,0,0,-1])
         self.quat0_ahrs *= -1 # follow SFUS sign convention
 
         self.quat_ahrs = self.apply_oricalib(self.quat0_ahrs, self.oricalib_ahrs) # apply calibration
+#        self.quat_ahrs = self.quat0_ahrs # no calibration
+#        self.quat_ahrs = np.matmul(np.diag([1,1,-1,-1]),self.quat_ahrs)
         alpha,beta,gamma = quat_to_euler(self.quat_ahrs)
         self.inclination_ahrs = beta  # pitch (theta)
         self.azimuth_ahrs     = alpha # yaw   (phi)
@@ -245,10 +252,14 @@ class DrillState():
         # combine all rotations
         q_calib = qtilt * qroll * qz * q0
         return q_calib.as_quat()
+        
+    def set_AHRS_estimator(self, name):
+        self.AHRS_estimator = name
 
 
     def get_spin(self):
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
+        DEGS_TO_RPM = 1/6 
         return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
 
 
