@@ -63,6 +63,7 @@ class SurfaceState():
 
                 self.depth = depth
                 self.speedinst = 100*encoder["velocity"] # cm/s
+                if np.abs(self.speedinst) > 200: self.speedinst = 0 # if depth display falls out, a large negative value may be reported and the speed is unphysical.
 
                 if 0: # Running mean?
                     self.depth_list = np.roll(self.depth_list, -1); 

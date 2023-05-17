@@ -18,6 +18,8 @@ from state_drill import *
 
 from pyrotation import *
 
+SHOW_PLUMB_BUTTONS = False
+
 cs_azim = 0
 #cs_azim = 180
 flowang = np.deg2rad(cs_azim-180 + 27)
@@ -426,20 +428,19 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.text(x0, y0, '----- Calibration procedure for EGRIP -----', fontweight='bold', **kwargs_text)        
 
         plt.text(x0, y0-0.55*dy, \
-'''Drill orientation must be re-calibrated every power-on:
-1) After turning on power, leave the drill completely still for 10s to calibrate the gyroscope.
-2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for at least 6 seconds each time.
-3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and hit calibrate "SFUS horiz." and "AHRS horiz."; drill and spring direction should now align with the trench frame of reference. 
-4) Tilt tower to vertical and repeat 90 deg. rotations, but do not hit calibrate.
+'''Drill orientation sensor must be re-calibrated before every run:
+1) After turning power on, leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
+2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
+3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and click "SFUS horiz." and "AHRS horiz." buttons below; drill and spring direction should now align with the trench frame of reference. 
+4) Tilt tower to vertical and repeat 90 deg. rotations (but do not click the buttons).
 5) Rotate drill back to horizontal. If drill axis and spring direction do not *approx. match* the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!
-
 ''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
 
                 
         ### Calibrate/offset 
 
         y0 = y0-0.45
-        plt.text(x0, y0, '----- Calibrate drill+spring orientation -----', fontweight='bold', **kwargs_text)        
+        plt.text(x0, y0, '----- Rotate to trench frame of reference -----', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
 
         ax_calib_ahrs0 = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
@@ -451,7 +452,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.b_calib_ahrs0 = b_calib_ahrs0
         plt.b_calib_sfus0 = b_calib_sfus0
 
-        if 1:
+        if SHOW_PLUMB_BUTTONS:
             ax_calib_ahrs1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-1*dy, dl_, dh])
             ax_calib_sfus1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-0*dy, dl_, dh])
             b_calib_ahrs1 = Button(ax_calib_ahrs1, r'AHRS plumb')
@@ -462,13 +463,15 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             plt.b_calib_sfus1 = b_calib_sfus1
 
         ax_uncalib0 = self.fig.add_axes([x1,         y0-dyt-2*dy, dl_, dh])
-        ax_uncalib1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-2*dy, dl_, dh])
         b_uncalib0  = Button(ax_uncalib0, r'Clear horiz.')
-        b_uncalib1  = Button(ax_uncalib1, r'Clear plumb')
         b_uncalib0.on_clicked(self.set_uncalibrate0)
-        b_uncalib1.on_clicked(self.set_uncalibrate1)
-        plt.b_uncalib0 = b_uncalib0
-        plt.b_uncalib1 = b_uncalib1
+        plt.b_uncalib0 = b_uncalib0        
+
+        if SHOW_PLUMB_BUTTONS:
+            ax_uncalib1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-2*dy, dl_, dh])
+            b_uncalib1  = Button(ax_uncalib1, r'Clear plumb')
+            b_uncalib1.on_clicked(self.set_uncalibrate1)
+            plt.b_uncalib1 = b_uncalib1
 
         self.text_calib_sfus = plt.text(x0, y0-3.8*dy, '', **kwargs_text)
         self.text_calib_ahrs = plt.text(x0, y0-4.4*dy, '', **kwargs_text)
@@ -658,6 +661,7 @@ if __name__ == '__main__':
 
     plt.ion()
     vis = QuaternionVisualizer3D()
-    vis.run(REDIS_HOST=REDIS_HOST, debug=False, AHRS_estimator=sys.argv[1])
+    AHRS_estimator = 'SAAM' if len(sys.argv) < 2 else sys.argv[1]
+    vis.run(REDIS_HOST=REDIS_HOST, debug=False, AHRS_estimator=AHRS_estimator)
     pass
 

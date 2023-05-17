@@ -59,6 +59,7 @@ class MainWidget(QWidget):
     
     minYRange_load = 20 # kg
     minYRange_speed = 10.5 # cm/s
+    maxYRange_speed = 150 # cm/s
     
     SHOW_BNO055_DETAILED = 0
     
@@ -622,7 +623,7 @@ class MainWidget(QWidget):
         self.curve_load.setData(x=x,y=y)
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
-        self.plot_speed.setTitle(  self.htmlfont('<b>|Speed| = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
+        self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
         self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)

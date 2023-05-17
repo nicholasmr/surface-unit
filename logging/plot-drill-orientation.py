@@ -12,9 +12,29 @@ from scipy.signal import savgol_filter
 
 from scipy.spatial.transform import Rotation
 
-from ahrs.filters import SAAM, FAMC
+#from ahrs.filters import SAAM, FAMC
+#from ahrs import Quaternion
+#saam = SAAM()
+
+import ahrs
+from ahrs.filters import SAAM, FLAE, QUEST, OLEQ, FQA
 from ahrs import Quaternion
-saam = SAAM()
+
+egrip_N, egrip_E, egrip_height = 75.63248, -35.98911, 2.6
+
+wmm = ahrs.utils.WMM(datetime.datetime.now(), latitude=egrip_N, longitude=egrip_E, height=egrip_height) 
+mag_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
+mag_ref = np.array([wmm.X, wmm.Y, wmm.Z])
+print('mag_ref = (%.1f, %.1f, %.1f) %.1f'%(mag_ref[0],mag_ref[1],mag_ref[2], np.linalg.norm(mag_ref)))
+frame = 'NED'
+
+AHRS_estimators = {
+    'SAAM': SAAM(),
+    'FLAE': FLAE(magnetic_dip=mag_dip),
+    'OLEQ': OLEQ(magnetic_ref=mag_ref, frame=frame),
+    'FQA' : FQA(mag_ref=mag_ref)
+}
+
 
 import warnings
 warnings.filterwarnings('ignore', message='.*Gimbal', )
@@ -140,12 +160,12 @@ for ii, l in enumerate(fh):
     try:    z[ii] = abs(json.loads(l)['depth_encoder']['depth'])
     except: z[ii] = np.nan # will skip entry in analysis below if nan
 
-    if not METHOD_SFUS_QUAT: # use AHRS?
+    if METHOD_AHRS_QUAT: # use AHRS?
         avec = np.array([json.loads(l)['accelerometer_x'], json.loads(l)['accelerometer_y'], json.loads(l)['accelerometer_z']])
         mvec = np.array([json.loads(l)['magnetometer_x'], json.loads(l)['magnetometer_y'], json.loads(l)['magnetometer_z']]) 
-        q = saam.estimate(acc=avec, mag=mvec) # quaternion
-
-        if np.size(q) != 4 or np.linalg.norm(q) < 1-1e-3: 
+        q = AHRS_estimators['SAAM'].estimate(acc=avec, mag=mvec) 
+#        q = AHRS_estimators['FLAE'].estimate(acc=avec, mag=mvec) 
+        if np.size(q) != 4 or np.any(np.isnan(q)): 
             quat[jj,:]       = None # bad normalization => ignored later on
             quat_calib[jj,:] = None 
             DCM[jj,:,:]      = None
@@ -157,6 +177,7 @@ for ii, l in enumerate(fh):
 #            DCM[jj,:,:] = Quaternion(q).to_DCM() # same
     else:
         quat[jj,:] = np.array([ json.loads(l)['quaternion_x'], json.loads(l)['quaternion_y'], json.loads(l)['quaternion_z'], json.loads(l)['quaternion_w'] ]) 
+        quat[jj,:] /= np.linalg.norm(quat[jj,:])
         
     jj +=1
 
@@ -195,7 +216,8 @@ def incl_from_sensor_rot__quat(alpha, beta, gamma):
     eulerangles = q.as_euler('ZXZ', degrees=True) # intrinsic rotations
     incl_raw = np.zeros(len(Z))*np.nan
     azim_raw = np.zeros(len(Z))*np.nan
-    incl_raw[I] = 180-eulerangles[:,1] # to inclination
+    if 1: incl_raw[I] = 180-eulerangles[:,1] # to inclination
+    else: incl_raw[I] = eulerangles[:,1] 
     azim_raw[I] = eulerangles[:,0] + 180
     Irm = np.nonzero(incl_raw>incl_max)[0]
     incl_raw[Irm] = np.nan
