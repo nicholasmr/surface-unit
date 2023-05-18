@@ -23,14 +23,13 @@ from pyrotation import *
 
 SHOW_PLUMB_BUTTONS = False
 
-cs_azim = 0
+INCL_LIMS = [0,10] # x lims for inclination plot
+Z_MIN = -3100 # y lim for inclination plot
+
+cs_azim = 0 # frame azim offset 
 #cs_azim = 180
 flowang = np.deg2rad(cs_azim-180 + 27)
-
 azim0, elev0 = -68+cs_azim, 22
-
-calib_ang0 = 180 # vert
-calib_ang1 =  90 # horiz 
 
 c_green  = '#74c476'
 c_lgreen = '#edf8e9'
@@ -391,7 +390,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         # Drill inclination history
         dt = 0.8 # update rate
 #        H = 0.001# show trail for this number of hours
-        H = 1 # show trail for this number of hours
+        H = 1.5 # show trail for this number of hours
         N = int(H*60*60/dt) # number of points to save for incl plot
         print('depth-inclination history length = %i'%(N))
         self.drill_depth = np.zeros(N)*np.nan
@@ -463,7 +462,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 
         ### Calibrate/offset 
 
-        y0 = y0-0.45
+        y0 = y0-0.485
         plt.text(x0, y0, 'Rotate to trench frame of reference', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
 
@@ -565,15 +564,12 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.c_drill  = '#e31a1c'
         self.c_drill2 = '#fb9a99'
 
-        inclims = [0,7]
-        Z_MIN = -3100
-        
         self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=2**2, ec=self.c_logger, c='none', label=self.fname_logger)
         self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS')
         self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS')
 
-        self.axp.set_xlim(inclims); 
-        self.axp.set_xticks(np.arange(inclims[0],inclims[1],1))
+        self.axp.set_xlim(INCL_LIMS); 
+        self.axp.set_xticks(np.arange(INCL_LIMS[0],INCL_LIMS[1]+1,1))
         self.axp.set_ylim([Z_MIN,0])
         self.axp.set_ylabel(r'Depth (m)')
         self.axp.set_xlabel(r'Inclination (deg)')
