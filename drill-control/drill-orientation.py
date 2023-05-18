@@ -3,7 +3,8 @@
 
 import code # code.interact(local=locals())
 
-import sys, math, time
+import os, sys, math, time
+import pandas as pd
 from math import copysign, fabs, sqrt, pi, sin, cos, asin, acos, atan2, exp, log
 import numpy as np
 import matplotlib
@@ -12,9 +13,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 from matplotlib.widgets import Slider, Button, CheckButtons
+from matplotlib.lines import Line2D
 
 from settings import *
 from state_drill import *
+from state_surface import *
 
 from pyrotation import *
 
@@ -53,7 +56,7 @@ cex = c_red
 cey = c_blue
 cez = c_dgray
 
-lw_default = 4
+lw_default = 4.5
 alpha0 = 0.09
 
 FS = 15
@@ -349,7 +352,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
     with a 3D plot.
     '''
 
-    def __init__(self):
+    def __init__(self, REDIS_HOST=None, AHRS_estimator=None, dt=1):
         '''
         Constructor.
         '''
@@ -358,12 +361,16 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.view_followdrill = False
         
         self.show_sfus = 1
-        self.show_ahrs = 1
+        self.show_ahrs = 0
+
+        self.ss = SurfaceState(redis_host=REDIS_HOST, tavg=1, dt_intended=dt)
+        self.ds = DrillState(redis_host=REDIS_HOST, AHRS_estimator=AHRS_estimator)   
 
         self.reset_states()
         self.update_internal_states()
-        self.setup_ui()
         
+        self.setup_ui()
+        self.setup_ui_profile()
 
     def reset_states(self):
         '''
@@ -380,7 +387,17 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         # Euler angles
         self.incl, self.azim = 0, 0
-
+        
+        # Drill inclination history
+        dt = 0.8 # update rate
+#        H = 0.001# show trail for this number of hours
+        H = 1 # show trail for this number of hours
+        N = int(H*60*60/dt) # number of points to save for incl plot
+        print('depth-inclination history length = %i'%(N))
+        self.drill_depth = np.zeros(N)*np.nan
+        self.drill_inclination_ahrs = np.zeros(N)*np.nan
+        self.drill_inclination_sfus = np.zeros(N)*np.nan
+        
 
     def update_internal_states(self):
         '''
@@ -404,7 +421,14 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         self.fig = plt.figure(10, figsize=(20, 9.8), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
-        self.ax3d = self.fig.add_axes([0.0, 0.0, 0.70, 1], projection='3d')
+
+        gs = self.fig.add_gridspec(1,3, width_ratios=[2,8,3])
+        gs.update(left=0.06, right=1, top=0.98, bottom=0.08, wspace=-0.35)
+
+        self.axp  = self.fig.add_subplot(gs[0,0]); 
+        self.ax3d = self.fig.add_subplot(gs[0,1], projection='3d'); 
+
+#        self.ax3d = self.fig.add_axes([0.0, 0.0, 0.70, 1], projection='3d')
         self.ax3d.view_init(azim=azim0, elev=elev0)
         
         ### Shared below 
@@ -413,7 +437,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         y0 = 0.97
 
-        x0 = 0.62 # title string start
+        x0 = 0.72 # title string start
         x1 = x0+0.01 # box contet start (adjusted inward slightly)
         
         dy = 0.06 # vertical distance between rows of buttons
@@ -425,11 +449,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.ax_fake = self.fig.add_axes([x1, y0, dl, dh])
         self.ax_fake.axis('off')
 
-        plt.text(x0, y0, '----- Calibration procedure for EGRIP -----', fontweight='bold', **kwargs_text)        
+        plt.text(x0, y0, 'Calibration procedure', fontweight='bold', **kwargs_text)        
 
         plt.text(x0, y0-0.55*dy, \
 '''Drill orientation sensor must be re-calibrated before every run:
-1) After turning power on, leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
+1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
 2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
 3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and click "SFUS horiz." and "AHRS horiz." buttons below; drill and spring direction should now align with the trench frame of reference. 
 4) Tilt tower to vertical and repeat 90 deg. rotations (but do not click the buttons).
@@ -440,7 +464,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         ### Calibrate/offset 
 
         y0 = y0-0.45
-        plt.text(x0, y0, '----- Rotate to trench frame of reference -----', fontweight='bold', **kwargs_text)        
+        plt.text(x0, y0, 'Rotate to trench frame of reference', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
 
         ax_calib_ahrs0 = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
@@ -473,18 +497,21 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             b_uncalib1.on_clicked(self.set_uncalibrate1)
             plt.b_uncalib1 = b_uncalib1
 
-        self.text_calib_sfus = plt.text(x0, y0-3.8*dy, '', **kwargs_text)
-        self.text_calib_ahrs = plt.text(x0, y0-4.4*dy, '', **kwargs_text)
+        y0_ = 0.1
+#        x0_ = 0.35
+        x0_ = 0.30
+        self.text_calib_sfus = plt.text(x0_, y0_-0*dy, '', **kwargs_text)
+        self.text_calib_ahrs = plt.text(x0_, y0_-0.5*dy, '', **kwargs_text)
         
-        x0_, y0_ = 0.4, 0.95
-        self.text_AHRSest  = plt.text(x0_, y0_, '', **kwargs_text)
-        self.text_AHRSvals = plt.text(x0_, y0_-0.03, '', **kwargs_text)
+#        x0_ = 0.3
+#        self.text_AHRSest  = plt.text(x0_, y0_, 'AHRS estimator: %s'%(self.ds.AHRS_estimator), **kwargs_text)
+#        self.text_AHRSvals = plt.text(x0_, y0_-0.03, '', **kwargs_text)
 
         ### View buttons
 
-        y0 = y0-0.31
+        y0 = y0-0.25
         
-        plt.text(x0, y0, '----- Change view -----', fontweight='bold', **kwargs_text)
+        plt.text(x0, y0, 'Change view', fontweight='bold', **kwargs_text)
         axv_sideways   = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
         axv_topdown    = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
         axv_alongdrill = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
@@ -507,8 +534,57 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.bv_ahrs = bv_ahrs
         plt.bv_sfus = bv_sfus
         
+        ### Static legend entries
+        
+        self.legend_lines = [\
+                                Line2D([0], [0], color=cex, ls='-', lw=lw_default),\
+                                Line2D([0], [0], color=cey, ls='-', lw=lw_default),\
+                                Line2D([0], [0], color=cez, ls='-', lw=lw_default),\
+                                Line2D([0], [0], color=c_dred, ls='-', lw=lw_default), \
+                                Line2D([0], [0], color=c_dblue, ls='-', lw=lw_default), \
+                             ]
+        
+        ### Finish
+        
         self.update_ax3d_plot()
+        
 
+    def setup_ui_profile(self):
+    
+        fields = ['azimuth', 'bottom_sensor', 'compass', 'depth', 'fluxgate_1_raw', 'fluxgate_2_raw', 'inclination', 'inclinometer_1_raw', 'inclinometer_2_raw', 'lower_diameter', \
+              'lower_diameter_max_raw', 'lower_diameter_min_raw', 'pressure', 'pressure_raw', 'record_number', 'temperature_pressure_transducer', 'thermistor_high', 'thermistor_high_raw', \
+              'upper_diameter', 'upper_diameter_max_raw', 'upper_diameter_min_raw', 'thermistor_low', 'thermistor_low_raw']
+        self.fname_logger = 'logger-2023-05-05-down.csv' # Logger data
+        flogger = os.path.join(os.path.dirname(__file__), "../logging/logger-data/%s"%(self.fname_logger))
+        df_logger = pd.read_csv(flogger, names=fields, header=1)
+        intvl = 3
+        self.logger_depth = df_logger['depth'].to_numpy()[::intvl]
+        self.logger_incl  = df_logger['inclination'].to_numpy()[::intvl]
+        
+        self.c_logger = 'k'
+        self.c_drill  = '#e31a1c'
+        self.c_drill2 = '#fb9a99'
+
+        inclims = [0,7]
+        Z_MIN = -3100
+        
+        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=2**2, ec=self.c_logger, c='none', label=self.fname_logger)
+        self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS')
+        self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS')
+
+        self.axp.set_xlim(inclims); 
+        self.axp.set_xticks(np.arange(inclims[0],inclims[1],1))
+        self.axp.set_ylim([Z_MIN,0])
+        self.axp.set_ylabel(r'Depth (m)')
+        self.axp.set_xlabel(r'Inclination (deg)')
+        self.axp.set_yticks(np.arange(Z_MIN,0+1,200))
+        self.axp.set_yticks(np.arange(Z_MIN,0+1,100),minor=True)
+        self.axp.grid(); 
+        kwargs_legend = {'fancybox':False, 'fontsize':FS}
+        self.axp.legend(**kwargs_legend); 
+        
+        self.update_axp_plot()
+        
 
     def view_sideways(self, *args, **kwargs):
         print('View = sideways')
@@ -545,6 +621,15 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
     def set_calibrate_ahrs1(self, *args, **kwargs): self.ds.set_oricalib_vert(self.ds.quat0_ahrs,  'ahrs')
 
 
+    def update_axp_plot(self):
+
+        self.h_drillincl_ahrs.set_xdata(self.drill_inclination_ahrs)
+        self.h_drillincl_ahrs.set_ydata(self.drill_depth)
+
+        self.h_drillincl_sfus.set_xdata(self.drill_inclination_sfus)
+        self.h_drillincl_sfus.set_ydata(self.drill_depth)
+
+    
     def update_ax3d_plot(self):
         '''
         Update the 3D plot based on internal states.
@@ -600,21 +685,12 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         self.adjust_axes(self.ax3d, scale=scale)
 
-        from matplotlib.lines import Line2D
-        custom_lines = [\
-                        Line2D([0], [0], color=c_dred, ls='-', lw=lw_default), \
-                        Line2D([0], [0], color=c_dblue, ls='-', lw=lw_default), \
-                        Line2D([0], [0], color=cex, ls='-', lw=lw_default),\
-                        Line2D([0], [0], color=cey, ls='-', lw=lw_default),\
-                        Line2D([0], [0], color=cez, ls='-', lw=lw_default),\
-                        ]
-                        
-        self.ax3d.legend(custom_lines, ['Drill axis', 'Spring direction', '$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line'], \
-                            loc=2, bbox_to_anchor=(-0.15,0.97), fancybox=False)
+        self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line', 'Drill axis', 'Spring direction', ], \
+                            loc=2, bbox_to_anchor=(+0.02,1.01), ncol=2, fancybox=False, frameon=False)
 
-    def run(self, dt=0.8, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
+    def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
 
-        self.ds = DrillState(redis_host=REDIS_HOST, AHRS_estimator=AHRS_estimator)   
+        nn_incl = 0
 
         while True:
 
@@ -627,7 +703,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             plt.gcf().canvas.start_event_loop(dt)
 
             if self.drill_sync:
-                    
+
+                self.ss.update()                    
                 self.ds.update()
 
                 #self.qc0_sfus = self.qc0_ahrs = Rotation.identity().as_quat()
@@ -638,18 +715,24 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
 
+#                self.drill_depth       = np.roll(self.drill_depth, 1)
+#                self.drill_inclination = np.roll(self.drill_inclination, 1)
+                self.drill_depth[nn_incl]            = -self.ss.depth
+                self.drill_inclination_ahrs[nn_incl] = self.ds.inclination_ahrs
+                self.drill_inclination_sfus[nn_incl] = self.ds.inclination_sfus
+                nn_incl += 1
+                if nn_incl > len(self.drill_depth)-1: nn_incl = 0 # wrap around
+                
                 self.update_internal_states()
                 self.update_ax3d_plot()
+                self.update_axp_plot()
 
                 self.text_calib_sfus.set_text(r'SFUS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]) )
                 self.text_calib_ahrs.set_text(r'AHRS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
 
-                self.text_AHRSest.set_text('AHRS estimator: %s'%(self.ds.AHRS_estimator))
-                self.text_AHRSvals.set_text('(incl, azim) = (%.1f, %i)'%(self.ds.inclination_ahrs, self.ds.azimuth_ahrs))
+#                self.text_AHRSvals.set_text('(incl, azim) = (%.1f, %i)'%(self.ds.inclination_ahrs, self.ds.azimuth_ahrs))
                 
-#                print('SFUS incl, azim = %.2f, %.2f'%(self.ds.inclination_sfus,self.ds.azimuth_sfus))
-#                print('AHRS incl, azim = %.2f, %.2f'%(self.ds.inclination_ahrs,self.ds.azimuth_ahrs))
-            
+
             if debug: print('Tick dt=%.2f'%(dt))
 
 
@@ -659,9 +742,10 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
 if __name__ == '__main__':
 
-    plt.ion()
-    vis = QuaternionVisualizer3D()
     AHRS_estimator = 'SAAM' if len(sys.argv) < 2 else sys.argv[1]
-    vis.run(REDIS_HOST=REDIS_HOST, debug=False, AHRS_estimator=AHRS_estimator)
+    dt = 1
+    plt.ion()
+    vis = QuaternionVisualizer3D(REDIS_HOST=REDIS_HOST, AHRS_estimator=AHRS_estimator, dt=dt)
+    vis.run(dt=dt, debug=False)
     pass
 
