@@ -56,12 +56,13 @@ class SurfaceState():
         try: 
             now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
-            self.depth     = -encoder["depth"]
-            self.islive_depthcounter = (int(self.depth) != 9999)
+            self.depth = float(encoder["depth"])
+            self.islive_depthcounter = (int(abs(self.depth)) != 9999)
+#            print(encoder, self.islive_depthcounter, self.depth)
             
             if self.islive_depthcounter:
                 
-                self.speedinst = -100*encoder["velocity"]
+                self.speedinst = 100*encoder["velocity"]
                 
                 self.depth_list = np.roll(self.depth_list, -1); 
                 self.depth_list[-1] = self.depth
@@ -88,8 +89,8 @@ class SurfaceState():
         self.loadprev = self.load
         try:
             loadcell = json.loads(self.rc.get('load-cell'))
-            loadnew = float(loadcell["load"])
-            self.islive_loadcell = (int(loadnew) != -9999)
+            loadnew = float(loadcell)
+            self.islive_loadcell = (int(abs(loadnew)) != 9999)
             if self.islive_loadcell:
                 self.load = loadnew if not smoothload else (self.loadprev+loadnew)/2
                 self.loadnet  = self.load - CABLE_DENSITY*self.depth

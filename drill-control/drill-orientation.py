@@ -24,7 +24,7 @@ from pyrotation import *
 SHOW_PLUMB_BUTTONS = False
 
 INCL_LIMS = [0,10] # x lims for inclination plot
-Z_MIN = -3100 # y lim for inclination plot
+Z_MIN = -2800 # y lim for inclination plot
 
 cs_azim = 0 # frame azim offset 
 #cs_azim = 180
@@ -57,6 +57,7 @@ cez = c_dgray
 
 lw_default = 4.5
 alpha0 = 0.09
+frameec='0.15' # legend frame edge color
 
 FS = 14
 matplotlib.rcParams.update({'font.size': FS})
@@ -450,20 +451,21 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         plt.text(x0, y0, 'Calibration procedure', fontweight='bold', **kwargs_text)        
 
+        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
         plt.text(x0, y0-0.35*dy, \
-'''Drill orientation sensor must be re-calibrated before every run:
-1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
-2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
-3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and click "SFUS horiz." and "AHRS horiz." buttons below; drill and spring direction should now align with the trench frame of reference. 
-4) Tilt tower to vertical and repeat 90 deg. rotations (but do not click the buttons).
-5) Rotate drill back to horizontal. If drill axis and spring direction do not *approx. match* the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!
-''', ha='left', va='top', wrap=True, fontsize=FS-2, transform=plt.gcf().transFigure)        
+'''Orientation sensor must be re-calibrated before every run:
+(1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
+(2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
+(3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and click "SFUS horiz." and "AHRS horiz." buttons below; drill and spring direction should now align with the trench frame-of-reference. 
+(4) Tilt tower to vertical and repeat 90 deg. rotations (but do not click the buttons).
+(5) Rotate drill back to horizontal. If drill axis and spring direction do not *approx. match* the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!''', \
+ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, transform=plt.gcf().transFigure)        
 
                 
         ### Calibrate/offset 
 
         y0 = y0-0.53
-        plt.text(x0, y0, 'Rotate to trench frame of reference', fontweight='bold', **kwargs_text)        
+        plt.text(x0, y0, 'Rotate to trench frame-of-reference', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
 
         ax_calib_ahrs0 = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
@@ -496,15 +498,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
             b_uncalib1.on_clicked(self.set_uncalibrate1)
             plt.b_uncalib1 = b_uncalib1
 
-        y0_ = 0.1
-#        x0_ = 0.35
-        x0_ = 0.30
-        self.text_calib_sfus = plt.text(x0_, y0_-0*dy, '', **kwargs_text)
-        self.text_calib_ahrs = plt.text(x0_, y0_-0.55*dy, '', **kwargs_text)
-        
-#        x0_ = 0.3
-#        self.text_AHRSest  = plt.text(x0_, y0_, 'AHRS estimator: %s'%(self.ds.AHRS_estimator), **kwargs_text)
-#        self.text_AHRSvals = plt.text(x0_, y0_-0.03, '', **kwargs_text)
+        y0_ = 0.925
+        x0_ = 0.48
+        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+        self.text_calib = plt.text(x0_, y0_-0*dy, '', bbox=bbox, **kwargs_text)
+
 
         ### View buttons
 
@@ -564,21 +562,22 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.c_drill  = '#e31a1c'
         self.c_drill2 = '#fb9a99'
 
-        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger, May 2023')
-        self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS')
-        self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS')
+        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
+        self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+        self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
 
         self.axp.set_xlim(INCL_LIMS); 
         self.axp.set_xticks(np.arange(INCL_LIMS[0],INCL_LIMS[1]+1,1))
         self.axp.set_ylim([Z_MIN,0])
-        self.axp.set_ylabel(r'Depth (m)')
+        self.axp.set_ylabel(r'z (m)')
         self.axp.set_xlabel(r'Inclination (deg)')
         self.axp.set_yticks(np.arange(Z_MIN,0+1,200))
         self.axp.set_yticks(np.arange(Z_MIN,0+1,100),minor=True)
         self.axp.grid(); 
         kwargs_legend = {'fancybox':False, 'fontsize':FS}
-        self.axp.legend(frameon=False, **kwargs_legend); 
-        self.axp.text(INCL_LIMS[1]*0.9, Z_MIN*0.4, 'If profile does not match logger,\ndrill orientation sensor is not well-calibrated.', backgroundcolor='w', rotation=90, ha='center', va='center', fontsize=FS)
+        self.axp.legend(frameon=True, framealpha=1, edgecolor=frameec, facecolor='w', loc=1, **kwargs_legend); 
+        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+        self.axp.text(INCL_LIMS[1]*0.875, Z_MIN*0.5, 'If profile does not match logger,\norientation sensor is not well-calibrated.', bbox=bbox, rotation=90, ha='center', va='center', fontsize=FS)
                 
         self.update_axp_plot()
         
@@ -682,8 +681,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         self.adjust_axes(self.ax3d, scale=scale)
 
-        self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line', 'Drill axis', 'Spring direction', ], \
-                            loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, frameon=False)
+        self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perp.', '$-z$ axis: Plumb line', 'Drill axis (SFUS)', 'Spring direction (SFUS)', ], \
+                            loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, framealpha=1, frameon=True, edgecolor=frameec)
 
     def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
 
@@ -712,8 +711,6 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
 
-#                self.drill_depth       = np.roll(self.drill_depth, 1)
-#                self.drill_inclination = np.roll(self.drill_inclination, 1)
                 self.drill_depth[nn_incl]            = -self.ss.depth
                 self.drill_inclination_ahrs[nn_incl] = self.ds.inclination_ahrs
                 self.drill_inclination_sfus[nn_incl] = self.ds.inclination_sfus
@@ -724,11 +721,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 self.update_ax3d_plot()
                 self.update_axp_plot()
 
-                self.text_calib_sfus.set_text(r'SFUS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]) )
-                self.text_calib_ahrs.set_text(r'AHRS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
-
-#                self.text_AHRSvals.set_text('(incl, azim) = (%.1f, %i)'%(self.ds.inclination_ahrs, self.ds.azimuth_ahrs))
-                
+                self.text_calib.set_text('SFUS calib.: (azim, incl, roll) = (%i, %.1f, %i)\nAHRS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2], self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
+               
 
             if debug: print('Tick dt=%.2f'%(dt))
 

@@ -710,15 +710,15 @@ class MainWidget(QWidget):
 
         ### Disabled widgets if winch encoder is dead
 
-        for f in ['gb_surface_depth','gb_surface_speed']:
-            lbl = getattr(self, f)
-            lbl.setEnabled(self.ss.islive_loadcell)
+#        for f in ['gb_surface_depth','gb_surface_speed']:
+#            lbl = getattr(self, f)
+#            lbl.setEnabled(self.ss.islive_loadcell)
                         
         ### Disabled widgets if load cell is dead
                         
-        for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload']:
-            lbl = getattr(self, f)
-            lbl.setEnabled(self.ss.islive_depthcounter)
+#        for f in ['gb_surface_load','gb_surface_loadcable','gb_run_peakload']:
+#            lbl = getattr(self, f)
+#            lbl.setEnabled(self.ss.islive_depthcounter)
             
         
         ### END
