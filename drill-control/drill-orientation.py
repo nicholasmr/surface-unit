@@ -58,7 +58,7 @@ cez = c_dgray
 lw_default = 4.5
 alpha0 = 0.09
 
-FS = 15
+FS = 14
 matplotlib.rcParams.update({'font.size': FS})
 
 ##############################################################################################            
@@ -390,7 +390,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         # Drill inclination history
         dt = 0.8 # update rate
 #        H = 0.001# show trail for this number of hours
-        H = 1.5 # show trail for this number of hours
+        H = 0.4 # show trail for this number of hours
         N = int(H*60*60/dt) # number of points to save for incl plot
         print('depth-inclination history length = %i'%(N))
         self.drill_depth = np.zeros(N)*np.nan
@@ -422,7 +422,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         plt.get_current_fig_manager().set_window_title('Drill orientation')
 
         gs = self.fig.add_gridspec(1,3, width_ratios=[2,8,3])
-        gs.update(left=0.06, right=1, top=0.98, bottom=0.08, wspace=-0.35)
+        gs.update(left=0.07, right=1, top=0.98, bottom=0.08, wspace=-0.25)
 
         self.axp  = self.fig.add_subplot(gs[0,0]); 
         self.ax3d = self.fig.add_subplot(gs[0,1], projection='3d'); 
@@ -436,21 +436,21 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         
         y0 = 0.97
 
-        x0 = 0.72 # title string start
+        x0 = 0.75 # title string start
         x1 = x0+0.01 # box contet start (adjusted inward slightly)
         
-        dy = 0.06 # vertical distance between rows of buttons
+        dy = 0.05 # vertical distance between rows of buttons
         dyt = 0.07 # delta y from title string to box content
         
-        dl = 0.1 # botton width
-        dh = 0.04 # button height
+        dl = 0.09 # botton width
+        dh = 0.037 # button height
 
         self.ax_fake = self.fig.add_axes([x1, y0, dl, dh])
         self.ax_fake.axis('off')
 
         plt.text(x0, y0, 'Calibration procedure', fontweight='bold', **kwargs_text)        
 
-        plt.text(x0, y0-0.55*dy, \
+        plt.text(x0, y0-0.35*dy, \
 '''Drill orientation sensor must be re-calibrated before every run:
 1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
 2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
@@ -462,7 +462,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
                 
         ### Calibrate/offset 
 
-        y0 = y0-0.485
+        y0 = y0-0.53
         plt.text(x0, y0, 'Rotate to trench frame of reference', fontweight='bold', **kwargs_text)        
         dl_ = dl*1.2
 
@@ -500,7 +500,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 #        x0_ = 0.35
         x0_ = 0.30
         self.text_calib_sfus = plt.text(x0_, y0_-0*dy, '', **kwargs_text)
-        self.text_calib_ahrs = plt.text(x0_, y0_-0.5*dy, '', **kwargs_text)
+        self.text_calib_ahrs = plt.text(x0_, y0_-0.55*dy, '', **kwargs_text)
         
 #        x0_ = 0.3
 #        self.text_AHRSest  = plt.text(x0_, y0_, 'AHRS estimator: %s'%(self.ds.AHRS_estimator), **kwargs_text)
@@ -508,7 +508,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         ### View buttons
 
-        y0 = y0-0.25
+        y0 = y0-0.22
         
         plt.text(x0, y0, 'Change view', fontweight='bold', **kwargs_text)
         axv_sideways   = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
@@ -556,7 +556,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.fname_logger = 'logger-2023-05-05-down.csv' # Logger data
         flogger = os.path.join(os.path.dirname(__file__), "../logging/logger-data/%s"%(self.fname_logger))
         df_logger = pd.read_csv(flogger, names=fields, header=1)
-        intvl = 3
+        intvl = 4
         self.logger_depth = df_logger['depth'].to_numpy()[::intvl]
         self.logger_incl  = df_logger['inclination'].to_numpy()[::intvl]
         
@@ -564,7 +564,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.c_drill  = '#e31a1c'
         self.c_drill2 = '#fb9a99'
 
-        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=2**2, ec=self.c_logger, c='none', label=self.fname_logger)
+        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger, May 2023')
         self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS')
         self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS')
 
@@ -577,8 +577,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.axp.set_yticks(np.arange(Z_MIN,0+1,100),minor=True)
         self.axp.grid(); 
         kwargs_legend = {'fancybox':False, 'fontsize':FS}
-        self.axp.legend(**kwargs_legend); 
-        
+        self.axp.legend(frameon=False, **kwargs_legend); 
+        self.axp.text(INCL_LIMS[1]*0.9, Z_MIN*0.4, 'If profile does not match logger,\ndrill orientation sensor is not well-calibrated.', backgroundcolor='w', rotation=90, ha='center', va='center', fontsize=FS)
+                
         self.update_axp_plot()
         
 
@@ -682,7 +683,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.adjust_axes(self.ax3d, scale=scale)
 
         self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perpendicular', '$-z$ axis: Plumb line', 'Drill axis', 'Spring direction', ], \
-                            loc=2, bbox_to_anchor=(+0.02,1.01), ncol=2, fancybox=False, frameon=False)
+                            loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, frameon=False)
 
     def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
 
