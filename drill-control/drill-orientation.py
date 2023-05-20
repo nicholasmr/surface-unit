@@ -451,7 +451,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         plt.text(x0, y0, 'Calibration procedure', fontweight='bold', **kwargs_text)        
 
-        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+#        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+        bbox = None
         plt.text(x0, y0-0.35*dy, \
 '''Orientation sensor must be re-calibrated before every run:
 (1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
@@ -498,9 +499,11 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
             b_uncalib1.on_clicked(self.set_uncalibrate1)
             plt.b_uncalib1 = b_uncalib1
 
-        y0_ = 0.925
+#        y0_ = 0.925
+        y0_ = 0.05
         x0_ = 0.48
-        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+#        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
+        bbox = None
         self.text_calib = plt.text(x0_, y0_-0*dy, '', bbox=bbox, **kwargs_text)
 
 
