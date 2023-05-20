@@ -39,7 +39,12 @@ AHRS_estimators = {
 import warnings
 warnings.filterwarnings('ignore', message='.*Gimbal', )
 
-if len(sys.argv) != 3: sys.exit('usage: %s /mnt/logs/<LOGNAME> /output/path '%(sys.argv[0]))
+if len(sys.argv) < 3: sys.exit('usage: %s /mnt/logs/<LOGNAME> /output/path '%(sys.argv[0]))
+
+if len(sys.argv) == 5: T_MIN, T_MAX = float(sys.argv[-3]), float(sys.argv[-2])
+else:                  T_MIN, T_MAX = 0, 23.99
+
+print('Using T_MIN, T_MAX = %.2f, %.2f'%(T_MIN, T_MAX))
 
 #-----------------------
 # Options
@@ -86,8 +91,8 @@ OUTPATH  = str(sys.argv[-1]) # where to save images
 DRILLLOG = str(sys.argv[1]) # drill log to plot
 date_time_str0 = DRILLLOG[-10:] # log file date string
 
-fname_logger = 'logger-2022-07-09-down.csv' # Logger data
-#fname_logger = 'logger-2023-05-05-down.csv' # Logger data
+#fname_logger = 'logger-2022-07-09-down.csv' # Logger data
+fname_logger = 'logger-2023-05-05-down.csv' # Logger data
 
 #-----------------------
 # Binning method
@@ -144,16 +149,27 @@ z  = empty_array(flen) # depth
 quat = np.zeros((flen,4))
 quat_calib = np.zeros((flen,4))
 DCM = np.zeros((flen,3,3)) # rotation matrix
+t  = empty_array(flen) # time in seconds
+th = empty_array(flen) # time in hours
 
 ### Loop through rows and get drill orientation for a given time
 
 fh  = open(DRILLLOG, "r")
-jj = 0
 
 for ii, l in enumerate(fh):
 
     if "depth_encoder" not in l: continue # not uphole message
 
+    ### Time  
+      
+    date_time_obj0 = datetime.datetime.strptime(date_time_str0, '%Y-%m-%d')    
+    date_time_str1 = l[:23]
+    date_time_obj1 = datetime.datetime.strptime(date_time_str1, '%Y-%m-%d %H:%M:%S,%f')
+    t[ii]  = (date_time_obj1-date_time_obj0).total_seconds()
+    th[ii] = t[ii]/(60**2)
+
+    ### Orientation fields
+    
     kk = l.find('{')
     l = l[kk:]
 
@@ -165,33 +181,33 @@ for ii, l in enumerate(fh):
         mvec = np.array([json.loads(l)['magnetometer_x'], json.loads(l)['magnetometer_y'], json.loads(l)['magnetometer_z']]) 
         q = AHRS_estimators['SAAM'].estimate(acc=avec, mag=mvec) 
 #        q = AHRS_estimators['FLAE'].estimate(acc=avec, mag=mvec) 
-        if np.size(q) != 4 or np.any(np.isnan(q)): 
-            quat[jj,:]       = None # bad normalization => ignored later on
-            quat_calib[jj,:] = None 
-            DCM[jj,:,:]      = None
+        if np.size(q) != 4 or np.any(np.isnan(q)) or np.linalg.norm(q) < 0.99: 
+            quat[ii,:]       = None 
+            quat_calib[ii,:] = None 
+            DCM[ii,:,:]      = None
+            z[ii] = np.nan # will cause entries to be deselected below
         else:               
-            quat[jj,:]        = wxyz_to_xyzw(q)
-            try:    quat_calib[jj,:] = np.array([json.loads(l)['quat-calib-%s'%(i)] for i in ['x','y','z','w']])
-            except: quat_calib[jj,:] = None
-            DCM[jj,:,:]       = Rotation.from_quat(quat[jj,:]).as_matrix() # same
-#            DCM[jj,:,:] = Quaternion(q).to_DCM() # same
+            quat[ii,:]        = wxyz_to_xyzw(q)
+            try:    quat_calib[ii,:] = np.array([json.loads(l)['quat-calib-%s'%(i)] for i in ['x','y','z','w']])
+            except: quat_calib[ii,:] = None
+            DCM[ii,:,:]       = Rotation.from_quat(quat[ii,:]).as_matrix() # same
+#            DCM[ii,:,:] = Quaternion(q).to_DCM() # same
     else:
-        quat[jj,:] = np.array([ json.loads(l)['quaternion_x'], json.loads(l)['quaternion_y'], json.loads(l)['quaternion_z'], json.loads(l)['quaternion_w'] ]) 
-        quat[jj,:] /= np.linalg.norm(quat[jj,:])
+        quat[ii,:] = np.array([ json.loads(l)['quaternion_x'], json.loads(l)['quaternion_y'], json.loads(l)['quaternion_z'], json.loads(l)['quaternion_w'] ]) 
+        quat[ii,:] /= np.linalg.norm(quat[ii,:])
         
-    jj +=1
-
+    if th[ii] < T_MIN or th[ii] > T_MAX: 
+        z[ii] = np.nan # will cause entries to be deselected below
 
 fh.close()
 print('... done')
         
 ### Remove empty parts of array because we skipped rows without depth-counter values
 
-jjmax = jj-1
-DCM = DCM[0:(jjmax+1), :,:]
-quat = quat[0:(jjmax+1),:] 
-Z = z[0:(jjmax+1)]
-
+Isave = np.nonzero(np.logical_not(np.isnan(z)))[0]
+DCM = DCM[Isave, :,:]
+quat = quat[Isave,:] 
+Z = z[Isave]
 
 #-----------------------
 # BNO055 orientation calibration
@@ -246,6 +262,7 @@ if RUN_SENSOR_ORIENTATION_CALIBRATION:
     alpha_opt, beta_opt, gamma_opt = euler_opt
     print('... done: (alpha_opt, beta_opt, gamma_opt) = (%f, %f, %f)'%(alpha_opt, beta_opt, gamma_opt))
 else:
+    euler_opt = (alpha_opt, beta_opt, gamma_opt)
     print('*** Using pre-defined sensor orientation: (alpha_opt, beta_opt, gamma_opt) = (%f, %f, %f)'%(alpha_opt, beta_opt, gamma_opt))
     
 # Best fit solution    

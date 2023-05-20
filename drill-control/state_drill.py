@@ -17,7 +17,7 @@ egrip_N, egrip_E, egrip_height = 75.63248, -35.98911, 2.6
 wmm = ahrs.utils.WMM(datetime.datetime.now(), latitude=egrip_N, longitude=egrip_E, height=egrip_height) 
 mag_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
 mag_ref = np.array([wmm.X, wmm.Y, wmm.Z])
-print('mag_ref = (%.1f, %.1f, %.1f) %.1f'%(mag_ref[0],mag_ref[1],mag_ref[2], np.linalg.norm(mag_ref)))
+#print('mag_ref = (%.1f, %.1f, %.1f) %.1f'%(mag_ref[0],mag_ref[1],mag_ref[2], np.linalg.norm(mag_ref)))
 frame = 'NED'
 
 AHRS_estimators = {
