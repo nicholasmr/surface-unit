@@ -24,6 +24,8 @@ from pyrotation import *
 SHOW_PLUMB_BUTTONS = False
 
 INCL_LIMS = [0,10] # x lims for inclination plot
+AZIM_LIMS = [-180,+180] # x lims for azimuth plot
+ROLL_LIMS = AZIM_LIMS # x lims for roll plot
 Z_MIN = -2800 # y lim for inclination plot
 
 cs_azim = 0 # frame azim offset 
@@ -363,6 +365,9 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.show_sfus = 1
         self.show_ahrs = 0
 
+        self.curr_oriplot = 'inclination'
+#        self.curr_oriplot = 'azimuth' # debug
+
         self.ss = SurfaceState(redis_host=REDIS_HOST, tavg=1, dt_intended=dt)
         self.ds = DrillState(redis_host=REDIS_HOST, AHRS_estimator=AHRS_estimator)   
 
@@ -370,7 +375,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.update_internal_states()
         
         self.setup_ui()
-        self.setup_ui_profile()
+        self.setup_ui_profile(self.curr_oriplot)
 
     def reset_states(self):
         '''
@@ -394,9 +399,14 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         H = 0.4 # show trail for this number of hours
         N = int(H*60*60/dt) # number of points to save for incl plot
         print('depth-inclination history length = %i'%(N))
+        
         self.drill_depth = np.zeros(N)*np.nan
         self.drill_inclination_ahrs = np.zeros(N)*np.nan
         self.drill_inclination_sfus = np.zeros(N)*np.nan
+        self.drill_azimuth_ahrs = np.zeros(N)*np.nan
+        self.drill_azimuth_sfus = np.zeros(N)*np.nan
+        self.drill_roll_ahrs = np.zeros(N)*np.nan
+        self.drill_roll_sfus = np.zeros(N)*np.nan
         
 
     def update_internal_states(self):
@@ -501,9 +511,10 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
 
 #        y0_ = 0.925
         y0_ = 0.05
-        x0_ = 0.48
+        x0_ = 0.51
 #        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
         bbox = None
+        self.text_calib_title = plt.text(x0_, y0_+1.1*dy, 'Frame-of-reference offset', fontweight='bold', bbox=bbox, **kwargs_text)
         self.text_calib = plt.text(x0_, y0_-0*dy, '', bbox=bbox, **kwargs_text)
 
 
@@ -534,6 +545,22 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         plt.bv_ahrs = bv_ahrs
         plt.bv_sfus = bv_sfus
         
+        ### Orientation plot buttons
+        
+        x0 = 0.275
+        y0 = 0.14
+        plt.text(x0, y0+1.25*dy, 'Orientation plot', fontweight='bold', **kwargs_text)
+        axp_incl = self.fig.add_axes([x0, y0-0*dy, dl, dh])
+        axp_azim = self.fig.add_axes([x0, y0-1*dy, dl, dh])
+        axp_roll = self.fig.add_axes([x0, y0-2*dy, dl, dh])
+        self.bp_incl = Button(axp_incl, 'Show inclination')
+        self.bp_azim = Button(axp_azim, 'Show azimuth')
+        self.bp_roll = Button(axp_roll, 'Show roll')
+        self.bp_incl.on_clicked(self.show_incl)
+        self.bp_azim.on_clicked(self.show_azim)
+        self.bp_roll.on_clicked(self.show_roll)
+        
+        
         ### Static legend entries
         
         self.legend_lines = [\
@@ -549,38 +576,60 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.update_ax3d_plot()
         
 
-    def setup_ui_profile(self):
+    def setup_ui_profile(self, oriplot):
     
         fields = ['azimuth', 'bottom_sensor', 'compass', 'depth', 'fluxgate_1_raw', 'fluxgate_2_raw', 'inclination', 'inclinometer_1_raw', 'inclinometer_2_raw', 'lower_diameter', \
-              'lower_diameter_max_raw', 'lower_diameter_min_raw', 'pressure', 'pressure_raw', 'record_number', 'temperature_pressure_transducer', 'thermistor_high', 'thermistor_high_raw', \
-              'upper_diameter', 'upper_diameter_max_raw', 'upper_diameter_min_raw', 'thermistor_low', 'thermistor_low_raw']
+                  'lower_diameter_max_raw', 'lower_diameter_min_raw', 'pressure', 'pressure_raw', 'record_number', 'temperature_pressure_transducer', 'thermistor_high', 'thermistor_high_raw', \
+                  'upper_diameter', 'upper_diameter_max_raw', 'upper_diameter_min_raw', 'thermistor_low', 'thermistor_low_raw']
         self.fname_logger = 'logger-2023-05-05-down.csv' # Logger data
         flogger = os.path.join(os.path.dirname(__file__), "../logging/logger-data/%s"%(self.fname_logger))
         df_logger = pd.read_csv(flogger, names=fields, header=1)
         intvl = 4
         self.logger_depth = df_logger['depth'].to_numpy()[::intvl]
         self.logger_incl  = df_logger['inclination'].to_numpy()[::intvl]
+        self.logger_azim  = df_logger['azimuth'].to_numpy()[::intvl]  - 180
+        self.logger_roll  = self.logger_azim*np.nan
         
         self.c_logger = 'k'
         self.c_drill  = '#e31a1c'
         self.c_drill2 = '#fb9a99'
+        
+        self.curr_oriplot = oriplot
+        self.axp.clear()
 
-        self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
-        self.h_drillincl_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
-        self.h_drillincl_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+        if self.curr_oriplot == 'inclination':
+            self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
+            self.h_oriplot_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+            self.h_oriplot_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+            self.axp.set_xlim(INCL_LIMS); 
+            self.axp.set_xticks(np.arange(INCL_LIMS[0],INCL_LIMS[1]+1,1))
+            self.axp.set_xlabel(r'Inclination (deg)')
 
-        self.axp.set_xlim(INCL_LIMS); 
-        self.axp.set_xticks(np.arange(INCL_LIMS[0],INCL_LIMS[1]+1,1))
+        elif self.curr_oriplot == 'azimuth':
+            self.axp.scatter(self.logger_azim, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
+            self.h_oriplot_sfus, = self.axp.plot(self.drill_azimuth_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+            self.h_oriplot_ahrs, = self.axp.plot(self.drill_azimuth_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+            self.axp.set_xlim(AZIM_LIMS); 
+            self.axp.set_xticks(np.arange(AZIM_LIMS[0],AZIM_LIMS[1]+1,90))
+            self.axp.set_xlabel(r'Azimuth (deg)')
+
+        elif self.curr_oriplot == 'roll':
+            self.h_oriplot_sfus, = self.axp.plot(self.drill_roll_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+            self.h_oriplot_ahrs, = self.axp.plot(self.drill_roll_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+            self.axp.set_xlim(ROLL_LIMS); 
+            self.axp.set_xticks(np.arange(ROLL_LIMS[0],ROLL_LIMS[1]+1,90))
+            self.axp.set_xlabel(r'Roll (deg)')
+
         self.axp.set_ylim([Z_MIN,0])
         self.axp.set_ylabel(r'z (m)')
-        self.axp.set_xlabel(r'Inclination (deg)')
         self.axp.set_yticks(np.arange(Z_MIN,0+1,200))
         self.axp.set_yticks(np.arange(Z_MIN,0+1,100),minor=True)
         self.axp.grid(); 
+
         kwargs_legend = {'fancybox':False, 'fontsize':FS}
         self.axp.legend(frameon=True, framealpha=1, edgecolor=frameec, facecolor='w', loc=1, **kwargs_legend); 
         bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
-        self.axp.text(INCL_LIMS[1]*0.875, Z_MIN*0.5, 'If profile does not match logger,\norientation sensor is not well-calibrated.', bbox=bbox, rotation=90, ha='center', va='center', fontsize=FS)
+        self.axp.text(0.875, 0.5, 'If profile does not match logger,\norientation sensor is not well-calibrated.', bbox=bbox, rotation=90, ha='center', va='center', transform=self.axp.transAxes, fontsize=FS)
                 
         self.update_axp_plot()
         
@@ -619,14 +668,27 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
     def set_calibrate_ahrs0(self, *args, **kwargs): self.ds.set_oricalib_horiz(self.ds.quat0_ahrs, 'ahrs')
     def set_calibrate_ahrs1(self, *args, **kwargs): self.ds.set_oricalib_vert(self.ds.quat0_ahrs,  'ahrs')
 
+    def show_incl(self, *args, **kwargs): self.setup_ui_profile('inclination')
+    def show_azim(self, *args, **kwargs): self.setup_ui_profile('azimuth')
+    def show_roll(self, *args, **kwargs): self.setup_ui_profile('roll')
+    
 
     def update_axp_plot(self):
 
-        self.h_drillincl_ahrs.set_xdata(self.drill_inclination_ahrs)
-        self.h_drillincl_ahrs.set_ydata(self.drill_depth)
+        self.h_oriplot_ahrs.set_ydata(self.drill_depth)
+        self.h_oriplot_sfus.set_ydata(self.drill_depth)
 
-        self.h_drillincl_sfus.set_xdata(self.drill_inclination_sfus)
-        self.h_drillincl_sfus.set_ydata(self.drill_depth)
+        if self.curr_oriplot == 'inclination':
+            self.h_oriplot_ahrs.set_xdata(self.drill_inclination_ahrs)
+            self.h_oriplot_sfus.set_xdata(self.drill_inclination_sfus)
+            
+        elif self.curr_oriplot == 'azimuth':
+            self.h_oriplot_ahrs.set_xdata(self.drill_azimuth_ahrs)
+            self.h_oriplot_sfus.set_xdata(self.drill_azimuth_sfus)
+            
+        elif self.curr_oriplot == 'roll':
+            self.h_oriplot_ahrs.set_xdata(self.drill_roll_ahrs)
+            self.h_oriplot_sfus.set_xdata(self.drill_roll_sfus)
 
     
     def update_ax3d_plot(self):
@@ -687,9 +749,10 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perp.', '$-z$ axis: Plumb line', 'Drill axis (SFUS)', 'Spring direction (SFUS)', ], \
                             loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, framealpha=1, frameon=True, edgecolor=frameec)
 
+
     def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
 
-        nn_incl = 0
+        nn = 0
 
         while True:
 
@@ -714,17 +777,21 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
                 self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
 
-                self.drill_depth[nn_incl]            = -self.ss.depth
-                self.drill_inclination_ahrs[nn_incl] = self.ds.inclination_ahrs
-                self.drill_inclination_sfus[nn_incl] = self.ds.inclination_sfus
-                nn_incl += 1
-                if nn_incl > len(self.drill_depth)-1: nn_incl = 0 # wrap around
+                self.drill_depth[nn] = -abs(self.ss.depth)
+                self.drill_inclination_ahrs[nn] = self.ds.inclination_ahrs
+                self.drill_inclination_sfus[nn] = self.ds.inclination_sfus
+                self.drill_azimuth_ahrs[nn] = self.ds.azimuth_ahrs
+                self.drill_azimuth_sfus[nn] = self.ds.azimuth_sfus
+                self.drill_roll_ahrs[nn] = self.ds.roll_ahrs
+                self.drill_roll_sfus[nn] = self.ds.roll_sfus
+                nn += 1
+                if nn > len(self.drill_depth)-1: nn = 0 # wrap around
                 
                 self.update_internal_states()
                 self.update_ax3d_plot()
                 self.update_axp_plot()
 
-                self.text_calib.set_text('SFUS calib.: (azim, incl, roll) = (%i, %.1f, %i)\nAHRS calib.: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2], self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
+                self.text_calib.set_text('SFUS: (azim, incl, roll) = (%i, %.1f, %i)\nAHRS: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2], self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
                
 
             if debug: print('Tick dt=%.2f'%(dt))
