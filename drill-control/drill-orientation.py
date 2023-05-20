@@ -747,7 +747,7 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.adjust_axes(self.ax3d, scale=scale)
 
         self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perp.', '$-z$ axis: Plumb line', 'Drill axis (SFUS)', 'Spring direction (SFUS)', ], \
-                            loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, framealpha=1, frameon=True, edgecolor=frameec)
+                            loc=2, bbox_to_anchor=(+0.05,1.01), ncol=1, fancybox=False, framealpha=1, frameon=False, edgecolor=frameec)
 
 
     def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
