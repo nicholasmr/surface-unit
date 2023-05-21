@@ -550,9 +550,9 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         x0 = 0.275
         y0 = 0.14
         plt.text(x0, y0+1.25*dy, 'Orientation plot', fontweight='bold', **kwargs_text)
-        axp_incl = self.fig.add_axes([x0, y0-0*dy, dl, dh])
-        axp_azim = self.fig.add_axes([x0, y0-1*dy, dl, dh])
-        axp_roll = self.fig.add_axes([x0, y0-2*dy, dl, dh])
+        axp_incl = self.fig.add_axes([x0, y0-0*dy, 1.2*dl, dh])
+        axp_azim = self.fig.add_axes([x0, y0-1*dy, 1.2*dl, dh])
+        axp_roll = self.fig.add_axes([x0, y0-2*dy, 1.2*dl, dh])
         self.bp_incl = Button(axp_incl, 'Show inclination')
         self.bp_azim = Button(axp_azim, 'Show azimuth')
         self.bp_roll = Button(axp_roll, 'Show roll')
@@ -766,8 +766,12 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
 
             if self.drill_sync:
 
-                self.ss.update()                    
-                self.ds.update()
+                try:
+                    self.ss.update()                    
+                    self.ds.update()
+                except:
+                    print('unable to update SurfaceState and DrillState... skipping')
+                    continue
 
                 #self.qc0_sfus = self.qc0_ahrs = Rotation.identity().as_quat()
                 #self.qc_sfus = self.qc_ahrs = Rotation.identity().as_quat()
