@@ -728,6 +728,7 @@ class MainWidget(QWidget):
 #                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
+                self.updateStateBox('orientation_quality',      '%i, %i, %i, %i'%(self.ds.quality_sys,self.ds.quality_gyro,self.ds.quality_accel, self.ds.quality_magn), warn__nothres)
                 self.updateStateBox('orientation_calib_sfus',   "%i, %.1f, %i"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
                 self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
 
@@ -739,8 +740,6 @@ class MainWidget(QWidget):
                     str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_mag)
                     str_quatvec_sfus = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_sfus[0],self.ds.quat_sfus[1],self.ds.quat_sfus[2],self.ds.quat_sfus[3], np.linalg.norm(self.ds.quat_sfus))
                     str_quatvec_ahrs = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_ahrs[0],self.ds.quat_ahrs[1],self.ds.quat_ahrs[2],self.ds.quat_ahrs[3], np.linalg.norm(self.ds.quat_ahrs))
-                    str_quality   = '%i, %i, %i, %i'%(self.ds.quality_sys,self.ds.quality_gyro,self.ds.quality_accel, self.ds.quality_magn)
-                    
                     self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
                     self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
 #                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
@@ -748,7 +747,6 @@ class MainWidget(QWidget):
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
                     self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
-                    self.updateStateBox('orientation_quality', str_quality, warn__nothres)
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)

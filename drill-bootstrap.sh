@@ -80,7 +80,7 @@ then
         echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
     fi
 else
-    echo -e "${ERROR}>>> Non-deployed state for debugging: IP address sought by DHCP and USB pen not mounted for logging${NC}"
+    echo -e "${ERROR}>>> Non-deployed state: IP address from DHCP and USB pen not mounted for logging${NC}"
     sudo dhcpcd eth0
 fi
 
