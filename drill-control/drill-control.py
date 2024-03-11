@@ -554,13 +554,13 @@ class MainWidget(QWidget):
 
     def clicked_savecal(self, i):
         #test = index # int(self.sl_throttle.value())
-        print('Saving Cal %d'% i)
-        self.ds.save_bno055_calibration( i)
+        #print('drill-control: Saving calibration in slot %d'% i)
+        self.ds.save_bno055_calibration(i)
         
     def clicked_loadcal(self, i):
         #test = index # int(self.sl_throttle.value())
-        print('Loading Cal %d'% i)
-        self.ds.load_bno055_calibration( i)
+        #print('drill-control: Loading calibration from slot %d'% i)
+        self.ds.load_bno055_calibration(i)
         
 
     # Plot control

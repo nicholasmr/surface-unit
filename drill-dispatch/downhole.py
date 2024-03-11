@@ -109,7 +109,8 @@ def downhole_worker(arguments, redis_conn, transport):
                 message.rpm_d = pwm
 
             elif data[0] == 'bno055-calibrate':
-                print("Calibrate")
+
+                #print("Calibrate")
                 #print(colored("Calibrate " % data[1], 'red'))
 
                 currentdata = data[1].split(",")
@@ -119,9 +120,9 @@ def downhole_worker(arguments, redis_conn, transport):
                 state = 1
                 
                 if (functiondata == 0):
-                    print(colored("Load slot %d" % (slotdata), 'green'))
+                    print(colored("Load BNO055 calibration slot %d" % (slotdata), 'green'))
                 else:
-                    print(colored("Save slot %d" % (slotdata), 'red'))
+                    print(colored("Save BNO055 calibration slot %d" % (slotdata), 'red'))
                 
                 message = Bno055SaveLoadCalibration()
                 message.load_save = functiondata

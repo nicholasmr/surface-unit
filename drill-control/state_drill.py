@@ -215,11 +215,11 @@ class DrillState():
     ### Orientation
 
     def save_bno055_calibration(self, slot):
-        print('Saving calibration in slot %i'% slot)
+        print('state_drill.py: Saving calibration in slot %i'% slot)
         self.rc.publish('downhole','bno055-calibrate:%d,%d' %(1, slot))
     
     def load_bno055_calibration(self, slot):
-        print('Loading calibration from slot %i'% slot)
+        print('state_drill.py: Loading calibration from slot %i'% slot)
         self.rc.publish('downhole','bno055-calibrate:%d,%d' %(0, slot))
 
     def set_oricalib_horiz(self, quat0, method):
