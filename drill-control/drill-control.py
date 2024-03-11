@@ -728,7 +728,12 @@ class MainWidget(QWidget):
 #                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
-                self.updateStateBox('orientation_quality',      '%i, %i, %i, %i'%(self.ds.quality_sys,self.ds.quality_gyro,self.ds.quality_accel, self.ds.quality_magn), warn__nothres)
+                
+                qsys = '<font color="%s">%i</font>'%(COLOR_GREEN if self.ds.quality_sys>=2   else COLOR_RED, self.ds.quality_sys)
+                qgyr = '<font color="%s">%i</font>'%(COLOR_GREEN if self.ds.quality_gyro>=2  else COLOR_RED, self.ds.quality_gyro)
+                qacc = '<font color="%s">%i</font>'%(COLOR_GREEN if self.ds.quality_accel>=2 else COLOR_RED, self.ds.quality_accel)
+                qmag = '<font color="%s">%i</font>'%(COLOR_GREEN if self.ds.quality_magn>=2  else COLOR_RED, self.ds.quality_magn)
+                self.updateStateBox('orientation_quality',      '%s, %s, %s, %s'%(qsys,qgyr,qacc,qmag), warn__nothres)
                 self.updateStateBox('orientation_calib_sfus',   "%i, %.1f, %i"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
                 self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
 
