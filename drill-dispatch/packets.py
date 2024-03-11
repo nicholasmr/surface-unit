@@ -55,8 +55,13 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
         ('quaternion_x', 'h'),
         ('quaternion_y', 'h'),
         ('quaternion_z', 'h'),
-
-    ]
+ 
+        ('quality_sys', 'B'),
+        ('quality_gyro', 'B'),
+        ('quality_accel', 'B'),
+        ('quality_magn', 'B'),
+        
+   ]
 
     transfer_functions = {
 #        'hammer': lambda x: x,
@@ -118,7 +123,12 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
         'quaternion_x': lambda x: x / 100,
         'quaternion_y': lambda x: x / 100,
         'quaternion_z': lambda x: x / 100,
-    }
+         
+        'quality_sys': lambda x: x,
+        'quality_gyro': lambda x: x,
+        'quality_accel': lambda x: x,
+        'quality_magn': lambda x: x,
+   }
 
     def __init__(self):
         super()
@@ -206,6 +216,12 @@ class DownholeState(metaclass=pyvesc.VESCMessage):
             'quaternion_x': self.quaternion_x,
             'quaternion_y': self.quaternion_y,
             'quaternion_z': self.quaternion_z,
+
+            'quality_sys':   self.quality_sys,
+            'quality_gyro':  self.quality_gyro,
+            'quality_accel': self.quality_accel,
+            'quality_magn':  self.quality_magn,
+
         }
         
 
@@ -324,3 +340,12 @@ class MotorSetTachometer(metaclass=pyvesc.VESCMessage):
     fields = [
         ('tachometer', 'l')
     ]
+
+class Bno055SaveLoadCalibration(metaclass=pyvesc.VESCMessage):
+    id = 143
+
+    fields = [
+        ('load_save', 'B'),
+        ('slot', 'B')
+    ]
+

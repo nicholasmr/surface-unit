@@ -107,6 +107,25 @@ def downhole_worker(arguments, redis_conn, transport):
                 message = MotorRotateBy()
                 message.degrees_d = degrees
                 message.rpm_d = pwm
+
+            elif data[0] == 'bno055-calibrate':
+                print("Calibrate")
+                #print(colored("Calibrate " % data[1], 'red'))
+
+                currentdata = data[1].split(",")
+                functiondata = int(currentdata[0])
+                slotdata = int(currentdata[1])
+
+                state = 1
+                
+                if (functiondata == 0):
+                    print(colored("Load slot %d" % (slotdata), 'green'))
+                else:
+                    print(colored("Save slot %d" % (slotdata), 'red'))
+                
+                message = Bno055SaveLoadCalibration()
+                message.load_save = functiondata
+                message.slot = slotdata
                 
             elif data[0] == 'motor-set-tachometer':
                 target = int(data[1])

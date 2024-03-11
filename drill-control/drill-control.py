@@ -2,6 +2,7 @@
 
 import sys, os, signal, datetime
 import numpy as np
+from functools import partial
 
 from settings import *
 from state_drill import *
@@ -18,7 +19,7 @@ import pyqtgraph as pg
 #-------------------
 
 DT           = 1/8 # update rate in seconds for GUI/surface state
-DTFRAC_DRILL = 7 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated
+DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated # was 7 previously
 
 tavg = 3 # time-averging length in seconds for velocity estimate
 
@@ -131,6 +132,7 @@ class MainWidget(QWidget):
         self.create_gb_motor()
         self.create_gb_run()
         self.create_gb_status()
+        self.create_gb_bno055calib()
         self.create_gb_expert()
 
         ### QT Layout
@@ -216,6 +218,7 @@ class MainWidget(QWidget):
         botLayout.addWidget(self.gb_run)
         botLayoutSub2 = QVBoxLayout()
         botLayoutSub2.addWidget(self.gb_status)
+        botLayoutSub2.addWidget(self.gb_bno005calib)
         botLayoutSub2.addWidget(self.gb_expert)
         botLayout.addLayout(botLayoutSub2)
         botLayout.addStretch(1)
@@ -251,10 +254,11 @@ class MainWidget(QWidget):
         self.gb_orientation = QGroupBox("Orientation (deg)")
 #        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination (SFUS, AHRS)',  initstr))
-        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl., Azimuth (SFUS, AHRS)',  initstr))
+#        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
+        layout.addWidget(self.MakeStateBox('orientation_quality',    'Quality (sys,gyr,acc,mag)',    initstr))
         layout.addWidget(self.MakeStateBox('orientation_calib_sfus',   'SFUS calib. (azim, incl, roll)',   initstr))
         layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
 
@@ -412,6 +416,8 @@ class MainWidget(QWidget):
     def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
         layout = QVBoxLayout()
+
+        layout.addWidget(QLabel(''))
         self.cbox_unlockexpert = QCheckBox("Unlock")
         self.cbox_unlockexpert.toggled.connect(self.clicked_unlockexpert)     
         layout.addWidget(self.cbox_unlockexpert)
@@ -441,6 +447,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.cb_motorconfig)
 
         layout.addStretch(1)
+        
         self.gb_expert.setLayout(layout)
 
     def create_gb_status(self):
@@ -457,6 +464,32 @@ class MainWidget(QWidget):
         layout.addWidget(self.status_depthcounter,3,2)
         layout.rowStretch(1)
         self.gb_status.setLayout(layout)
+
+    def create_gb_bno055calib(self, initstr='N/A'):
+    
+        self.gb_bno005calib = QGroupBox("BNO055 calibration")
+        layout = QGridLayout()
+
+        btn_width = 30
+        row = 0
+        self.btn_savecalib = {}
+        self.btn_loadcalib = {}
+        
+        for index in range(0,4):
+            self.btn_loadcalib[index] = QPushButton("L%i"%(index), parent=self)
+            self.btn_loadcalib[index].setStyleSheet("background-color : %s"%(COLOR_BLUE))
+            self.btn_loadcalib[index].clicked.connect(partial(self.clicked_loadcal, index))
+            self.btn_loadcalib[index].setMaximumWidth(btn_width)
+            layout.addWidget(self.btn_loadcalib[index], row, index)
+
+            self.btn_savecalib[index] = QPushButton("S%i"%(index), parent=self)
+            self.btn_savecalib[index].setStyleSheet("background-color : %s"%(COLOR_BLUE))
+            self.btn_savecalib[index].clicked.connect( partial(self.clicked_savecal, index)) #clicked_savecal)
+            self.btn_savecalib[index].setMaximumWidth(btn_width)
+            layout.addWidget(self.btn_savecalib[index], row+1, index)
+            
+#        layout.rowStretch(1)
+        self.gb_bno005calib.setLayout(layout)
 
     ### User actions 
     
@@ -518,6 +551,17 @@ class MainWidget(QWidget):
         
     def changed_inchingthrottle(self):
         self.sl_inchingthrottle_label.setText('Inching throttle: %i%%'%(self.sl_inchingthrottle.value()))
+
+    def clicked_savecal(self, i):
+        #test = index # int(self.sl_throttle.value())
+        print('Saving Cal %d'% i)
+        self.ds.save_bno055_calibration( i)
+        
+    def clicked_loadcal(self, i):
+        #test = index # int(self.sl_throttle.value())
+        print('Loading Cal %d'% i)
+        self.ds.load_bno055_calibration( i)
+        
 
     # Plot control
     
@@ -679,12 +723,13 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
-                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
+                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f),   (%.0f, %.0f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs, self.ds.azimuth_sfus,self.ds.azimuth_ahrs), warn__nothres)
+#                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
+#                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
-                self.updateStateBox('orientation_calib_sfus',   "[%i, %.1f, %i]"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
-                self.updateStateBox('orientation_calib_ahrs',   "[%i, %.1f, %i]"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
+                self.updateStateBox('orientation_calib_sfus',   "%i, %.1f, %i"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
+                self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
                     str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
@@ -694,6 +739,8 @@ class MainWidget(QWidget):
                     str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_mag)
                     str_quatvec_sfus = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_sfus[0],self.ds.quat_sfus[1],self.ds.quat_sfus[2],self.ds.quat_sfus[3], np.linalg.norm(self.ds.quat_sfus))
                     str_quatvec_ahrs = '[%.2f, %.2f, %.2f, %.2f] %.1f'%(self.ds.quat_ahrs[0],self.ds.quat_ahrs[1],self.ds.quat_ahrs[2],self.ds.quat_ahrs[3], np.linalg.norm(self.ds.quat_ahrs))
+                    str_quality   = '%i, %i, %i, %i'%(self.ds.quality_sys,self.ds.quality_gyro,self.ds.quality_accel, self.ds.quality_magn)
+                    
                     self.updateStateBox('orientation_acceleration', str_aclvec, warn__nothres)
                     self.updateStateBox('orientation_magnetometer', str_magvec, warn__nothres)
 #                    self.updateStateBox('orientation_linearacceleration', str_linaclvec, warn__nothres)
@@ -701,7 +748,7 @@ class MainWidget(QWidget):
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
                     self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
-
+                    self.updateStateBox('orientation_quality', str_quality, warn__nothres)
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)

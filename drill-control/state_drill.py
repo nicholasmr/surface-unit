@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-2023
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-2024
 
 import redis, json, datetime, time, math
 import numpy as np
@@ -84,6 +84,11 @@ class DrillState():
     quaternion_z = 0
     quaternion_w = 1
         
+    quality_sys = 0
+    quality_gyro = 0
+    quality_accel = 0
+    quality_magn = 0
+    
     ### Inclinometer
     inclination_x = 0
     inclination_y = 0
@@ -108,10 +113,11 @@ class DrillState():
     rc = None 
     
     
-    def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='SAAM'):
+    def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='SAAM', DEBUG=True):
     
         # redis connection (rc) object
         try:    
+            if DEBUG: print('Connecting to redis server %s ...'%(redis_host))
             self.rc = redis.StrictRedis(host=redis_host) 
             self.rc.ping() 
         except:
@@ -207,7 +213,15 @@ class DrillState():
 
 
     ### Orientation
+
+    def save_bno055_calibration(self, slot):
+        print('Saving calibration slot %i pct throttle'% slot)
+        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(1, slot))
     
+    def load_bno055_calibration(self, slot):
+        print('Loading calibration slot %i pct throttle'% slot)
+        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(0, slot))
+
     def set_oricalib_horiz(self, quat0, method):
         if quat0 is None:
             azim, roll = 0, 0

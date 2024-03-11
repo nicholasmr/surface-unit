@@ -1,5 +1,5 @@
 #!/bin/bash
-# N. M. Rathmann <rathmann@nbi.ku.dk>, 2019-2023
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2019-2024
 
 ### Settings
 
@@ -23,9 +23,9 @@ MENU="Choose one of the following options:"
 
 ### Menu 1
 
-OPTIONS=(1 "2023 version"
-         2 "2022 version, for drill without BNO055 update"
-         3 "Debug 2023 version for external computer"
+OPTIONS=(1 "2024 version"
+         2 "2024 version, NOT deployed to field"
+         3 "2022 version (without drill BNO055 update)"
          4 "2016-2019 legacy (N/A)"
          )
 
@@ -36,8 +36,8 @@ ISDRILLHOST=1 # assume this is drill host by default
 
 case $CHOICE in
         1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        2)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py; ISDRILLHOST=0 ;;
+        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py; ISDRILLHOST=0 ;;
+        3)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
         4)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/legacy/drill-surface/drill_surface.py ;;
 esac
 
@@ -80,7 +80,8 @@ then
         echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
     fi
 else
-    echo -e "${ERROR}>>> Non-deployed state for debugging: IP address not set and USB pen not mounted for logging${NC}"
+    echo -e "${ERROR}>>> Non-deployed state for debugging: IP address sought by DHCP and USB pen not mounted for logging${NC}"
+    sudo dhcpcd eth0
 fi
 
 
@@ -112,7 +113,7 @@ fi
 
 
 echo -e "${INFO}>>> Launching drill communications (dispatch) ${NC}";
-python $VPATH/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
+python3 $VPATH/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
 
 
 ### Added by Rikke

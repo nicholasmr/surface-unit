@@ -11,7 +11,7 @@ import pandas as pd
 PLOT_PANELS = 1
 PLOT_BOREHOLE = 0
 
-Z_MAX, Z_MIN = 0, -2800 # y axis
+Z_MAX, Z_MIN = 0, -3000 # y axis
 
 fields_oldlogger1 = ['azimuth', 'bottom_sensor', 'compass', 'depth', 'fluxgate_1_raw', 'fluxgate_2_raw', 'inclination', 'inclinometer_1_raw', 'inclinometer_2_raw', 'lower_diameter', \
                     'lower_diameter_max_raw', 'lower_diameter_min_raw', 'pressure', 'pressure_raw', 'record_number', 'temperature_pressure_transducer', 'thermistor_high', 'thermistor_high_raw', \
@@ -32,18 +32,33 @@ logger_2022 =  {\
     'colorlight': '0.5' \
 }
 
-logger_2023 = {\
+logger_2023a = {\
     'name': 'oldlogger down @ 2023-05-05', \
     'isdrill': False, \
     'fields': fields_oldlogger2, \
     'delim_whitespace': False, \
     'header': 1, \
     'negdepth': False, \
+    'color': 'k', \
+    'colorlight': '0.5' \
+#    'color': '#e31a1c', \
+#    'colorlight': '#fb9a99' \
+}
+
+
+logger_2023b = {\
+    'name': 'oldlogger down @ 2023-05-24', \
+    'isdrill': False, \
+    'fields': fields_oldlogger2, \
+    'delim_whitespace': False, \
+    'header': 1, \
+    'negdepth': True, \
     'color': '#e31a1c', \
     'colorlight': '#fb9a99' \
 }
 
-drill_2023 = {\
+
+drill_2022 = {\
     'name': 'drill down+up @ 2022-08-06', \
     'isdrill': True, \
     'fields': ['depth','inclination','azimuth'], \
@@ -55,9 +70,10 @@ drill_2023 = {\
 }
 
 files = {
-   'logger-data/logger-2022-07-09-down.csv': logger_2022, \
-   'logger-data/logger-2023-05-05-down.csv': logger_2023, \
-   'drill-logs-processed/drill-orientation-2022-08-06.csv': drill_2023, \
+#   'logger-data/logger-2022-07-09-down.csv': logger_2022, \
+   'logger-data/logger-2023-05-05-down.csv': logger_2023a, \
+   'logger-data/logger-2023-05-24-up.csv': logger_2023b, \
+   'drill-logs-processed/drill-orientation-2022-08-06.csv': drill_2022, \
 }
 
 if PLOT_BOREHOLE: 
@@ -67,7 +83,7 @@ scale = 0.75
 fig = plt.figure(figsize=(scale*20,scale*10))
 c_drill, c_drill2, c_logger, c_loggernew = '#1f78b4', '#9ecae1', '0.6', 'k'
 
-xlims = {'temp': [-33, -10], 'incl': [0, 5.5], 'azim':[0,360], 'D':[128, 137]};
+xlims = {'temp': [-33, -5], 'incl': [0, 5.5], 'azim':[0,360], 'D':[128, 137]};
 
 gs = gridspec.GridSpec(1, 4, figure=fig)
 ax1 = fig.add_subplot(gs[0, 0])
@@ -91,7 +107,9 @@ for fname in files:
     f = os.path.join(os.path.dirname(__file__), "%s"%(fname)) # full path
     fobj = files[fname]
     df = pd.read_csv(f, names=fobj['fields'], header=fobj['header'], delim_whitespace=fobj['delim_whitespace']) # , names=fobj['fields'], header=fobj['header'], delim_whitespace=fobj['delim_whitespace']
-    depth = (-1 if fobj['negdepth'] else +1) * df['depth'].to_numpy()
+#    depth = (-1 if fobj['negdepth'] else +1) * df['depth'].to_numpy()
+    if fobj['negdepth']: df['depth'] *= -1
+    depth = df['depth'].to_numpy()
     
     groups = df.groupby(pd.cut(depth, z_bin_full))
     meanbins, varbins = groups.mean().to_numpy(), groups.var().to_numpy()
@@ -106,8 +124,7 @@ for fname in files:
     incl_mean,  _ = binned_stats(df['inclination'], depth)
     azim_mean,  _ = binned_stats(df['azimuth'], depth)
     if fobj['isdrill']:
-        temp_mean = depth_mean*np.nan
-        Dlow_mean = depth_mean*np.nan
+        depth_mean[:] = np.nan
     else:
         temp_mean,  _ = binned_stats(df['thermistor_high'], depth)
         Dlow_mean,  _ = binned_stats(df['lower_diameter'], depth)
@@ -117,6 +134,7 @@ for fname in files:
     if fobj['isdrill']:
         temp = depth*np.nan
         Dlow = depth*np.nan
+        azim = depth*np.nan
     else:
         temp = df['thermistor_high'].to_numpy() 
         Dlow = df['lower_diameter'].to_numpy() 
