@@ -41,6 +41,9 @@ COLOR_DARKRED   = '#b2182b'
 COLOR_DARKGREEN = '#1a9850'
 COLOR_BLUE  = '#3182bd'
 
+COLOR_DIAL1  = '#01665e'
+COLOR_DIAL2  = '#8c510a'
+
 #-------------------
 # Program start
 #-------------------
@@ -252,13 +255,32 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation (deg)")
-#        self.gb_orientation.setMinimumWidth(290)
+        self.gb_orientation.setMinimumWidth(340)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl., Azimuth (SFUS, AHRS)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll (SFUS, AHRS)',  initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
-        layout.addWidget(self.MakeStateBox('orientation_spin',         'Drill spin (RPM)',   initstr))
-        layout.addWidget(self.MakeStateBox('orientation_quality',    'Quality (sys,gyr,acc,mag)',    initstr))
+
+        dlayout = QGridLayout()
+        cdial = dict(dial_azim_sfus=COLOR_DIAL1, dial_azim_ahrs=COLOR_DIAL1, dial_roll_sfus=COLOR_DIAL2, dial_roll_ahrs=COLOR_DIAL2)
+        for tt in ['dial_azim_sfus', 'dial_azim_ahrs', 'dial_roll_sfus', 'dial_roll_ahrs']:
+            d = QDial()
+            d.setNotchesVisible(True)
+            d.setMinimum(-180)
+            d.setMaximum(+180)
+            d.setWrapping(True)
+            d.setMaximumHeight(85)
+            d.setInvertedAppearance(True)
+            d.setInvertedControls(True)
+            d.setStyleSheet("background-color: %s; border : 2px solid black;"%(cdial[tt]));
+            setattr(self, tt, d)
+        dlayout.addWidget(self.dial_azim_sfus, 0,0)
+        dlayout.addWidget(self.dial_azim_ahrs, 0,1)
+        dlayout.addWidget(self.dial_roll_sfus, 0,2)
+        dlayout.addWidget(self.dial_roll_ahrs, 0,3)
+        layout.addLayout(dlayout)
+
+        layout.addWidget(self.MakeStateBox('orientation_quality',    'Sensor Q (sys, gyr, acc, mag)',    initstr))
         layout.addWidget(self.MakeStateBox('orientation_calib_sfus',   'SFUS calib. (azim, incl, roll)',   initstr))
         layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
 
@@ -296,7 +318,8 @@ class MainWidget(QWidget):
         self.gb_other = QGroupBox("Other")
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('hammer', 'Hammer (%)', initstr))
-        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
+        layout.addWidget(self.MakeStateBox('orientation_spin', 'Drill spin (RPM)',   initstr))
+        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downh. volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_other.setLayout(layout)
@@ -311,12 +334,12 @@ class MainWidget(QWidget):
 #        layout.addWidget(self.MakeStateBox('temperature_auxelectronics', 'Aux. electronics', initstr))
         layout.addWidget(self.MakeStateBox('temperature_topplug',        'Top plug',         initstr))
         layout.addWidget(self.MakeStateBox('temperature_motor',          'Motor',            initstr))
-        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor contr. (VESC)', initstr))
+        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor ctr. (VESC)', initstr))
         layout.addStretch(1)
         self.gb_temperature.setLayout(layout)
         
 
-    def create_gb_motor(self, initstr='N/A', btn_width=170):
+    def create_gb_motor(self, initstr='N/A', btn_width=150):
         self.gb_motor = QGroupBox("Motor")
         layout = QGridLayout()
         layout.addWidget(self.MakeStateBox('motor_current',    'Current (A)',  initstr), 1,1)
@@ -385,7 +408,7 @@ class MainWidget(QWidget):
         layout.setRowStretch(row+5, 1)
         self.gb_motor.setLayout(layout)
         
-    def create_gb_run(self, initstr='N/A'):
+    def create_gb_run(self, initstr='N/A', btn_width=150):
         self.gb_run = QGroupBox("Current run")
         layout = QVBoxLayout()
         
@@ -393,15 +416,17 @@ class MainWidget(QWidget):
         self.btn_startrun.setCheckable(True)
         self.btn_startrun.clicked.connect(self.clicked_startstop_run)
         self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+        #self.btn_startrun.setMinimumWidth(btn_width); self.btn_startrun.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_startrun)
 
         self.cbox_settareload = QPushButton("Reset tare load")
         self.cbox_settareload.clicked.connect(self.clicked_resettareload)
+        #self.cbox_settareload.setMinimumWidth(btn_width); self.cbox_settareload.setMaximumWidth(btn_width)
         layout.addWidget(self.cbox_settareload)
-
         
         self.btn_screenshot = QPushButton("Screenshot")
         self.btn_screenshot.clicked.connect(self.take_screenshot)
+        #self.btn_screenshot.setMinimumWidth(btn_width); self.btn_screenshot.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_screenshot)
 
         layout.addWidget(self.MakeStateBox('run_time', 'Run time',                 initstr))
@@ -415,14 +440,14 @@ class MainWidget(QWidget):
 
     def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
-        layout = QVBoxLayout()
+        layout = QGridLayout()
 
-        layout.addWidget(QLabel(''))
+#        layout.addWidget(QLabel(''))
         self.cbox_unlockexpert = QCheckBox("Unlock")
         self.cbox_unlockexpert.toggled.connect(self.clicked_unlockexpert)     
         layout.addWidget(self.cbox_unlockexpert)
 
-        layout.addWidget(QLabel(''))        
+#        layout.addWidget(QLabel(''))        
         self.sl_inchingthrottle_label = QLabel('Inching throttle: %i%%'%(default_inchingthrottle))
         self.sl_inchingthrottle_label.setEnabled(False)
         layout.addWidget(self.sl_inchingthrottle_label)
@@ -436,7 +461,7 @@ class MainWidget(QWidget):
         self.sl_inchingthrottle.valueChanged.connect(self.changed_inchingthrottle) 
         layout.addWidget(self.sl_inchingthrottle)
         
-        layout.addWidget(QLabel(''))
+#        layout.addWidget(QLabel(''))
         self.cb_motorconfig_label = QLabel('Motor config:')
         self.cb_motorconfig_label.setEnabled(False)
         layout.addWidget(self.cb_motorconfig_label)
@@ -446,8 +471,8 @@ class MainWidget(QWidget):
         self.cb_motorconfig.setEnabled(False)
         layout.addWidget(self.cb_motorconfig)
 
-        layout.addStretch(1)
-        
+#        layout.addStretch(3)
+        layout.rowStretch(1)
         self.gb_expert.setLayout(layout)
 
     def create_gb_status(self):
@@ -484,7 +509,7 @@ class MainWidget(QWidget):
 
             self.btn_savecalib[index] = QPushButton("S%i"%(index), parent=self)
             self.btn_savecalib[index].setStyleSheet("background-color : %s"%(COLOR_BLUE))
-            self.btn_savecalib[index].clicked.connect( partial(self.clicked_savecal, index)) #clicked_savecal)
+            self.btn_savecalib[index].clicked.connect( partial(self.clicked_savecal, index))
             self.btn_savecalib[index].setMaximumWidth(btn_width)
             layout.addWidget(self.btn_savecalib[index], row+1, index)
             
@@ -723,7 +748,7 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f),   (%.0f, %.0f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs, self.ds.azimuth_sfus,self.ds.azimuth_ahrs), warn__nothres)
+                self.updateStateBox('orientation_inclination',  '(%.1f, %.1f),&nbsp; <font color="%s">(%.0f, %.0f)</font>,&nbsp; <font color="%s">(%.0f, %.0f)</font>'%(self.ds.inclination_sfus,self.ds.inclination_ahrs, COLOR_DIAL1, self.ds.azimuth_sfus,self.ds.azimuth_ahrs, COLOR_DIAL2, self.ds.roll_sfus,self.ds.roll_ahrs), warn__nothres)
 #                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
 #                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
@@ -752,6 +777,11 @@ class MainWidget(QWidget):
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
                     self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
+                else:
+                    self.dial_azim_sfus.setValue(int(self.ds.azimuth_sfus))
+                    self.dial_azim_ahrs.setValue(int(self.ds.azimuth_ahrs))
+                    self.dial_roll_sfus.setValue(int(self.ds.roll_sfus))
+                    self.dial_roll_ahrs.setValue(int(self.ds.roll_ahrs))
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
@@ -840,6 +870,7 @@ class DepthProgressBar(QWidget):
 
         painter = QtGui.QPainter(self)
         H, W = painter.device().height(), painter.device().width()
+#        H = int(0.6*H) # debug
         tol = 20 # metre
         
         c_ice      = '#969696' 

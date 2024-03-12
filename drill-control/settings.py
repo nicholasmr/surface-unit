@@ -1,34 +1,47 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2022
+# N. Rathmann <rathmann@nbi.dk>, 2019-2024
+
+### Should both be false when field deployed
+DEBUG_UNDEPLOYED   = True # not deployed to field with EGRIP network (typically for debugging)
+DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
 
 #----------------------
 # Drill host
 #----------------------
-DRILL_HOST = '10.2.3.10' # Assumed IP address for drill host (raspberry pi in surface unit), may change depending on surface unit number
+
 LOCAL_HOST = '127.0.0.1'
+DRILL_HOST = '10.2.3.10' # IP address of drill host (surface unit) when field deployed; may change depending on surface unit number
 
 #----------------------
 # REDIS host
 #----------------------
-import socket
-if socket.gethostname() == 'drill': REDIS_HOST = LOCAL_HOST
-else:                               REDIS_HOST = DRILL_HOST
 
-#REDIS_HOST = LOCAL_HOST; print('*** DEBUG: overriding REDIS_HOST = LOCAL_HOST (in settings.py)') # Debug outside EGRIP network
+import socket
+if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST: 
+    REDIS_HOST = LOCAL_HOST
+else:                               
+    if DEBUG_UNDEPLOYED:
+        DRILL_HOST = '10.217.97.60' # on drill run "dhcpcd" and note down the "leased IP" here
+        print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST=%s with DHCP-given IP')
+
+    REDIS_HOST = DRILL_HOST
 
 #----------------------
 # Cable linear density for load-cable calculation
 #----------------------
+
 CABLE_DENSITY = 0.165 # kg/m
 
 #----------------------
 # Orientation settings
 #----------------------
+
 USE_BNO055_FOR_ORIENTATION = True # Use BNO055 triaxial information for determining orientation? Else use inclinometer.
 #parvalux_tube_free_hanging = [-0.04, 1.05, -9.64] # Gravity vector when drill is hanging plumb.  
 
 #----------------------
 # Sensor reference values
 #----------------------
+
 HAMMER_MAX = 255
 TACHO_PRE_REV = 1/560
 
@@ -42,6 +55,7 @@ DEPTH_MAX = 2700
 #----------------------
 # Safe range for drill sensors
 #----------------------
+
 warn__motor_current           = [0,13]     # Amps
 warn__motor_rpm               = [-75,75]   # RPM
 warn__temperature_motor       = [-60,60]   # deg C
@@ -55,6 +69,7 @@ warn__downholevoltage         = [325,425]  # volt
 #----------------------
 # Safe range for surface sensors
 #----------------------
+
 warn__load     = [-100,1400] # kg
 warn__velocity = [-130,130]  # cm/s
 
