@@ -42,7 +42,9 @@ COLOR_DARKGREEN = '#1a9850'
 COLOR_BLUE  = '#3182bd'
 
 COLOR_DIAL1  = '#01665e'
+COLOR_DIAL1l = '#c7eae5'
 COLOR_DIAL2  = '#8c510a'
+COLOR_DIAL2l = '#dfc27d'
 
 #-------------------
 # Program start
@@ -243,7 +245,8 @@ class MainWidget(QWidget):
         self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Inst. speed (cm/s)',   initstr)
         self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
         self.gb_run_deltaload           = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
-        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load, %is (kg)'%(self.xlen[0]), initstr)
+#        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load, %is (kg)'%(self.xlen[0]), initstr)
+        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load (kg)', initstr)
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
         layout.addWidget(self.gb_surface_load)
@@ -255,34 +258,38 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation (deg)")
-        self.gb_orientation.setMinimumWidth(340)
+#        self.gb_orientation.setMinimumWidth(340)
+        self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll (SFUS, AHRS)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll',  initstr))
+#        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll (SFUS, AHRS)',  initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
 
         dlayout = QGridLayout()
-        cdial = dict(dial_azim_sfus=COLOR_DIAL1, dial_azim_ahrs=COLOR_DIAL1, dial_roll_sfus=COLOR_DIAL2, dial_roll_ahrs=COLOR_DIAL2)
-        for tt in ['dial_azim_sfus', 'dial_azim_ahrs', 'dial_roll_sfus', 'dial_roll_ahrs']:
+        cdial = dict(dial_azim_sfus=COLOR_DIAL1, dial_azim_ahrs=COLOR_DIAL1l, dial_roll_sfus=COLOR_DIAL2, dial_roll_ahrs=COLOR_DIAL2l)
+#        for tt in ['dial_azim_sfus', 'dial_azim_ahrs', 'dial_roll_sfus', 'dial_roll_ahrs']:
+        for tt in ['dial_azim_sfus', 'dial_roll_sfus']:
             d = QDial()
             d.setNotchesVisible(True)
             d.setMinimum(-180)
             d.setMaximum(+180)
             d.setWrapping(True)
-            d.setMaximumHeight(85)
-            d.setInvertedAppearance(True)
-            d.setInvertedControls(True)
+            d.setMaximumHeight(75)
+            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
+                d.setInvertedAppearance(True)
+                d.setInvertedControls(True)
             d.setStyleSheet("background-color: %s; border : 2px solid black;"%(cdial[tt]));
             setattr(self, tt, d)
         dlayout.addWidget(self.dial_azim_sfus, 0,0)
-        dlayout.addWidget(self.dial_azim_ahrs, 0,1)
-        dlayout.addWidget(self.dial_roll_sfus, 0,2)
-        dlayout.addWidget(self.dial_roll_ahrs, 0,3)
+        dlayout.addWidget(self.dial_roll_sfus, 0,1)
+#        dlayout.addWidget(self.dial_azim_ahrs, 0,1)
+#        dlayout.addWidget(self.dial_roll_ahrs, 0,3)
         layout.addLayout(dlayout)
 
         layout.addWidget(self.MakeStateBox('orientation_quality',    'Sensor Q (sys, gyr, acc, mag)',    initstr))
         layout.addWidget(self.MakeStateBox('orientation_calib_sfus',   'SFUS calib. (azim, incl, roll)',   initstr))
-        layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
+#        layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
         layout_BNO055 = QVBoxLayout()
@@ -292,7 +299,7 @@ class MainWidget(QWidget):
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_sfus',    'Quaternion, SFUS (x,y,z,w)',    initstr))
-        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
+#        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
         self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
@@ -495,7 +502,7 @@ class MainWidget(QWidget):
         self.gb_bno005calib = QGroupBox("BNO055 calibration")
         layout = QGridLayout()
 
-        btn_width = 30
+        btn_width = 33
         row = 0
         self.btn_savecalib = {}
         self.btn_loadcalib = {}
@@ -748,7 +755,8 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  '(%.1f, %.1f),&nbsp; <font color="%s">(%.0f, %.0f)</font>,&nbsp; <font color="%s">(%.0f, %.0f)</font>'%(self.ds.inclination_sfus,self.ds.inclination_ahrs, COLOR_DIAL1, self.ds.azimuth_sfus,self.ds.azimuth_ahrs, COLOR_DIAL2, self.ds.roll_sfus,self.ds.roll_ahrs), warn__nothres)
+                self.updateStateBox('orientation_inclination',  '%.1f,&nbsp; <font color="%s">%.0f</font>,&nbsp; <font color="%s">%.0f</font>'%(self.ds.inclination_sfus, COLOR_DIAL1, self.ds.azimuth_sfus, COLOR_DIAL2, self.ds.roll_sfus), warn__nothres)
+#                self.updateStateBox('orientation_inclination',  '(%.1f, %.1f),&nbsp; <font color="%s">(%.0f, %.0f)</font>,&nbsp; <font color="%s">(%.0f, %.0f)</font>'%(self.ds.inclination_sfus,self.ds.inclination_ahrs, COLOR_DIAL1, self.ds.azimuth_sfus,self.ds.azimuth_ahrs, COLOR_DIAL2, self.ds.roll_sfus,self.ds.roll_ahrs), warn__nothres)
 #                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
 #                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
 #                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
@@ -760,7 +768,7 @@ class MainWidget(QWidget):
                 qmag = '<font color="%s">%i</font>'%(COLOR_DARKGREEN if self.ds.quality_magn>=2  else COLOR_DARKRED, self.ds.quality_magn)
                 self.updateStateBox('orientation_quality',      '%s, %s, %s, %s'%(qsys,qgyr,qacc,qmag), warn__nothres)
                 self.updateStateBox('orientation_calib_sfus',   "%i, %.1f, %i"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
-                self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
+#                self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
                     str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
@@ -776,12 +784,12 @@ class MainWidget(QWidget):
 #                    self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
-                    self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
+#                    self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
                 else:
                     self.dial_azim_sfus.setValue(int(self.ds.azimuth_sfus))
-                    self.dial_azim_ahrs.setValue(int(self.ds.azimuth_ahrs))
                     self.dial_roll_sfus.setValue(int(self.ds.roll_sfus))
-                    self.dial_roll_ahrs.setValue(int(self.ds.roll_ahrs))
+#                    self.dial_azim_ahrs.setValue(int(self.ds.azimuth_ahrs))
+#                    self.dial_roll_ahrs.setValue(int(self.ds.roll_ahrs))
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)

@@ -1,8 +1,8 @@
 # N. Rathmann <rathmann@nbi.dk>, 2019-2024
 
-### Should both be false when field deployed
-DEBUG_UNDEPLOYED   = True # not deployed to field with EGRIP network (typically for debugging)
 DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
+
+IS_UNDEPLOYED = True # not deployed to field with EGRIP network, drill host has address DRILL_HOST_LAN instead of DRILL_HOST
 
 #----------------------
 # Drill host
@@ -10,17 +10,20 @@ DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the R
 
 LOCAL_HOST = '127.0.0.1'
 DRILL_HOST = '10.2.3.10' # IP address of drill host (surface unit) when field deployed; may change depending on surface unit number
+DRILL_HOST_LAN = '10.217.97.60' # e.g. KU DHCP leased IP
 
 #----------------------
 # REDIS host
 #----------------------
 
 import socket
+
 if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST: 
     REDIS_HOST = LOCAL_HOST
-else:                               
-    if DEBUG_UNDEPLOYED:
-        DRILL_HOST = '10.217.97.60' # on drill run "dhcpcd" and note down the "leased IP" here
+    
+else:         
+    if IS_UNDEPLOYED: # is undeployed?
+        DRILL_HOST = DRILL_HOST_LAN # on drill run "dhcpcd" and note down the "leased IP" here
         print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST=%s with DHCP-given IP')
 
     REDIS_HOST = DRILL_HOST

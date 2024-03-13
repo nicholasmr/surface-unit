@@ -1,6 +1,9 @@
 #!/usr/bin/python
 # N. M. Rathmann <rathmann@nbi.ku.dk>, 2023
 
+# REQUIRES OLD MATPLOTLIB VERSION: sudo pip3 install matplotlib==3.4.3
+
+
 import code # code.interact(local=locals())
 
 import os, sys, math, time
@@ -48,14 +51,14 @@ c_dblue = '#2171b5'
 c_dgray = '0.3'
 c_lgray = '0.5'
 
-#cx = '0.5'
-cx = 'none'
-cy = c_dblue
+#cx = 'tab:green'
+cx = c_dblue
+cy = 'none'
 cz = c_dred
 
-cex = c_red
-cey = c_blue
-cez = c_dgray
+cex = c_blue
+cey = c_dgray
+cez = c_red
 
 lw_default = 4.5
 alpha0 = 0.09
@@ -319,7 +322,7 @@ class RotationVisualizer3D(object):
         self.plot_sector(ax, 0, 2 * np.pi, rotation, t, r, plane=plane, color=color, alpha=alpha, method=method)
     
     
-    def adjust_axes(self, ax, scale=2):
+    def adjust_axes(self, ax, verbose=False, scale=2):
         '''
         Adjust the limite and aspect ratio of a 3D plot.
         '''
@@ -334,13 +337,19 @@ class RotationVisualizer3D(object):
         ax.set_yticks(ticks, minor=True)
         ax.set_zticks(ticks, minor=True)
         
+        if not verbose:
+            for x in ax.get_xticklabels(): x.set_visible(False)
+            for y in ax.get_yticklabels(): y.set_visible(False)
+            for z in ax.get_zticklabels(): z.set_visible(False)
+        
         ax.set_xlim(-scale, scale)
         ax.set_ylim(-scale, scale)
         ax.set_zlim(-scale, scale/3)
 
-        ax.set_xlabel('$x$', fontsize=FS+2)
-        ax.set_ylabel('$y$', fontsize=FS+2)
-        ax.set_zlabel('$z$', fontsize=FS+2)
+        if verbose:
+            ax.set_xlabel('$x$', fontsize=FS+2)
+            ax.set_ylabel('$y$', fontsize=FS+2)
+            ax.set_zlabel('$z$', fontsize=FS+2)
 
 
 ##################################################
@@ -481,33 +490,17 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
 
         ax_calib_ahrs0 = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
         ax_calib_sfus0 = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
-        b_calib_ahrs0 = Button(ax_calib_ahrs0, r'AHRS horiz.')
-        b_calib_sfus0 = Button(ax_calib_sfus0, r'SFUS horiz.')
+        b_calib_ahrs0 = Button(ax_calib_ahrs0, r'AHRS plumb (N/A)')
+        b_calib_sfus0 = Button(ax_calib_sfus0, r'SFUS plumb')
         b_calib_ahrs0.on_clicked(self.set_calibrate_ahrs0)
         b_calib_sfus0.on_clicked(self.set_calibrate_sfus0)
         plt.b_calib_ahrs0 = b_calib_ahrs0
         plt.b_calib_sfus0 = b_calib_sfus0
 
-        if SHOW_PLUMB_BUTTONS:
-            ax_calib_ahrs1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-1*dy, dl_, dh])
-            ax_calib_sfus1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-0*dy, dl_, dh])
-            b_calib_ahrs1 = Button(ax_calib_ahrs1, r'AHRS plumb')
-            b_calib_sfus1 = Button(ax_calib_sfus1, r'SFUS plumb')
-            b_calib_ahrs1.on_clicked(self.set_calibrate_ahrs1)
-            b_calib_sfus1.on_clicked(self.set_calibrate_sfus1)
-            plt.b_calib_ahrs1 = b_calib_ahrs1
-            plt.b_calib_sfus1 = b_calib_sfus1
-
         ax_uncalib0 = self.fig.add_axes([x1,         y0-dyt-2*dy, dl_, dh])
-        b_uncalib0  = Button(ax_uncalib0, r'Clear horiz.')
+        b_uncalib0  = Button(ax_uncalib0, r'Clear all')
         b_uncalib0.on_clicked(self.set_uncalibrate0)
         plt.b_uncalib0 = b_uncalib0        
-
-        if SHOW_PLUMB_BUTTONS:
-            ax_uncalib1 = self.fig.add_axes([x1+1.2*dl_, y0-dyt-2*dy, dl_, dh])
-            b_uncalib1  = Button(ax_uncalib1, r'Clear plumb')
-            b_uncalib1.on_clicked(self.set_uncalibrate1)
-            plt.b_uncalib1 = b_uncalib1
 
 #        y0_ = 0.925
         y0_ = 0.05
@@ -536,14 +529,15 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         plt.bv_topdown    = bv_topdown
         plt.bv_alongdrill = bv_alongdrill
 
-        axv_ahrs = self.fig.add_axes([x1+1.3*dl, y0-dyt-1*dy, dl, dh])
-        axv_sfus = self.fig.add_axes([x1+1.3*dl, y0-dyt-0*dy, dl, dh])
-        bv_ahrs = Button(axv_ahrs, 'Toggle AHRS')
-        bv_sfus = Button(axv_sfus, 'Toggle SFUS')
-        bv_ahrs.on_clicked(self.toggle_ahrs)
-        bv_sfus.on_clicked(self.toggle_sfus)
-        plt.bv_ahrs = bv_ahrs
-        plt.bv_sfus = bv_sfus
+#        axv_ahrs = self.fig.add_axes([x1+1.3*dl, y0-dyt-1*dy, dl, dh])
+#        bv_ahrs = Button(axv_ahrs, 'Toggle AHRS')
+#        bv_ahrs.on_clicked(self.toggle_ahrs)
+        #plt.bv_ahrs = bv_ahrs
+        
+#        axv_sfus = self.fig.add_axes([x1+1.3*dl, y0-dyt-0*dy, dl, dh])
+#        bv_sfus = Button(axv_sfus, 'Toggle SFUS')
+#        bv_sfus.on_clicked(self.toggle_sfus)
+#        plt.bv_sfus = bv_sfus
         
         ### Orientation plot buttons
         
@@ -655,18 +649,11 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
     def toggle_sfus(self, *args, **kwargs): self.show_sfus = not self.show_sfus
 
     def set_uncalibrate0(self, *args, **kwargs): 
-        self.ds.set_oricalib_horiz(None, 'sfus')
-        self.ds.set_oricalib_horiz(None, 'ahrs')
+        self.ds.set_oricalib(None, 'sfus')
+        self.ds.set_oricalib(None, 'ahrs')
 
-    def set_uncalibrate1(self, *args, **kwargs): 
-        self.ds.set_oricalib_vert(None, 'sfus')
-        self.ds.set_oricalib_vert(None, 'ahrs')
-
-    def set_calibrate_sfus0(self, *args, **kwargs): self.ds.set_oricalib_horiz(self.ds.quat0_sfus, 'sfus')
-    def set_calibrate_sfus1(self, *args, **kwargs): self.ds.set_oricalib_vert(self.ds.quat0_sfus,  'sfus')
-
-    def set_calibrate_ahrs0(self, *args, **kwargs): self.ds.set_oricalib_horiz(self.ds.quat0_ahrs, 'ahrs')
-    def set_calibrate_ahrs1(self, *args, **kwargs): self.ds.set_oricalib_vert(self.ds.quat0_ahrs,  'ahrs')
+    def set_calibrate_sfus0(self, *args, **kwargs): self.ds.set_oricalib(self.ds.xi0_sfus, 'sfus')
+    def set_calibrate_ahrs0(self, *args, **kwargs): self.ds.set_oricalib(self.ds.xi0_ahrs, 'ahrs')
 
     def show_incl(self, *args, **kwargs): self.setup_ui_profile('inclination')
     def show_azim(self, *args, **kwargs): self.setup_ui_profile('azimuth')
@@ -702,9 +689,7 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.ax3d.clear()
 
         if self.view_followdrill:
-            azim, incl, roll = quat_to_euler(self.qc_sfus)
-#            self.ax3d.view_init(azim=azim+90, elev=90-incl)
-            self.ax3d.view_init(azim=2*90, elev=90-incl)
+            self.ax3d.view_init(azim=180+self.ds.azimuth_sfus, elev=90-self.ds.inclination_sfus)
 
         ### Draw horizontal flow field 
         
@@ -744,6 +729,15 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.plot_vector(self.ax3d, 0,scale*1,0,  0,0,0,  style='-', color=cey, lw=lwc, arrow=True)
         self.plot_vector(self.ax3d, 0,0,-scale*1,  0,0,0,  style='-', color=cez, lw=lwc, arrow=True)
 
+        # debug:
+        if 0:
+            x,y,z = [scale*self.ds.xi_sfus[ii] for ii in range(3)]
+    #        print(x,y,z)
+            self.plot_vector(self.ax3d, *x,  0,0,0,  style='-', color=cx, lw=lwc, arrow=True)
+            self.plot_vector(self.ax3d, *y,  0,0,0,  style='-', color=cy, lw=lwc, arrow=True)
+            self.plot_vector(self.ax3d, *z,  0,0,0,  style='-', color=cz, lw=lwc, arrow=True)
+
+
         self.adjust_axes(self.ax3d, scale=scale)
 
         self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perp.', '$-z$ axis: Plumb line', 'Drill axis (SFUS)', 'Spring direction (SFUS)', ], \
@@ -780,6 +774,8 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
                 self.qc0_ahrs = self.ds.quat0_ahrs
                 self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
+                
+#                print(self.ds.inclination_sfus, self.ds.azimuth_sfus, self.ds.roll_sfus)
 
                 self.drill_depth[nn] = -abs(self.ss.depth)
                 self.drill_inclination_ahrs[nn] = self.ds.inclination_ahrs
