@@ -276,9 +276,9 @@ class MainWidget(QWidget):
             d.setMaximum(+180)
             d.setWrapping(True)
             d.setMaximumHeight(75)
-            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
-                d.setInvertedAppearance(True)
-                d.setInvertedControls(True)
+#            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
+#                d.setInvertedAppearance(True)
+#                d.setInvertedControls(True)
             d.setStyleSheet("background-color: %s; border : 2px solid black;"%(cdial[tt]));
             setattr(self, tt, d)
         dlayout.addWidget(self.dial_azim_sfus, 0,0)
