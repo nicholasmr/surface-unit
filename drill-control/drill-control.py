@@ -265,7 +265,7 @@ class MainWidget(QWidget):
 #        self.gb_orientation.setMinimumWidth(330)
         layout = QVBoxLayout()
 
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination, Azimuth, Roll (spring)',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination,  Azimuth,  Spring roll',  initstr))
 
         dlayout = QGridLayout()
         cdial = dict(dial_azim=COLOR_DIAL1, dial_roll=COLOR_DIAL2)
