@@ -1,4 +1,4 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2022
+# N. Rathmann <rathmann@nbi.dk>, 2019-2024
 
 import sys, os, signal, datetime
 import numpy as np
@@ -12,7 +12,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import * 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
-import PyQt4.Qwt5 as Qwt
+
+#import qwt # https://pypi.org/project/PythonQwt/
 import pyqtgraph as pg
 
 #-------------------
@@ -20,7 +21,7 @@ import pyqtgraph as pg
 #-------------------
 
 DT           = 1/8 # update rate in seconds for GUI/surface state
-DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated # was 7 previously
+DTFRAC_DRILL = 4 # update the drill state every DTFRAC_DRILL times the GUI/surface state is updated (was 7 previously)
 
 tavg = 3 # time-averging length in seconds for velocity estimate
 
@@ -259,38 +260,49 @@ class MainWidget(QWidget):
 
     def create_gb_orientation(self, initstr='N/A'):
         self.gb_orientation = QGroupBox("Orientation (deg)")
-#        self.gb_orientation.setMinimumWidth(340)
-        self.gb_orientation.setMinimumWidth(290)
+#        self.gb_orientation.setMinimumWidth(330)
         layout = QVBoxLayout()
+
+        dlayout = QGridLayout()        
+        lbl_method = QLabel('Method:')
+        dlayout.addWidget(lbl_method, 0,0)
+        self.cb_orimethod = QComboBox()
+        self.cb_orimethod.addItems(["Sensor fusion", "AHRS"])
+        self.cb_orimethod.currentIndexChanged.connect(self.changed_orimethod)
+        self.orimethod = 'sfus'
+        dlayout.addWidget(self.cb_orimethod,0,1)
+        dlayout.setColumnStretch(2,1)
+        layout.addLayout(dlayout)
+        
         layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination, Azimuth, Roll',  initstr))
-#        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll (SFUS, AHRS)',  initstr))
-#        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
-#        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))
 
         dlayout = QGridLayout()
-        cdial = dict(dial_azim_sfus=COLOR_DIAL1, dial_azim_ahrs=COLOR_DIAL1l, dial_roll_sfus=COLOR_DIAL2, dial_roll_ahrs=COLOR_DIAL2l)
-#        for tt in ['dial_azim_sfus', 'dial_azim_ahrs', 'dial_roll_sfus', 'dial_roll_ahrs']:
-        for tt in ['dial_azim_sfus', 'dial_roll_sfus']:
+        cdial = dict(dial_azim=COLOR_DIAL1, dial_roll=COLOR_DIAL2)
+        for tt in ['dial_azim', 'dial_roll']:
             d = QDial()
             d.setNotchesVisible(True)
             d.setMinimum(-180)
             d.setMaximum(+180)
             d.setWrapping(True)
-            d.setMaximumHeight(75)
+            d.setMinimumHeight(100)
+#            d.setMaximumHeight(85)
 #            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
             d.setInvertedAppearance(True)
             d.setInvertedControls(True)
             d.setStyleSheet("background-color: %s; border : 2px solid black;"%(cdial[tt]));
             setattr(self, tt, d)
-        dlayout.addWidget(self.dial_azim_sfus, 0,0)
-        dlayout.addWidget(self.dial_roll_sfus, 0,1)
-#        dlayout.addWidget(self.dial_azim_ahrs, 0,1)
-#        dlayout.addWidget(self.dial_roll_ahrs, 0,3)
+        dlayout.addWidget(self.dial_azim, 0,0)
+        dlayout.addWidget(self.dial_roll, 0,1)
+        btn_offset = QPushButton('Zero roll') 
+        btn_offset.clicked.connect(lambda: [None,self.ds.save_offset('sfus'),self.ds.save_offset('ahrs')][0]) 
+        dlayout.addWidget(btn_offset, 1,0)
+        btn_offset = QPushButton('Clear') 
+        btn_offset.clicked.connect(lambda: [None,self.ds.save_offset('sfus',reset=True),self.ds.save_offset('ahrs',reset=True)][0]) 
+        dlayout.addWidget(btn_offset, 1,1)
         layout.addLayout(dlayout)
 
-        layout.addWidget(self.MakeStateBox('orientation_quality',    'Sensor Q (sys, gyr, acc, mag)',    initstr))
-        layout.addWidget(self.MakeStateBox('orientation_calib_sfus',   'SFUS calib. (azim, incl, roll)',   initstr))
-#        layout.addWidget(self.MakeStateBox('orientation_calib_ahrs',   'AHRS calib. (azim, incl, roll)',   initstr))
+        layout.addWidget(self.MakeStateBox('orientation_quality', 'Sensor Q (sys, gyr, acc, mag)', initstr))
+        layout.addWidget(self.MakeStateBox('orientation_offsets', 'Offsets (incl, azim, roll)', initstr))
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
         layout_BNO055 = QVBoxLayout()
@@ -300,7 +312,7 @@ class MainWidget(QWidget):
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_linearacceleration', 'Linearacceleration (m/s^2)',    initstr))
 #        layout_BNO055.addWidget(self.MakeStateBox('orientation_gravity',            'Gravity (m/s^2)',    initstr))
         layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_sfus',    'Quaternion, SFUS (x,y,z,w)',    initstr))
-#        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
+        layout_BNO055.addWidget(self.MakeStateBox('orientation_quaternion_ahrs',    'Quaternion, AHRS (x,y,z,w)',    initstr))
         self.gb_BNO055.setLayout(layout_BNO055)
         self.cb_show_bno055 = QCheckBox("Show BNO055 details?")
         self.cb_show_bno055.toggled.connect(self.clicked_showhide_bno055)     
@@ -397,13 +409,13 @@ class MainWidget(QWidget):
         self.sl_inching.setSingleStep(5)
         self.sl_inching.valueChanged.connect(self.changed_sl_inching)
         layout.addWidget(self.sl_inching, row+2,1, 1,1)
-        self.dial_inching = QDial()
-        self.dial_inching.setNotchesVisible(True)
-        self.dial_inching.setMinimum(-180)
-        self.dial_inching.setMaximum(+180)
-        self.dial_inching.setWrapping(True)
-        self.dial_inching.setMaximumHeight(75)
-        layout.addWidget(self.dial_inching, row+1,2, 3,1)
+#        self.dial_inching = QDial()
+#        self.dial_inching.setNotchesVisible(True)
+#        self.dial_inching.setMinimum(-180)
+#        self.dial_inching.setMaximum(+180)
+#        self.dial_inching.setWrapping(True)
+#        self.dial_inching.setMaximumHeight(75)
+#        layout.addWidget(self.dial_inching, row+1,2, 3,1)
         layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
@@ -526,6 +538,14 @@ class MainWidget(QWidget):
 
     ### User actions 
     
+    # Orientation
+    
+    def changed_orimethod(self):
+        self.orimethod = None
+        if self.cb_orimethod.currentIndex()==0: self.orimethod = 'sfus'
+        if self.cb_orimethod.currentIndex()==1: self.orimethod = 'ahrs'
+        print('orimethod is now ', self.orimethod)
+    
     # Motor
     
     def changed_throttle(self):
@@ -533,7 +553,7 @@ class MainWidget(QWidget):
         
     def changed_sl_inching(self):
         deg = self.sl_inching.value()
-        self.dial_inching.setValue(deg)
+#        self.dial_inching.setValue(deg)
         self.sl_inching_label.setText('Inching: %+i deg'%(deg))
         
     def clicked_motorstart(self):
@@ -756,20 +776,18 @@ class MainWidget(QWidget):
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
                
                 ### Update state fields
-                self.updateStateBox('orientation_inclination',  '%.1f,&nbsp; <font color="%s">%.0f</font>,&nbsp; <font color="%s">%.0f</font>'%(self.ds.inclination_sfus, COLOR_DIAL1, self.ds.azimuth_sfus, COLOR_DIAL2, self.ds.roll_sfus), warn__nothres)
-#                self.updateStateBox('orientation_inclination',  '(%.1f, %.1f),&nbsp; <font color="%s">(%.0f, %.0f)</font>,&nbsp; <font color="%s">(%.0f, %.0f)</font>'%(self.ds.inclination_sfus,self.ds.inclination_ahrs, COLOR_DIAL1, self.ds.azimuth_sfus,self.ds.azimuth_ahrs, COLOR_DIAL2, self.ds.roll_sfus,self.ds.roll_ahrs), warn__nothres)
-#                self.updateStateBox('orientation_inclination',  "(%.1f, %.1f)"%(self.ds.inclination_sfus,self.ds.inclination_ahrs), warn__nothres)
-#                self.updateStateBox('orientation_azimuth',      "(%.0f, %.0f)"%(self.ds.azimuth_sfus,self.ds.azimuth_ahrs),     warn__nothres)
-#                self.updateStateBox('orientation_roll',         "(%.0f, %.0f)"%(self.ds.roll_sfus,self.ds.roll_ahrs),        warn__nothres)
+                (incl, azim, roll) = [ getattr(self.ds, '%s_%s'%(tt,self.orimethod)) for tt in ['incl','azim','roll']]
+                self.updateStateBox('orientation_inclination',  '%.1f,&nbsp; <font color="%s">%.0f</font>,&nbsp; <font color="%s">%.0f</font>'%(incl, COLOR_DIAL1, azim, COLOR_DIAL2, roll), warn__nothres)
                 self.updateStateBox('orientation_spin',         "%.2f"%(self.ds.spin),        warn__nothres)
                 
                 qsys = '<font color="%s">%i</font>'%(COLOR_DARKGREEN if self.ds.quality_sys>=2   else COLOR_DARKRED, self.ds.quality_sys)
                 qgyr = '<font color="%s">%i</font>'%(COLOR_DARKGREEN if self.ds.quality_gyro>=2  else COLOR_DARKRED, self.ds.quality_gyro)
                 qacc = '<font color="%s">%i</font>'%(COLOR_DARKGREEN if self.ds.quality_accel>=2 else COLOR_DARKRED, self.ds.quality_accel)
                 qmag = '<font color="%s">%i</font>'%(COLOR_DARKGREEN if self.ds.quality_magn>=2  else COLOR_DARKRED, self.ds.quality_magn)
-                self.updateStateBox('orientation_quality',      '%s, %s, %s, %s'%(qsys,qgyr,qacc,qmag), warn__nothres)
-                self.updateStateBox('orientation_calib_sfus',   "%i, %.1f, %i"%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2]),  warn__nothres)
-#                self.updateStateBox('orientation_calib_ahrs',   "%i, %.1f, %i"%(self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]),  warn__nothres)
+                self.updateStateBox('orientation_quality', '%s, %s, %s, %s'%(qsys,qgyr,qacc,qmag), warn__nothres)
+                
+                offsets = getattr(self.ds, 'offset_%s'%(self.orimethod))
+                self.updateStateBox('orientation_offsets', "%.1f, %i, %i"%(offsets[0], offsets[1], offsets[2]),  warn__nothres)
 
                 if self.SHOW_BNO055_DETAILED:
                     str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
@@ -785,12 +803,10 @@ class MainWidget(QWidget):
 #                    self.updateStateBox('orientation_gravity', str_gravvec, warn__nothres)
                     self.updateStateBox('orientation_gyroscope',    str_spnvec, warn__nothres)
                     self.updateStateBox('orientation_quaternion_sfus',    str_quatvec_sfus, warn__nothres)
-#                    self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
+                    self.updateStateBox('orientation_quaternion_ahrs',    str_quatvec_ahrs, warn__nothres)
                 else:
-                    self.dial_azim_sfus.setValue(int(self.ds.azimuth_sfus))
-                    self.dial_roll_sfus.setValue(int(self.ds.roll_sfus))
-#                    self.dial_azim_ahrs.setValue(int(self.ds.azimuth_ahrs))
-#                    self.dial_roll_ahrs.setValue(int(self.ds.roll_ahrs))
+                    self.dial_azim.setValue(int(azim))
+                    self.dial_roll.setValue(int(roll))
 
                 self.updateStateBox('pressure_electronics', round(self.ds.pressure_electronics,1), warn__pressure)
                 self.updateStateBox('pressure_topplug',     round(self.ds.pressure_topplug,1),     warn__pressure)
