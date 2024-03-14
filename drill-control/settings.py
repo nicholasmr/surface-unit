@@ -23,8 +23,8 @@ if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST:
     
 else:         
     if IS_UNDEPLOYED: # is undeployed?
+        print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST (%s) with DHCP-given IP (%s)'%(DRILL_HOST, DRILL_HOST_LAN))
         DRILL_HOST = DRILL_HOST_LAN # on drill run "dhcpcd" and note down the "leased IP" here
-        print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST=%s with DHCP-given IP')
 
     REDIS_HOST = DRILL_HOST
 

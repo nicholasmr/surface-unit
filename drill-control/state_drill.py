@@ -163,9 +163,9 @@ class DrillState():
 
         # Quaternion from sensor fuision (SFUS)
         self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
-#            norm = np.linalg.norm(self.quat0_sfus)
-#            if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm) # normalize just in case
-#            else: self.quat0_sfus = np.array([1,0,0,0])
+        norm = np.linalg.norm(self.quat0_sfus)
+        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm) # normalize just in case
+        else: self.quat0_sfus = np.array([1,0,0,0])
 
         self.update_oricalib('sfus')
         self.quat_sfus = self.quat0_sfus # no calibration

@@ -12,6 +12,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import * 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
+import PyQt4.Qwt5 as Qwt
 import pyqtgraph as pg
 
 #-------------------
@@ -261,7 +262,7 @@ class MainWidget(QWidget):
 #        self.gb_orientation.setMinimumWidth(340)
         self.gb_orientation.setMinimumWidth(290)
         layout = QVBoxLayout()
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination, Azimuth, Roll',  initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Incl, Azim, Roll (SFUS, AHRS)',  initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_azimuth',      'Azimuth (SFUS, AHRS)',      initstr))
 #        layout.addWidget(self.MakeStateBox('orientation_roll',         'Roll (SFUS, AHRS)',         initstr))

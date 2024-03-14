@@ -25,8 +25,8 @@ MENU="Choose one of the following options:"
 
 OPTIONS=(1 "2024 version"
          2 "2024 version, NOT deployed to field"
-         3 "2022 version (without drill BNO055 update)"
-         4 "2016-2019 legacy (N/A)"
+#         3 "2022 version (without drill BNO055 update)"
+#         4 "2016-2019 legacy (N/A)"
          )
 
 CHOICE=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Drill GUI version" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
@@ -37,8 +37,8 @@ ISDRILLHOST=1 # assume this is drill host by default
 case $CHOICE in
         1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
         2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py; ISDRILLHOST=0 ;;
-        3)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        4)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/legacy/drill-surface/drill_surface.py ;;
+#        3)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        4)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/legacy/drill-surface/drill_surface.py ;;
 esac
 
 ### Menu 2
