@@ -238,21 +238,61 @@ class DrillState():
         roll = np.rad2deg(np.arctan2(x2,x1)) # roll (psi)
         return (ei, incl, azim, roll)
 
+    def _qz(self, angle):
+        # apply rotation around z-axis
+        return Rotation.from_rotvec(np.deg2rad(angle)*np.array([0,0,1])) 
+        
+    def _qr(self, r, angle):
+        return Rotation.from_rotvec(np.deg2rad(angle)*r) 
+
     def apply_offsets(self, quat0, method):
+        
+        ### First, rotate around z-axis to account for azimuthal offset
         (incl, azim, roll) = getattr(self, 'offset_%s'%(method))
         q0 = Rotation.from_quat(quat0)
-        qz = Rotation.from_rotvec(np.deg2rad(roll)*np.array([0,0,1])) # apply rotation around z-axis so drill roll is zero when spring in trench (x) direction for plumb position
-        q = qz * q0
+        qz = self._qz(azim) # apply rotation around z-axis so drill roll is zero when spring in trench (x) direction for plumb position
+        q = qz*q0
+
+        ### Next, rotate drill around own axis (r) to account for roll offset
+        (ei, _,_,_) = self.quat2ori(q.as_quat())
+        qr = self._qr(ei[2], roll) # rotate around "roll" around drill axis
+
+        ### Combine both rotations
+        q = qr * qz * q0
         return q.as_quat()
 
     def save_offset(self, method, reset=False):
         incl, azim, roll = 0, 0, 0
         if not reset:
-            x1,x2,x3 = getattr(self, 'ei0_%s'%(method))[0] # sensor x-axis (offsets not applied)
-            incl, azim, roll = 0, 0, np.rad2deg(np.arctan2(x2,x1))
+        
+            ### First get rotation of drill around z axis so that azimuth is 0 when drill tilts outward towards the x-axis (down-tower direction)
+            
+            ei0 = getattr(self, 'ei0_%s'%(method)) # raw sensor frame, no offsets applied
+            rx,ry,rz = ei0[2] # raw sensor z-axis (drill axis r)
+            azim = np.rad2deg(np.arctan2(ry,rx)) # azimuth of drill axis
+            
+            # Apply rotation to get the "zero azimuth" frame
+            q0 = Rotation.from_quat(getattr(self, 'quat0_%s'%(method))) # raw sensor quat, no offsets applied
+            qz = self._qz(-azim) # inverse rotation
+            q = qz*q0
+            (ei, _,_,_) = self.quat2ori(q.as_quat()) # new sensor frame, with offset applied
+            ry = ei[2][1]
+            if abs(ry) > 1e-8: 
+                print('ERROR, ROTATED COORDSYS SHOULD HAVE ry=0 BUT IS ry=%f'%(ry))
+                print('old z axis is', ei0[2])
+                print('new z axis is', ei[2])
+                print('old x axis is', ei0[0])            
+                print('new x axis is', ei[0])
+            
+            ### Next, rotate drill around own axis (r) so that spring direction points along the x-axis (down-tower direction)
+            
+            sx,sy,sz = ei[0] # spring axis is x-axis
+            roll = np.rad2deg(np.arctan2(sy,sx))
+            
+        # Save
         print('state_drill.py: setting offsets for "%s":'%(method), incl, azim, roll)
-        self.rc.set('offset-%s-roll'%(method), -roll)
-        self.rc.set('offset-%s-azim'%(method), 0)
+        self.rc.set('offset-%s-roll'%(method), roll)
+        self.rc.set('offset-%s-azim'%(method), -azim)
         self.rc.set('offset-%s-incl'%(method), 0)
         
     def set_AHRS_estimator(self, name):

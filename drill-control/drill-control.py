@@ -293,7 +293,7 @@ class MainWidget(QWidget):
             setattr(self, tt, d)
         dlayout.addWidget(self.dial_azim, 0,0)
         dlayout.addWidget(self.dial_roll, 0,1)
-        btn_offset = QPushButton('Zero roll') 
+        btn_offset = QPushButton('Zero ref.') 
         btn_offset.clicked.connect(lambda: [None,self.ds.save_offset('sfus'),self.ds.save_offset('ahrs')][0]) 
         dlayout.addWidget(btn_offset, 1,0)
         btn_offset = QPushButton('Clear') 
