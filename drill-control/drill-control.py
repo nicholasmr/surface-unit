@@ -41,7 +41,9 @@ COLOR_GREEN = '#66bd63'
 COLOR_RED   = '#f46d43'
 COLOR_DARKRED   = '#b2182b'
 COLOR_DARKGREEN = '#1a9850'
-COLOR_BLUE  = '#3182bd'
+
+COLOR_SLOT0  = '#3182bd'
+COLOR_SLOT1 = "#969696"
 
 COLOR_DIAL1  = '#01665e'
 COLOR_DIAL1l = '#c7eae5'
@@ -263,18 +265,7 @@ class MainWidget(QWidget):
 #        self.gb_orientation.setMinimumWidth(330)
         layout = QVBoxLayout()
 
-        dlayout = QGridLayout()        
-        lbl_method = QLabel('Method:')
-        dlayout.addWidget(lbl_method, 0,0)
-        self.cb_orimethod = QComboBox()
-        self.cb_orimethod.addItems(["Sensor fusion", "AHRS"])
-        self.cb_orimethod.currentIndexChanged.connect(self.changed_orimethod)
-        self.orimethod = 'sfus'
-        dlayout.addWidget(self.cb_orimethod,0,1)
-        dlayout.setColumnStretch(2,1)
-        layout.addLayout(dlayout)
-        
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination, Azimuth, Roll',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination, Azimuth, Roll (spring)',  initstr))
 
         dlayout = QGridLayout()
         cdial = dict(dial_azim=COLOR_DIAL1, dial_roll=COLOR_DIAL2)
@@ -301,8 +292,20 @@ class MainWidget(QWidget):
         dlayout.addWidget(btn_offset, 1,1)
         layout.addLayout(dlayout)
 
-        layout.addWidget(self.MakeStateBox('orientation_quality', 'Sensor Q (sys, gyr, acc, mag)', initstr))
         layout.addWidget(self.MakeStateBox('orientation_offsets', 'Offsets (incl, azim, roll)', initstr))
+        layout.addWidget(self.MakeStateBox('orientation_quality', 'Sensor Q (sys, gyr, acc, mag)', initstr))
+
+        #layout.addWidget(QLabel(' '))
+        dlayout = QGridLayout()        
+        lbl_method = QLabel('Method:')
+        dlayout.addWidget(lbl_method, 0,0)
+        self.cb_orimethod = QComboBox()
+        self.cb_orimethod.addItems(["Sensor fusion", "AHRS"])
+        self.cb_orimethod.currentIndexChanged.connect(self.changed_orimethod)
+        self.orimethod = 'sfus'
+        dlayout.addWidget(self.cb_orimethod,0,1)
+        dlayout.setColumnStretch(2,1)
+        layout.addLayout(dlayout)
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
         layout_BNO055 = QVBoxLayout()
@@ -515,20 +518,21 @@ class MainWidget(QWidget):
         self.gb_bno005calib = QGroupBox("BNO055 calibration")
         layout = QGridLayout()
 
-        btn_width = 33
+        #btn_width = 33
+        btn_width = 70
         row = 0
         self.btn_savecalib = {}
         self.btn_loadcalib = {}
         
-        for index in range(0,4):
-            self.btn_loadcalib[index] = QPushButton("L%i"%(index), parent=self)
-            self.btn_loadcalib[index].setStyleSheet("background-color : %s"%(COLOR_BLUE))
+        for index in range(0,2):
+            self.btn_loadcalib[index] = QPushButton("Load %i"%(index), parent=self)
+            self.btn_loadcalib[index].setStyleSheet("background-color : %s"%(COLOR_SLOT0 if index==0 else COLOR_SLOT1))
             self.btn_loadcalib[index].clicked.connect(partial(self.clicked_loadcal, index))
             self.btn_loadcalib[index].setMaximumWidth(btn_width)
             layout.addWidget(self.btn_loadcalib[index], row, index)
 
-            self.btn_savecalib[index] = QPushButton("S%i"%(index), parent=self)
-            self.btn_savecalib[index].setStyleSheet("background-color : %s"%(COLOR_BLUE))
+            self.btn_savecalib[index] = QPushButton("Save %i"%(index), parent=self)
+            self.btn_savecalib[index].setStyleSheet("background-color : %s"%(COLOR_SLOT0 if index==0 else COLOR_SLOT1))
             self.btn_savecalib[index].clicked.connect( partial(self.clicked_savecal, index))
             self.btn_savecalib[index].setMaximumWidth(btn_width)
             layout.addWidget(self.btn_savecalib[index], row+1, index)
