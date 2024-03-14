@@ -1,8 +1,7 @@
 #!/usr/bin/python
-# N. M. Rathmann <rathmann@nbi.ku.dk>, 2023
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2023-2024
 
 # REQUIRES OLD MATPLOTLIB VERSION: sudo pip3 install matplotlib==3.4.3
-
 
 import code # code.interact(local=locals())
 
@@ -23,8 +22,6 @@ from state_drill import *
 from state_surface import *
 
 from pyrotation import *
-
-SHOW_PLUMB_BUTTONS = False
 
 INCL_LIMS = [0,10] # x lims for inclination plot
 AZIM_LIMS = [-180,+180] # x lims for azimuth plot
@@ -395,13 +392,6 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.qc_sfus = [0,0,0,1]
         self.qc_ahrs = [0,0,0,1]
         
-        # Calibration quat 
-        self.qc_calib_sfus = Rotation.identity().as_quat()
-        self.qc_calib_ahrs = Rotation.identity().as_quat()
-        
-        # Euler angles
-        self.incl, self.azim = 0, 0
-        
         # Drill inclination history
         dt = 0.8 # update rate
 #        H = 0.001# show trail for this number of hours
@@ -410,10 +400,10 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         print('depth-inclination history length = %i'%(N))
         
         self.drill_depth = np.zeros(N)*np.nan
-        self.drill_inclination_ahrs = np.zeros(N)*np.nan
-        self.drill_inclination_sfus = np.zeros(N)*np.nan
-        self.drill_azimuth_ahrs = np.zeros(N)*np.nan
-        self.drill_azimuth_sfus = np.zeros(N)*np.nan
+        self.drill_incl_ahrs = np.zeros(N)*np.nan
+        self.drill_incl_sfus = np.zeros(N)*np.nan
+        self.drill_azim_ahrs = np.zeros(N)*np.nan
+        self.drill_azim_sfus = np.zeros(N)*np.nan
         self.drill_roll_ahrs = np.zeros(N)*np.nan
         self.drill_roll_sfus = np.zeros(N)*np.nan
         
@@ -438,11 +428,11 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         Set up the UI and the 3D plot.
         '''
 
-        self.fig = plt.figure(10, figsize=(20, 9.8), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(14, 9.8), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
 
-        gs = self.fig.add_gridspec(1,3, width_ratios=[2,8,3])
-        gs.update(left=0.07, right=1, top=0.98, bottom=0.08, wspace=-0.25)
+        gs = self.fig.add_gridspec(1,2, width_ratios=[1,3])
+        gs.update(left=0.085, right=1, top=0.98, bottom=0.08, wspace=-0.05)
 
         self.axp  = self.fig.add_subplot(gs[0,0]); 
         self.ax3d = self.fig.add_subplot(gs[0,1], projection='3d'); 
@@ -468,57 +458,15 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.ax_fake = self.fig.add_axes([x1, y0, dl, dh])
         self.ax_fake.axis('off')
 
-        plt.text(x0, y0, 'Calibration procedure', fontweight='bold', **kwargs_text)        
-
-#        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
-        bbox = None
-        plt.text(x0, y0-0.35*dy, \
-'''Orientation sensor must be re-calibrated before every run:
-(1) Power drill off for 10 seconds and then on. Leave the drill horizontally on the tower, completely still, for 10 seconds to calibrate the gyroscope.
-(2) While horizontal on tower, rotate the drill slowly in approx. 90 deg. increments, leaving it for ~10 seconds each time.
-(3) Rotate drill so the *true* direction of spring is opposite of driller's cabin and click "SFUS horiz." and "AHRS horiz." buttons below; drill and spring direction should now align with the trench frame-of-reference. 
-(4) Tilt tower to vertical and repeat 90 deg. rotations (but do not click the buttons).
-(5) Rotate drill back to horizontal. If drill axis and spring direction do not *approx. match* the calibration made at step 3, then repeat steps 2-5. If they approx. match, you are ready to go!''', \
-ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, transform=plt.gcf().transFigure)        
-
-                
-        ### Calibrate/offset 
-
-        y0 = y0-0.53
-        plt.text(x0, y0, 'Rotate to trench frame-of-reference', fontweight='bold', **kwargs_text)        
-        dl_ = dl*1.2
-
-        ax_calib_ahrs0 = self.fig.add_axes([x1, y0-dyt-1*dy, dl_, dh])
-        ax_calib_sfus0 = self.fig.add_axes([x1, y0-dyt-0*dy, dl_, dh])
-        b_calib_ahrs0 = Button(ax_calib_ahrs0, r'AHRS plumb (N/A)')
-        b_calib_sfus0 = Button(ax_calib_sfus0, r'SFUS plumb')
-        b_calib_ahrs0.on_clicked(self.set_calibrate_ahrs0)
-        b_calib_sfus0.on_clicked(self.set_calibrate_sfus0)
-        plt.b_calib_ahrs0 = b_calib_ahrs0
-        plt.b_calib_sfus0 = b_calib_sfus0
-
-        ax_uncalib0 = self.fig.add_axes([x1,         y0-dyt-2*dy, dl_, dh])
-        b_uncalib0  = Button(ax_uncalib0, r'Clear all')
-        b_uncalib0.on_clicked(self.set_uncalibrate0)
-        plt.b_uncalib0 = b_uncalib0        
-
-#        y0_ = 0.925
-        y0_ = 0.05
-        x0_ = 0.51
-#        bbox = bbox=dict(boxstyle="square,pad=0.6", ec=frameec, fc='w',)
-        bbox = None
-        self.text_calib_title = plt.text(x0_, y0_+1.1*dy, 'Frame-of-reference offset', fontweight='bold', bbox=bbox, **kwargs_text)
-        self.text_calib = plt.text(x0_, y0_-0*dy, '', bbox=bbox, **kwargs_text)
-
-
         ### View buttons
 
-        y0 = y0-0.22
+        x0 = 0.49
+        y0 = 0.14
         
-        plt.text(x0, y0, 'Change view', fontweight='bold', **kwargs_text)
-        axv_sideways   = self.fig.add_axes([x1, y0-dyt-0*dy, dl, dh])
-        axv_topdown    = self.fig.add_axes([x1, y0-dyt-1*dy, dl, dh])
-        axv_alongdrill = self.fig.add_axes([x1, y0-dyt-2*dy, dl, dh])
+        plt.text(x0, y0+1.25*dy, 'Change view', fontweight='bold', **kwargs_text)
+        axv_sideways   = self.fig.add_axes([x0, y0-0*dy, dl, dh])
+        axv_topdown    = self.fig.add_axes([x0, y0-1*dy, dl, dh])
+        axv_alongdrill = self.fig.add_axes([x0, y0-2*dy, dl, dh])
         bv_sideways   = Button(axv_sideways, 'Sideways')
         bv_topdown    = Button(axv_topdown, 'Top-down')
         bv_alongdrill = Button(axv_alongdrill, 'Along drill')
@@ -529,26 +477,17 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         plt.bv_topdown    = bv_topdown
         plt.bv_alongdrill = bv_alongdrill
 
-#        axv_ahrs = self.fig.add_axes([x1+1.3*dl, y0-dyt-1*dy, dl, dh])
-#        bv_ahrs = Button(axv_ahrs, 'Toggle AHRS')
-#        bv_ahrs.on_clicked(self.toggle_ahrs)
-        #plt.bv_ahrs = bv_ahrs
-        
-#        axv_sfus = self.fig.add_axes([x1+1.3*dl, y0-dyt-0*dy, dl, dh])
-#        bv_sfus = Button(axv_sfus, 'Toggle SFUS')
-#        bv_sfus.on_clicked(self.toggle_sfus)
-#        plt.bv_sfus = bv_sfus
-        
         ### Orientation plot buttons
         
-        x0 = 0.275
+        x0 = 0.35
         y0 = 0.14
+        
         plt.text(x0, y0+1.25*dy, 'Orientation plot', fontweight='bold', **kwargs_text)
-        axp_incl = self.fig.add_axes([x0, y0-0*dy, 1.2*dl, dh])
-        axp_azim = self.fig.add_axes([x0, y0-1*dy, 1.2*dl, dh])
-        axp_roll = self.fig.add_axes([x0, y0-2*dy, 1.2*dl, dh])
-        self.bp_incl = Button(axp_incl, 'Show inclination')
-        self.bp_azim = Button(axp_azim, 'Show azimuth')
+        axp_incl = self.fig.add_axes([x0, y0-0*dy, dl, dh])
+        axp_azim = self.fig.add_axes([x0, y0-1*dy, dl, dh])
+        axp_roll = self.fig.add_axes([x0, y0-2*dy, dl, dh])
+        self.bp_incl = Button(axp_incl, 'Show incl')
+        self.bp_azim = Button(axp_azim, 'Show azim')
         self.bp_roll = Button(axp_roll, 'Show roll')
         self.bp_incl.on_clicked(self.show_incl)
         self.bp_azim.on_clicked(self.show_azim)
@@ -593,16 +532,16 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
 
         if self.curr_oriplot == 'inclination':
             self.axp.scatter(self.logger_incl, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
-            self.h_oriplot_sfus, = self.axp.plot(self.drill_inclination_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
-            self.h_oriplot_ahrs, = self.axp.plot(self.drill_inclination_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+            self.h_oriplot_sfus, = self.axp.plot(self.drill_incl_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+            self.h_oriplot_ahrs, = self.axp.plot(self.drill_incl_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
             self.axp.set_xlim(INCL_LIMS); 
             self.axp.set_xticks(np.arange(INCL_LIMS[0],INCL_LIMS[1]+1,1))
             self.axp.set_xlabel(r'Inclination (deg)')
 
         elif self.curr_oriplot == 'azimuth':
             self.axp.scatter(self.logger_azim, -self.logger_depth, marker='o', s=3**2, ec=self.c_logger, c='none', label='Logger', zorder=8)
-            self.h_oriplot_sfus, = self.axp.plot(self.drill_azimuth_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
-            self.h_oriplot_ahrs, = self.axp.plot(self.drill_azimuth_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
+            self.h_oriplot_sfus, = self.axp.plot(self.drill_azim_sfus, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill, label='SFUS', zorder=10)
+            self.h_oriplot_ahrs, = self.axp.plot(self.drill_azim_ahrs, self.drill_depth, ls='none', marker='o', markersize=6, color=self.c_drill2, label='AHRS', zorder=9)
             self.axp.set_xlim(AZIM_LIMS); 
             self.axp.set_xticks(np.arange(AZIM_LIMS[0],AZIM_LIMS[1]+1,90))
             self.axp.set_xlabel(r'Azimuth (deg)')
@@ -645,16 +584,6 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.view_followdrill = True
         plt.draw()
         
-    def toggle_ahrs(self, *args, **kwargs): self.show_ahrs = not self.show_ahrs 
-    def toggle_sfus(self, *args, **kwargs): self.show_sfus = not self.show_sfus
-
-    def set_uncalibrate0(self, *args, **kwargs): 
-        self.ds.set_oricalib(None, 'sfus')
-        self.ds.set_oricalib(None, 'ahrs')
-
-    def set_calibrate_sfus0(self, *args, **kwargs): self.ds.set_oricalib(self.ds.xi0_sfus, 'sfus')
-    def set_calibrate_ahrs0(self, *args, **kwargs): self.ds.set_oricalib(self.ds.xi0_ahrs, 'ahrs')
-
     def show_incl(self, *args, **kwargs): self.setup_ui_profile('inclination')
     def show_azim(self, *args, **kwargs): self.setup_ui_profile('azimuth')
     def show_roll(self, *args, **kwargs): self.setup_ui_profile('roll')
@@ -666,12 +595,12 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.h_oriplot_sfus.set_ydata(self.drill_depth)
 
         if self.curr_oriplot == 'inclination':
-            self.h_oriplot_ahrs.set_xdata(self.drill_inclination_ahrs)
-            self.h_oriplot_sfus.set_xdata(self.drill_inclination_sfus)
+            self.h_oriplot_ahrs.set_xdata(self.drill_incl_ahrs)
+            self.h_oriplot_sfus.set_xdata(self.drill_incl_sfus)
             
         elif self.curr_oriplot == 'azimuth':
-            self.h_oriplot_ahrs.set_xdata(self.drill_azimuth_ahrs)
-            self.h_oriplot_sfus.set_xdata(self.drill_azimuth_sfus)
+            self.h_oriplot_ahrs.set_xdata(self.drill_azim_ahrs)
+            self.h_oriplot_sfus.set_xdata(self.drill_azim_sfus)
             
         elif self.curr_oriplot == 'roll':
             self.h_oriplot_ahrs.set_xdata(self.drill_roll_ahrs)
@@ -689,7 +618,7 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
         self.ax3d.clear()
 
         if self.view_followdrill:
-            self.ax3d.view_init(azim=180+self.ds.azimuth_sfus, elev=90-self.ds.inclination_sfus)
+            self.ax3d.view_init(azim=180+self.ds.azim_sfus, elev=90-self.ds.incl_sfus)
 
         ### Draw horizontal flow field 
         
@@ -778,10 +707,10 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
 #                print(self.ds.inclination_sfus, self.ds.azimuth_sfus, self.ds.roll_sfus)
 
                 self.drill_depth[nn] = -abs(self.ss.depth)
-                self.drill_inclination_ahrs[nn] = self.ds.inclination_ahrs
-                self.drill_inclination_sfus[nn] = self.ds.inclination_sfus
-                self.drill_azimuth_ahrs[nn] = self.ds.azimuth_ahrs
-                self.drill_azimuth_sfus[nn] = self.ds.azimuth_sfus
+                self.drill_incl_ahrs[nn] = self.ds.incl_ahrs
+                self.drill_incl_sfus[nn] = self.ds.incl_sfus
+                self.drill_azim_ahrs[nn] = self.ds.azim_ahrs
+                self.drill_azim_sfus[nn] = self.ds.azim_sfus
                 self.drill_roll_ahrs[nn] = self.ds.roll_ahrs
                 self.drill_roll_sfus[nn] = self.ds.roll_sfus
                 nn += 1
@@ -791,8 +720,6 @@ ha='left', va='top', wrap=True, bbox=bbox, fontsize=FS-2, linespacing=1+0.25, tr
                 self.update_ax3d_plot()
                 self.update_axp_plot()
 
-                self.text_calib.set_text('SFUS: (azim, incl, roll) = (%i, %.1f, %i)\nAHRS: (azim, incl, roll) = (%i, %.1f, %i)'%(self.ds.oricalib_sfus[0],self.ds.oricalib_sfus[1],self.ds.oricalib_sfus[2], self.ds.oricalib_ahrs[0],self.ds.oricalib_ahrs[1],self.ds.oricalib_ahrs[2]) )
-               
 
             if debug: print('Tick dt=%.2f'%(dt))
 
@@ -809,4 +736,5 @@ if __name__ == '__main__':
     vis = QuaternionVisualizer3D(REDIS_HOST=REDIS_HOST, AHRS_estimator=AHRS_estimator, dt=dt)
     vis.run(dt=dt, debug=False)
     pass
+
 
