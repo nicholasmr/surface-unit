@@ -56,8 +56,12 @@ def uphole_worker(arguments, redis, transport):
     logfile_ok = 0
 
     while True:
-        rx_buffer += transport.read()
-        msg, consumed = pyvesc.decode(rx_buffer)
+
+        try:
+            rx_buffer += transport.read()
+            msg, consumed = pyvesc.decode(rx_buffer)
+        except:
+            consumed = 0 # fail silently in case modem not connection to serial port
 
         if consumed > 0:
             if arguments["--debug"]:

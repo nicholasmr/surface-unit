@@ -10,7 +10,7 @@ IS_UNDEPLOYED = True # not deployed to field with EGRIP network, drill host has 
 
 LOCAL_HOST = '127.0.0.1'
 DRILL_HOST = '10.2.3.10' # IP address of drill host (surface unit) when field deployed; may change depending on surface unit number
-DRILL_HOST_LAN = '10.217.97.60' # e.g. KU DHCP leased IP
+DRILL_HOST_LAN = '10.217.96.247' # e.g. KU DHCP leased IP
 
 #----------------------
 # REDIS host

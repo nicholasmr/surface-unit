@@ -610,9 +610,19 @@ class MainWidget(QWidget):
         self.sl_inchingthrottle_label.setText('Inching throttle: %i%%'%(self.sl_inchingthrottle.value()))
 
     def clicked_savecal(self, i):
-        #test = index # int(self.sl_throttle.value())
-        #print('drill-control: Saving calibration in slot %d'% i)
-        self.ds.save_bno055_calibration(i)
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Save BNO055 calibration?")
+        dlg.setText("Are you sure you want to overwrite slot #%i?"%(i))
+        dlg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        dlg.setIcon(QMessageBox.Question)
+        button = dlg.exec()
+        if button == QMessageBox.Yes:
+            #test = index # int(self.sl_throttle.value())
+            #print('drill-control: Saving calibration in slot %d'% i)
+            self.ds.save_bno055_calibration(i)
+        else:
+#            print('save ignored...')           
+            pass
         
     def clicked_loadcal(self, i):
         #test = index # int(self.sl_throttle.value())

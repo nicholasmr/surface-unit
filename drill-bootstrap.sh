@@ -4,7 +4,6 @@
 ### Settings
 
 VPATH_LATEST=/home/drill/surface-unit
-VPATH_2022=/home/drill/surface-unit/old-versions/2022
 
 DEV_PMDSTRAIN=/dev/ttyUSB0
 DEV_CODIX=/dev/ttyUSB1
@@ -23,22 +22,18 @@ MENU="Choose one of the following options:"
 
 ### Menu 1
 
-OPTIONS=(1 "2024 version"
-         2 "2024 version, NOT deployed to field"
-#         3 "2022 version (without drill BNO055 update)"
-#         4 "2016-2019 legacy (N/A)"
+OPTIONS=(1 "Deep drill"
+         2 "Shallow drill (no network, no GUI)"
+         3 "Undeployed for debugging (no network)" 
          )
 
-CHOICE=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Drill GUI version" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
+CHOICE_DEPLOYMENT=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Drill GUI version" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
 clear
 
-ISDRILLHOST=1 # assume this is drill host by default
-
-case $CHOICE in
+case $CHOICE_DEPLOYMENT in
         1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py; ISDRILLHOST=0 ;;
-#        3)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-#        4)  VPATH=$VPATH_2022;   export GUI_SCRIPT=$VPATH/legacy/drill-surface/drill_surface.py ;;
+        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
+        3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
 esac
 
 ### Menu 2
@@ -47,9 +42,9 @@ OPTIONS=(1 "CRLF for PMD-strain, CRLF for CODIX560"
          2 "CRLF for PMD-strain, Modbus for CODIX560"
          )
 
-CHOICE=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Communication protocols for depth and load displays" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
+CHOICE_DISPLAYS=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Communication protocols for depth and load displays" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
 clear
-case $CHOICE in
+case $CHOICE_DISPLAYS in
         1) PMDSTRAIN_CRLF=1; CODIX_CRLF=1 ;;
         2) PMDSTRAIN_CRLF=1; CODIX_CRLF=0 ;;
 esac
@@ -58,7 +53,7 @@ esac
 ####################################
 
 
-if  [ $ISDRILLHOST = 1 ]
+if  [ $CHOICE_DEPLOYMENT = 1 ]
 then
     echo -e "${INFO}>>> Setting static IP address $STATIC_IP ${NC}";
     sudo dhcpcd -S ip_address=$STATIC_IP/16 -S routers=10.2.1.1 -S domain_name_servers=10.2.1.1 eth0
@@ -79,9 +74,12 @@ then
     else
         echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
     fi
-else
+elif [ $CHOICE_DEPLOYMENT = 3 ]
+then
     echo -e "${ERROR}>>> Non-deployed state: IP address from DHCP and USB pen not mounted for logging${NC}"
     sudo dhcpcd eth0
+else
+    echo -e "${INFO}>>> Skipping network setup"
 fi
 
 
@@ -119,4 +117,3 @@ python3 $VPATH/drill-dispatch/dispatch.py --debug --port=/dev/ttyAMA0;
 ### Added by Rikke
 #sudo idle& /home/drill/surface-unit/drill-control/drill-control.py
 #sudo idle& /home/drill/surface-unit/drill-dispatch/packets.py
-

@@ -1,0 +1,22 @@
+#### WSL
+
+# wsl --unregister Ubuntu
+
+wsl --install Ubuntu
+
+sudo apt-get update 
+
+apt-get install dialog python2 python3-pip python-pip
+
+#curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py 
+#python2 get-pip.py
+
+pip2 install redis minimalmodbus docopt termcolor pyvesc pythoncrc
+pip3 install redis minimalmodbus docopt termcolor pyvesc pythoncrc
+
+sudo mkdir /home/drill
+ln -s /mnt/c/Users/Trio/surface-unit /home/drill/surface-unit
+
+##### Windows naitive (py3)
+
+pip install numpy scipy ahrs PyQt5 redis pyqtgraph

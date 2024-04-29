@@ -24,33 +24,29 @@ if __name__ == "__main__":
     logger.info("Dispatch started")
 
     redis_conn = redis.StrictRedis.from_url(arguments["--redis"])
-    serial = serial.Serial(arguments["--port"], 600)
+    try: serial = serial.Serial(arguments["--port"], 600)
+    except: print('!!! Serial connection to modem could not be established on %s'%(arguments["--port"]))
 
     # TODO sanity checks
     print("starting surface thread")
-    surface_thread = threading.Thread(target=surface.surface_worker,
-                                       args=(arguments,
-                                             redis_conn))
+    surface_thread = threading.Thread(target=surface.surface_worker, args=(arguments, redis_conn))
     surface_thread.daemon = True
     surface_thread.start()
 
-    
-    print("starting downhole thread")
-    downhole_thread = threading.Thread(target=downhole.downhole_worker,
-                                       args=(arguments,
-                                             redis_conn,
-                                             serial))
-    downhole_thread.daemon = True
-    downhole_thread.start()
 
-    
-    print("starting uphole thread")
-    uphole_thread = threading.Thread(target=uphole.uphole_worker,
-                                     args=(arguments,
-                                           redis_conn,
-                                           serial))
-    uphole_thread.daemon = True
-    uphole_thread.start()
+    try:
+        print("starting downhole thread")
+        downhole_thread = threading.Thread(target=downhole.downhole_worker, args=(arguments, redis_conn, serial))
+        downhole_thread.daemon = True
+        downhole_thread.start()
+
+        
+        print("starting uphole thread")
+        uphole_thread = threading.Thread(target=uphole.uphole_worker, args=(arguments, redis_conn, serial))
+        uphole_thread.daemon = True
+        uphole_thread.start()
+    except:
+        pass
 
     while True:
         # idling in main thread so we can catch a ctrl+c
