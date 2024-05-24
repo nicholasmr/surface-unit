@@ -2,6 +2,7 @@
 
 import sys, os, signal, datetime
 import numpy as np
+import pandas as pd
 from functools import partial
 
 from settings import *
@@ -63,9 +64,9 @@ class MainWidget(QWidget):
     loadmeasure_inuse = 'hist_load'
 
     xlen            = [int(0.5*60), int(2*60), int(10*60), int(45*60)] 
-    xlen_names      = ["1/2 min", "2 min", "10 min", "45 min"]
+    xlen_names      = ["1/2m", "2m", "10m", "45m"]
     xlen_samplerate = [1,1,1,1]  
-    xlen_selector   = {'speed':0, 'load':0, 'current':0} # default selection
+    xlen_selector   = {'speed':0, 'load':0, 'current':0, 'incl':2} # default selection
     
     minYRange_load = 20 # kg
     minYRange_speed = 10.5 # cm/s
@@ -97,6 +98,14 @@ class MainWidget(QWidget):
         self.hist_speed      = np.full(len(self.hist_time), 0.0)
         self.hist_current    = np.full(len(self.hist_time_drill), 0.0)
 
+        #self.hist_depth     = np.full(len(self.hist_time_drill), 0.0)
+        #self.hist_incl_sfus = np.full(len(self.hist_time_drill), 0.0)
+        #self.hist_incl_ahrs = np.full(len(self.hist_time_drill), 0.0)
+        
+        self.hist_depth     = np.linspace(0,-2900,len(self.hist_time_drill)) 
+        self.hist_incl_sfus = np.linspace(0,8,len(self.hist_time_drill)) 
+        self.hist_incl_ahrs = np.linspace(0,5,len(self.hist_time_drill)) 
+
         def setupaxis(obj):
             obj.invertX()
             obj.setXRange(0, self.xlen[0]/60, padding=0)
@@ -123,6 +132,22 @@ class MainWidget(QWidget):
         self.plot_load.setLimits(minYRange=self.minYRange_load) # minimum y-axis span for load (don't auto-zoom in too much)
 #        self.plot_speed.setLimits(minYRange=self.minYRange_speed+0.2, yMin=-0.2) # minimum y-axis span for speed (don't auto-zoom in too much)
         self.plot_current.setYRange(0, warn__motor_current[1]*1.2, padding=0.02)
+    
+        self.plot_incl = pg.PlotWidget();  
+        self.plot_incl.setXRange(0, 8, padding=0)
+        self.plot_incl.setYRange(-2.9*1e3, 0, padding=0)
+        self.plot_incl.showAxis('right')
+        self.plot_incl.showAxis('top')      
+        self.plot_incl.setMenuEnabled(False)
+        self.plot_incl.setMouseEnabled(x=False, y=False)  
+        self.plot_incl.setLabel('right', "Depth (km)") 
+        self.plot_incl.setLabel('bottom', "Inclination (deg.)")
+        self.plot_incl.showGrid(y=True,x=True)
+        self.plot_incl.getAxis('left').setGrid(False)
+        self.plot_incl.getAxis('bottom').setGrid(False)
+        for ax in ['left', 'top']:
+            self.plot_incl.showAxis(ax)
+            self.plot_incl.getAxis(ax).setStyle(showValues=False)
 
         # init curves
         lw = 3
@@ -130,6 +155,28 @@ class MainWidget(QWidget):
         self.curve_load    = self.plot_load.plot(    x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_speed   = self.plot_speed.plot(   x=self.hist_time,y=self.hist_time*0-1e4, pen=plotpen_black)
         self.curve_current = self.plot_current.plot( x=self.hist_time_drill,y=self.hist_time_drill*0-1e4, pen=plotpen_black)
+
+
+        ###########
+
+        fields = ['azimuth', 'bottom_sensor', 'compass', 'depth', 'fluxgate_1_raw', 'fluxgate_2_raw', 'inclination', 'inclinometer_1_raw', 'inclinometer_2_raw', 'lower_diameter', \
+                  'lower_diameter_max_raw', 'lower_diameter_min_raw', 'pressure', 'pressure_raw', 'record_number', 'temperature_pressure_transducer', 'thermistor_high', 'thermistor_high_raw', \
+                  'upper_diameter', 'upper_diameter_max_raw', 'upper_diameter_min_raw', 'thermistor_low', 'thermistor_low_raw']
+        fname_logger = 'logger-2023-05-05-down.csv' # Logger data
+        flogger = os.path.join(os.path.dirname(__file__), "../logging/logger-data/%s"%(fname_logger))
+        df_logger = pd.read_csv(flogger, names=fields, header=1)
+        dn = 4
+        logger_depth = df_logger['depth'].to_numpy()[::dn]
+        logger_incl = df_logger['inclination'].to_numpy()[::dn]
+        
+        self.incl_scatter0 = pg.ScatterPlotItem(size=8, symbol='o', pen=None, brush=pg.mkBrush(100,100,100)) #brush=pg.mkBrush(30, 255, 35, 255))
+        self.incl_scatter0.setData(logger_incl, -logger_depth)
+        self.plot_incl.addItem(self.incl_scatter0)
+
+        self.incl_scatter = pg.ScatterPlotItem(size=8, pen=None, brush=pg.mkBrush(239,59,44))
+        self.incl_scatter.setData(self.hist_incl_sfus, self.hist_depth)
+        self.plot_incl.addItem(self.incl_scatter)
+#        self.curve_incl = self.plot_current.plot( x=self.hist_depth,y=self.hist_incl_sfus, pen=plotpen_black)
 
         ### State fields
 
@@ -148,7 +195,8 @@ class MainWidget(QWidget):
 
         # Graphs (top)
 
-        w_btn = 100
+        #w_btn = 100
+        w_btn = 60
         s_btn = 15
         
         topLayout = QHBoxLayout() # graphs and associated buttons
@@ -193,11 +241,29 @@ class MainWidget(QWidget):
         current_xlen_btn3 = QPushButton(self.xlen_names[2]); current_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_current(2)); current_xlen_btn3.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn3)
         current_xlen_btn4 = QPushButton(self.xlen_names[3]); current_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_current(3)); current_xlen_btn4.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn4)
         plotLayout3btn.addStretch(2)
+#        plotLayout3btn.addWidget(QLabel('Plot:'))
+#        self.cb_measure2 = QComboBox()
+#        self.cb_measure2.addItems([self.measures2[key] for key in self.measures2.keys()])
+#        self.cb_measure2.currentIndexChanged.connect(self.changed_measure2)
+#        plotLayout3btn.addWidget(self.cb_measure2)
         plotLayout3.addLayout(plotLayout3btn)
                 
-        topLayout.addLayout(plotLayout1,1)
-        topLayout.addLayout(plotLayout2,2)
-        topLayout.addLayout(plotLayout3,1)
+        plotLayout4 = QVBoxLayout()        
+        plotLayout4.addWidget(self.plot_incl)
+        plotLayout4btn = QHBoxLayout()
+        plotLayout4btn.setSpacing(s_btn)
+        plotLayout4btn.addStretch(1)
+        incl_xlen_btn1 = QPushButton(self.xlen_names[0]); incl_xlen_btn1.clicked.connect(lambda: self.changed_xaxislen_incl(0)); incl_xlen_btn1.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn1)
+        incl_xlen_btn2 = QPushButton(self.xlen_names[1]); incl_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_incl(1)); incl_xlen_btn2.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn2)
+        incl_xlen_btn3 = QPushButton(self.xlen_names[2]); incl_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_incl(2)); incl_xlen_btn3.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn3)
+        incl_xlen_btn4 = QPushButton(self.xlen_names[3]); incl_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_incl(3)); incl_xlen_btn4.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn4)
+        plotLayout4btn.addStretch(2)
+        plotLayout4.addLayout(plotLayout4btn)
+                
+        topLayout.addLayout(plotLayout1,2)
+        topLayout.addLayout(plotLayout2,3)
+        topLayout.addLayout(plotLayout3,2)
+        topLayout.addLayout(plotLayout4,2)
 
         
         # State fields (bottom)
@@ -644,6 +710,10 @@ class MainWidget(QWidget):
         self.xlen_selector['current'] = idx #self.cb_xaxislen_current.currentIndex()
         self.plot_current.setXRange(0, self.xlen[self.xlen_selector['current']]/60*1.01, padding=0)
         
+    def changed_xaxislen_incl(self, idx):
+        self.xlen_selector['incl'] = idx #self.cb_xaxislen_current.currentIndex()
+#        self.plot_incl.setXRange(0, self.xlen[self.xlen_selector['incl']]/60*1.01, padding=0)
+        
     def changed_loadmeasure(self):
         loadmeasure = self.cb_loadmeasure.currentText()
         if loadmeasure == 'Load':         self.loadmeasure_inuse = 'hist_load'
@@ -735,7 +805,6 @@ class MainWidget(QWidget):
 
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
         self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
-        self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
         self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%0.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
@@ -768,12 +837,26 @@ class MainWidget(QWidget):
             self.ds.update()
 
             ### Update graphs
-            self.hist_current  = np.roll(self.hist_current,  -1); self.hist_current[-1]  = self.ds.motor_current
+            self.hist_current   = np.roll(self.hist_current,  -1);   self.hist_current[-1]   = self.ds.motor_current
             sel = self.xlen_selector['current']
             I0 = -int(self.xlen[sel]/(DT*DTFRAC_DRILL))
             x = self.hist_time_drill[I0:len(self.hist_time_drill):self.xlen_samplerate[sel]]
             y = self.hist_current[   I0:len(self.hist_time_drill):self.xlen_samplerate[sel]]
             self.curve_current.setData(x=x,y=y)
+            self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
+
+            self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = -np.abs(self.ss.depth)
+            self.hist_incl_ahrs = np.roll(self.hist_incl_ahrs, -1); self.hist_incl_ahrs[-1] = self.ds.incl_ahrs
+            self.hist_incl_sfus = np.roll(self.hist_incl_sfus, -1); self.hist_incl_sfus[-1] = self.ds.incl_sfus
+            sel = self.xlen_selector['incl']
+            I0 = -int(self.xlen[sel]/(DT*DTFRAC_DRILL))
+            x = self.hist_depth[I0:len(self.hist_depth):self.xlen_samplerate[sel]]
+            y0 = self.hist_incl_sfus if self.orimethod=='sfus' else self.hist_incl_ahrs 
+            y = y0[I0:len(y0):self.xlen_samplerate[sel]]
+#            print(x,y)
+            self.incl_scatter.setData(x=y, y=x)
+#            self.incl_scatter.setData(x = self.hist_incl_sfus[::dn] if self.orimethod=='sfus' else self.hist_incl_ahrs[::dn], y=self.hist_depth[::dn])
+            self.plot_incl.setTitle(self.htmlfont('<b>Inclination = %.1f deg'%(self.ds.incl_sfus), FS_GRAPH_TITLE))
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
