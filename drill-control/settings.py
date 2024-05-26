@@ -2,7 +2,7 @@
 
 DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
 
-IS_UNDEPLOYED = True # not deployed to field with EGRIP network, drill host has address DRILL_HOST_LAN instead of DRILL_HOST
+IS_UNDEPLOYED = False # not deployed to field with EGRIP network, drill host has address DRILL_HOST_LAN instead of DRILL_HOST
 
 #----------------------
 # Drill host
