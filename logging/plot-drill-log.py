@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# N. Rathmann, 2017-2023
+# N. Rathmann, 2017-2024
 
 import numpy as np
 import code # code.interact(local=locals())
@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import savgol_filter
 
-if len(sys.argv) != 5: sys.exit('usage: %s /mnt/logs/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
+if len(sys.argv) != 5: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
 
 #-----------------------
 # Notes
@@ -254,7 +254,7 @@ plt.savefig(imgout, dpi=260, bbox_inches='tight')
 
 ### Save time series for easier third-party use
 
-fcsv = 'drill-logs-processed/drill.log.processed.%s.csv'%(date_time_str0)
+fcsv = '%s/drill.log.processed.%s.csv'%(OUTPATH, date_time_str0)
 print('*** Saving %s'%(fcsv))
 d = {'unixtime':     [int(x)      for x in tabs[Icsv]], \
      'hoursSince':   [round(float(x), 4) for x in th[Icsv]],  \
