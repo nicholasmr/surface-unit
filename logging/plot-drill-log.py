@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import savgol_filter
 
-if len(sys.argv) != 5: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
+if len(sys.argv) != 4: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
 
 #-----------------------
 # Notes
@@ -18,7 +18,7 @@ if len(sys.argv) != 5: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOU
 """
 for i in {01..30}
 do
-   python3 plot-log.py drill.log.2019-06-$i 8 24 ./
+   python3 plot-log.py drill.log.2019-06-$i 8 24
 done
 """
 
@@ -40,7 +40,8 @@ xlims=[int(sys.argv[2]),int(sys.argv[3])]; # x axis
 # Files
 #-----------------------
 
-OUTPATH = str(sys.argv[-1]) # where to save images
+#OUTPATH = str(sys.argv[-1]) # where to save images
+OUTPATH = 'drill-logs-processed' # where to save images
 DRILLLOG = str(sys.argv[1]) # drill log to plot
 date_time_str0 = DRILLLOG[-10:] # log file date string
 
@@ -85,7 +86,7 @@ gyroalarm = np.zeros((flen))
 # Load log file
 #-----------------------
 
-print('*** Loading log %s'%(DRILLLOG))
+print('*** Loading %s'%(DRILLLOG))
 
 fh  = open(DRILLLOG, "r")
 jj = 0
