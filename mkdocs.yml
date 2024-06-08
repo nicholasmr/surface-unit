@@ -1,0 +1,25 @@
+site_name: Surface Unit documentation
+
+nav:
+    - Connecting the unit: index.md
+    - Configuring the displays: displays.md
+    - Software overview: overview.md
+    - Booting: booting.md
+    - Drill orientation: orientation.md
+    - Drill logs: logs.md
+
+theme: 
+    name: 'readthedocs'
+
+markdown_extensions:
+    - attr_list
+    - admonition
+    - codehilite
+
+plugins:
+    - mkpdfs:
+        design: mkpdfs-design-sample/report.css
+        author: Nicholas Rathmann and Aslak Grinsted
+        company: Version 2024, June
+        toc_position: none
+

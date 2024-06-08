@@ -21,7 +21,7 @@ The following steps demonstrate how to do this:
 python3 plot-drill-log.py drill-logs/drill.log.YYYY-MM-DD 8 24 
 ```
 
-* The processed .csv log file is dumped in `logging/drill-logs-processed` alongside a summary plot.
+* The processed .csv log file is dumped in `logging/drill-logs-processed` alongside a summary plot:
 
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/orientation/drill-log-2024-05-24--13-21.png#center){: style="width:700px"}
 
@@ -39,7 +39,7 @@ python3 plot-drill-orientation.py \
     drill-logs-processed/drill.log.processed.YYYY-DD-HH.csv 12 17
 ```
 
-The processed .csv file is dumped in `logging/drill-logs-processed` alongside an orientation profile plot.
+The processed .csv file is dumped in `logging/drill-logs-processed` alongside an orientation profile plot:
 
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/orientation/drill-orientation-2024-05-24.png#center){: style="width:530px"}
 

@@ -8,7 +8,7 @@ The surface unit has two front-panel displays, a load cell and depth counter:
 
 * Maker, model: Kubler, CODIX 560
 * Manual can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/kuebler_codix_en.pdf) (or at `documentation/manuals/kuebler_codix_en.pdf`)
-* Device menu navigation can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/R61355.0009_0_PP_Codix_560_Kuebler.pdf) (or at `documentation/manuals/R61355.0009_0_PP_Codix_560_Kuebler.pdf`)
+* Device menu navigation can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/kuebler_codix_en_menuguide.pdf) (or at `documentation/manuals/kuebler_codix_en_menuguide.pdf`)
 * The settings used with the Danish deep drill are (slice of menu navigation):<br>
 
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/surface-displays-calibration/Setup_Codix_560_calib.jpg#center){: style="width:570px"}
@@ -18,7 +18,7 @@ The surface unit has two front-panel displays, a load cell and depth counter:
 ## Load cell 
 
 * Maker, model: LCM Systems, PMD-STRAIN
-* Manual can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/PMD-STRAIN Instruction Manual.pdf) (or at `documentation/manuals/PMD-STRAIN Instruction Manual.pdf`)
+* Manual can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/PMD-Strain.pdf) (or at `documentation/manuals/PMD-Strain.pdf`)
 * The load cell must be calibrated using the "Direct Calibration" method, which requires applying zero load and a large load, preferably 1500kg to 2000kg.
 * The relevant pages of the manual for performing the calibration routine can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/surface-displays-calibration/pmd-strain-calibration.pdf) (or at `documentation/surface-displays-calibration/pmd-strain-calibration.pdf`).
 
@@ -30,5 +30,7 @@ The serial (USB) wiring for the load cell and depth counter are, respectively:
 
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/surface-displays-wiring/pmd-strain-load-display.jpg#center){: style="height:230px"}
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/surface-displays-wiring/codex-depth-counter.jpg#center){: style="height:230px"}
+
+The serial cable documentation can be [found here](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/documentation/manuals/USB_RS232_cables.pdf) (or at `documentation/manuals/USB_RS232_cables.pdf`).
 
 

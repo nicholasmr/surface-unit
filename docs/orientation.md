@@ -34,9 +34,9 @@ At EastGRIP, the following routine was found to be sufficient:
 
 ![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/orientation/saveload.png){: style="width:180px"}
 
-* Descend drill with power on throughout descent.
+* Descend the drill with power on throughout descent.
 
-If you want consistent heading (azimuth) and roll information from the drill, e.g. when using the spring for directional drilling, then an additional step is needed:
+If you want consistent heading (azimuth) and roll information from the drill, e.g. when using the spring for directional drilling, an additional step is needed:
 
 * Make sure the spring (or some other marker on the drill) is pointing away from the tower (i.e. pointing straight upwards when tower is horizontal) and bring the tower to 10 to 30 deg. from plumb and press `Zero ref.`. 
 This will align the drill orientation with the tower/trench frame-of-reference (the azimuth and roll dials should then align with zero).

@@ -25,7 +25,7 @@ The bootstrap script runs the following tasks:
 
 <b>- Network configuration</b> 
 
-If full (deep drill) deployment selected, the surface unit is assumed to be on camp network with a fixed IP address:
+If full (deep drill) deployment is selected, the surface unit is assumed to be on camp network with a fixed IP address and internet access:
 
 ``` 
 sudo dhcpcd -S ip_address=10.2.3.10/16 \
