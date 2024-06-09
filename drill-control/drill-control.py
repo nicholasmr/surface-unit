@@ -237,11 +237,6 @@ class MainWidget(QWidget):
         current_xlen_btn3 = QPushButton(self.xlen_names[2]); current_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_current(2)); current_xlen_btn3.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn3)
         current_xlen_btn4 = QPushButton(self.xlen_names[3]); current_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_current(3)); current_xlen_btn4.setMaximumWidth(w_btn); plotLayout3btn.addWidget(current_xlen_btn4)
         plotLayout3btn.addStretch(2)
-#        plotLayout3btn.addWidget(QLabel('Plot:'))
-#        self.cb_measure2 = QComboBox()
-#        self.cb_measure2.addItems([self.measures2[key] for key in self.measures2.keys()])
-#        self.cb_measure2.currentIndexChanged.connect(self.changed_measure2)
-#        plotLayout3btn.addWidget(self.cb_measure2)
         plotLayout3.addLayout(plotLayout3btn)
                 
         plotLayout4 = QVBoxLayout() 
@@ -256,10 +251,10 @@ class MainWidget(QWidget):
         plotLayout4btn.addStretch(2)
         plotLayout4.addLayout(plotLayout4btn)
 
-        topLayout.addLayout(plotLayout1,3)
-        topLayout.addLayout(plotLayout2,0)
-        topLayout.addLayout(plotLayout3,3)
-        topLayout.addLayout(plotLayout4,3)
+        topLayout.addLayout(plotLayout1,1)
+        topLayout.addLayout(plotLayout2,3)
+        topLayout.addLayout(plotLayout3,1)
+        topLayout.addLayout(plotLayout4,1)
 
         # State fields (bottom)
         botLayout = QHBoxLayout()
@@ -851,7 +846,7 @@ class MainWidget(QWidget):
 #            print(x,y)
             self.incl_scatter.setData(x=y, y=x)
 #            self.incl_scatter.setData(x = self.hist_incl_sfus[::dn] if self.orimethod=='sfus' else self.hist_incl_ahrs[::dn], y=self.hist_depth[::dn])
-            self.plot_incl.setTitle(self.htmlfont('<b>Inclination = %.1f deg'%(self.ds.incl_sfus), FS_GRAPH_TITLE))
+            self.plot_incl.setTitle(self.htmlfont('<b>Incl. = %.1f deg'%(self.ds.incl_sfus), FS_GRAPH_TITLE))
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
