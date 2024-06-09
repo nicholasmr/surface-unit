@@ -23,7 +23,7 @@ MENU="Choose one of the following options:"
 ### Menu 1
 
 OPTIONS=(1 "Deep drill"
-         2 "Shallow drill (no network, no GUI)"
+         2 "Shallow drill (no network)"
          3 "Undeployed for debugging (no network)" 
          )
 
@@ -32,9 +32,12 @@ clear
 
 case $CHOICE_DEPLOYMENT in
         1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
+        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
         3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
 esac
+
+# for no GUI, set
+#        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
 
 ### Menu 2
 
@@ -65,23 +68,23 @@ then
     sudo ntpdate 0.arch.pool.ntp.org
     sleep 2
 
-    echo -n -e "${INFO}>>> Checking USB stick ... ${NC}"
-    sudo mount /dev/sda1 /mnt/logs/ -o umask=000
-
-    if [ $? -eq 0 ]
-    then
-        echo -e "${INFO}OK${NC}"
-    else
-        echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
-    fi
 elif [ $CHOICE_DEPLOYMENT = 3 ]
 then
-    echo -e "${ERROR}>>> Non-deployed state: IP address from DHCP and USB pen not mounted for logging${NC}"
+    echo -e "${ERROR}>>> Non-deployed state: IP address from DHCP ${NC}"
     sudo dhcpcd eth0
 else
     echo -e "${INFO}>>> Skipping network setup"
 fi
 
+
+echo -n -e "${INFO}>>> Checking USB stick ... ${NC}"
+sudo mount /dev/sda1 /mnt/logs/ -o umask=000
+if [ $? -eq 0 ]
+then
+    echo -e "${INFO}OK${NC}"
+else
+    echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
+fi
 
 ####################################
 
