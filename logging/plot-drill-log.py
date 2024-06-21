@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.signal import savgol_filter
 
-if len(sys.argv) != 4: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOUR_END /output/path '%(sys.argv[0]))
+if len(sys.argv) != 4: sys.exit('usage: %s /path/to/log/<LOGNAME> HOUR_START HOUR_END'%(sys.argv[0]))
 
 #-----------------------
 # Notes
@@ -32,7 +32,7 @@ usr: drill, psw: same as drill computer
 # Options
 #-----------------------
 
-Z_MAX, Z_MIN = 0, -2800 # y axis
+Z_MAX, Z_MIN = 0, -2700 # y axis
 
 xlims=[int(sys.argv[2]),int(sys.argv[3])]; # x axis
 
@@ -113,7 +113,7 @@ for ii, l in enumerate(fh):
     kk = l.find('{')
     l = l[kk:]
 
-    try:    z[ii] = - json.loads(l)['depth_encoder']['depth']
+    try:    z[ii] = - np.abs(json.loads(l)['depth_encoder']['depth'])
     except: z[ii] = np.nan
     
     try:    w[ii] = json.loads(l)['load_cell']
@@ -196,12 +196,16 @@ ax2.set_ylim(ylims_temp)
 #-----
 
 ax = plt.subplot(N,1,1, sharex=axz)
-plt.plot(th, -z, 'k', lw=lw)
+plt.plot(th, z, 'k', lw=lw)
+plt.xlim(xlims); 
+#plt.ylim([Z_MIN,0]); 
+zmin = -np.nanpercentile(abs(z), 99)
+plt.ylim([zmin,0])
 #plt.setp(axz.get_xticklabels())
 plt.setp(ax.get_xticklabels(), visible=False)
-ax.set_yticks(np.arange(Z_MAX-20,Z_MIN+1,-500))
-ax.set_yticks(np.arange(Z_MAX-20,Z_MIN+1,-100),minor=True)
-plt.xlim(xlims); plt.ylim([Z_MIN,0]); ax.grid()
+ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-500 if zmin < 1000 else -50))
+ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-100 if zmin < 1000 else -10),minor=True)
+ax.grid()
 plt.ylabel('Depth (m)', fontweight=fw, fontsize=fs);
 
 ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
@@ -216,7 +220,10 @@ ax = plt.subplot(N,1,2, sharex=axz)
 plt.plot(th, w, 'k', lw=lw*1.2)
 plt.setp(ax.get_xticklabels(), visible=False)
 ax.set_yticks(np.arange(0,3000+1,500))
-plt.xlim(xlims); plt.ylim([0,3000]); ax.grid()
+plt.xlim(xlims); 
+#plt.ylim([0,1500]); 
+plt.ylim([0, np.nanpercentile(abs(w), 99.8)])
+ax.grid()
 #    ax.set_yticks(np.arange(500,600+1,100))
 #    plt.xlim(xlims); plt.ylim([500,600]); ax.grid()
 plt.ylabel('Tower load (kg)', fontweight=fw, fontsize=fs);
@@ -244,7 +251,9 @@ ax2.plot(th, I, color=color, lw=lwtwin)
 ax2.set_ylabel('Motor current (A)',color=color, fontweight=fw, fontsize=fs)  # we already handled the x-label with ax1
 ax2.plot(th, gyroalarm*20, color='tab:purple', lw=lwtwin, label='Gyro slip alarm')
 ax2.set_yticks(np.arange(0,15+1,2))
-ax2.set_ylim([0, 15])
+ax2.set_yticks(np.arange(0,15+1,1), minor=True)
+#ax2.set_ylim([0, 15])
+plt.ylim([0, np.nanpercentile(abs(I), 99.9)])
 ax2.legend(loc=2)
 
 #-----

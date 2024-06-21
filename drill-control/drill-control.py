@@ -440,7 +440,7 @@ class MainWidget(QWidget):
         self.sl_throttle.setTickInterval(20)
         self.sl_throttle.valueChanged.connect(self.changed_throttle) # sliderReleased
         layout.addWidget(self.sl_throttle, row+2,1, 1,2)
-        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
         self.btn_motorstart = QPushButton("Start")
         self.btn_motorstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_motorstart.clicked.connect(self.clicked_motorstart)
@@ -475,15 +475,34 @@ class MainWidget(QWidget):
 #        self.dial_inching.setWrapping(True)
 #        self.dial_inching.setMaximumHeight(75)
 #        layout.addWidget(self.dial_inching, row+1,2, 3,1)
-        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_inchingstart.clicked.connect(self.clicked_inchingstart)
         self.btn_inchingstart.setMinimumWidth(btn_width); self.btn_inchingstart.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_inchingstart, row+4,1)
 #        layout.addWidget(QLabel(''), row,1)
+
+        dlayout = QGridLayout()
+        self.btn_inch5 = QPushButton("+5 deg")
+        self.btn_inch5.setMaximumWidth(90)
+        self.btn_inch5.clicked.connect(self.clicked_inching_5)
+        dlayout.addWidget(self.btn_inch5, 0,1)
+              
+        self.btn_inch10 = QPushButton("+10 deg")
+        self.btn_inch10.setMaximumWidth(90)
+        self.btn_inch10.clicked.connect(self.clicked_inching_10)
+        dlayout.addWidget(self.btn_inch10, 0,2)
+              
+        self.btn_inch120 = QPushButton("+120 deg")
+        self.btn_inch120.setMaximumWidth(90)
+        self.btn_inch120.clicked.connect(self.clicked_inching_120)
+        dlayout.addWidget(self.btn_inch120, 0,3)
+              
+        layout.addLayout(dlayout,row+5, 1, 1, 2)
               
         ###              
+        
         layout.setRowStretch(row+5, 1)
         self.gb_motor.setLayout(layout)
         
@@ -623,6 +642,10 @@ class MainWidget(QWidget):
     def clicked_inchingstart(self):
         deg = self.sl_inching.value()
         self.ds.start_motor__degrees(deg, throttle_pct=int(self.sl_inchingthrottle.value()))
+        
+    def clicked_inching_5(self):   self.ds.start_motor__degrees(  5, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_10(self):  self.ds.start_motor__degrees( 10, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_120(self): self.ds.start_motor__degrees(120, throttle_pct=int(self.sl_inchingthrottle.value()))
         
     def clicked_motorstop(self):
         self.ds.stop_motor()

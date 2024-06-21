@@ -22,22 +22,23 @@ MENU="Choose one of the following options:"
 
 ### Menu 1
 
-OPTIONS=(1 "Deep drill"
-         2 "Shallow drill (no network)"
-         3 "Undeployed for debugging (no network)" 
+OPTIONS=(1 "On camp network (static IP)"
+         2 "On external network (DHCP)" 
+         3 "Skip network setup"
          )
 
-CHOICE_DEPLOYMENT=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Drill GUI version" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
+CHOICE_DEPLOYMENT=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Deployment type" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
 clear
 
-case $CHOICE_DEPLOYMENT in
-        1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-esac
+#case $CHOICE_DEPLOYMENT in
+#        1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#esac
 
 # for no GUI, set
 #        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
+
 
 ### Menu 2
 
@@ -50,6 +51,22 @@ clear
 case $CHOICE_DISPLAYS in
         1) PMDSTRAIN_CRLF=1; CODIX_CRLF=1 ;;
         2) PMDSTRAIN_CRLF=1; CODIX_CRLF=0 ;;
+esac
+
+### Menu 3
+
+
+VPATH=$VPATH_LATEST; 
+
+OPTIONS=(1 "Start GUI"
+         2 "No GUI"
+         )
+
+CHOICE_GUI=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Launch drill control GUI?" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
+clear
+case $CHOICE_GUI in
+        1) export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+        2) export GUI_SCRIPT="-c ''" ;;
 esac
 
 
@@ -68,12 +85,25 @@ then
     sudo ntpdate 0.arch.pool.ntp.org
     sleep 2
 
+elif [ $CHOICE_DEPLOYMENT = 2 ]
+then
+    echo -e "${ERROR}>>> Fetching IP address from DHCP ${NC}"
+    sudo dhcpcd eth0
+    
+    echo -e "${INFO}>>> Synchronizing clock${NC}"
+    sudo systemctl restart systemd-timesyncd.service
+    sudo timedatectl set-ntp true &
+    sudo ntpdate 0.arch.pool.ntp.org
+    sleep 2
+    
 elif [ $CHOICE_DEPLOYMENT = 3 ]
 then
-    echo -e "${ERROR}>>> Non-deployed state: IP address from DHCP ${NC}"
-    sudo dhcpcd eth0
-else
     echo -e "${INFO}>>> Skipping network setup"
+    # set time manually
+    sudo timedatectl set-ntp false &
+    SETNEWTIME=$(dialog  --inputbox "Set date and time" 12 30 '2024-06-01 12:15:00' 2>&1 >/dev/tty)
+    sudo timedatectl set-time "$SETNEWTIME"
+    clear
 fi
 
 
@@ -83,6 +113,7 @@ if [ $? -eq 0 ]
 then
     echo -e "${INFO}OK${NC}"
 else
+#    dialog --msgbox "USB pen not found! No log files will be recorded." 8 60
     echo -e "${ERROR} Not found! No log files will be recorded ${NC}"
 fi
 
