@@ -16,9 +16,9 @@ DRILL_HOST_LAN = '10.217.96.247' # e.g. KU DHCP leased IP
 # REDIS host
 #----------------------
 
-import socket
+import socket, sys
 
-if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST: 
+if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST or sys.platform.startswith('win'): 
     REDIS_HOST = LOCAL_HOST
     
 else:         
