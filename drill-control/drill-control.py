@@ -28,7 +28,7 @@ tavg = 3 # time-averging length in seconds for velocity estimate
 ALWAYS_SHOW_DRILL_FIELDS = True # ignore if drill is offline and show last recorded redis fields for drill
 
 FS = 13
-FS_GRAPH_TITLE = 5 # font size for graph titles
+FS_GRAPH_TITLE = 4 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 os.system('mkdir -p %s'%(PATH_SCREENSHOT))
 
@@ -101,7 +101,7 @@ class MainWidget(QWidget):
         #self.hist_incl_sfus = np.full(len(self.hist_time_drill), 0.0)
         #self.hist_incl_ahrs = np.full(len(self.hist_time_drill), 0.0)
         
-        self.hist_depth     = np.linspace(0,-2900,len(self.hist_time_drill)) 
+        self.hist_depth     = np.linspace(0,-3,len(self.hist_time_drill)) 
         self.hist_incl_sfus = np.linspace(0,8,len(self.hist_time_drill)) 
         self.hist_incl_ahrs = np.linspace(0,5,len(self.hist_time_drill)) 
 
@@ -134,7 +134,7 @@ class MainWidget(QWidget):
     
         self.plot_incl = pg.PlotWidget();  
         self.plot_incl.setXRange(0, 8, padding=0)
-        self.plot_incl.setYRange(-2.9*1e3, 0, padding=0)
+        self.plot_incl.setYRange(-2.9, 0, padding=0)
         self.plot_incl.showAxis('right')
         self.plot_incl.showAxis('top')      
         self.plot_incl.setMenuEnabled(False)
@@ -245,7 +245,7 @@ class MainWidget(QWidget):
         plotLayout4btn.setSpacing(s_btn)
         plotLayout4btn.addStretch(1)
         incl_xlen_btn1 = QPushButton(self.xlen_names[0]); incl_xlen_btn1.clicked.connect(lambda: self.changed_xaxislen_incl(0)); incl_xlen_btn1.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn1)
-        incl_xlen_btn2 = QPushButton(self.xlen_names[1]); incl_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_incl(1)); incl_xlen_btn2.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn2)
+#        incl_xlen_btn2 = QPushButton(self.xlen_names[1]); incl_xlen_btn2.clicked.connect(lambda: self.changed_xaxislen_incl(1)); incl_xlen_btn2.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn2)
         incl_xlen_btn3 = QPushButton(self.xlen_names[2]); incl_xlen_btn3.clicked.connect(lambda: self.changed_xaxislen_incl(2)); incl_xlen_btn3.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn3)
         incl_xlen_btn4 = QPushButton(self.xlen_names[3]); incl_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_incl(3)); incl_xlen_btn4.setMaximumWidth(w_btn); plotLayout4btn.addWidget(incl_xlen_btn4)
         plotLayout4btn.addStretch(2)
@@ -321,7 +321,7 @@ class MainWidget(QWidget):
 #        self.gb_orientation.setMinimumWidth(330)
         layout = QVBoxLayout()
 
-        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination,  Azimuth,  Spring roll',  initstr))
+        layout.addWidget(self.MakeStateBox('orientation_inclination',  'Inclination,  Azimuth,  Roll',  initstr))
 
         dlayout = QGridLayout()
         cdial = dict(dial_azim=COLOR_DIAL1, dial_roll=COLOR_DIAL2)
@@ -413,7 +413,7 @@ class MainWidget(QWidget):
 #        layout.addWidget(self.MakeStateBox('temperature_auxelectronics', 'Aux. electronics', initstr))
         layout.addWidget(self.MakeStateBox('temperature_topplug',        'Top plug',         initstr))
         layout.addWidget(self.MakeStateBox('temperature_motor',          'Motor',            initstr))
-        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor ctr. (VESC)', initstr))
+        layout.addWidget(self.MakeStateBox('temperature_motorctrl',      'Motor ctrl (VESC)', initstr))
         layout.addStretch(1)
         self.gb_temperature.setLayout(layout)
         
@@ -428,8 +428,9 @@ class MainWidget(QWidget):
 
         ### Throttle
 
-        row = 5
-        layout.addWidget(QLabel(), row,1)
+        row = 3
+#        layout.addWidget(QLabel(), row,1)
+        layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_throttle_label = QLabel('Throttle: 0%')
         layout.addWidget(self.sl_throttle_label, row+1,1, 1,2)
         self.sl_throttle = QSlider(Qt.Horizontal)
@@ -455,7 +456,8 @@ class MainWidget(QWidget):
         ### Inching
         
         row += 5
-        layout.addWidget(QLabel(), row,1)
+#        layout.addWidget(QLabel(), row,1)
+        layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_inching_label = QLabel('Inching: 0 deg')
         layout.addWidget(self.sl_inching_label, row+1,1)
         self.sl_inching = QSlider(Qt.Horizontal)
@@ -468,13 +470,6 @@ class MainWidget(QWidget):
         self.sl_inching.setSingleStep(5)
         self.sl_inching.valueChanged.connect(self.changed_sl_inching)
         layout.addWidget(self.sl_inching, row+2,1, 1,1)
-#        self.dial_inching = QDial()
-#        self.dial_inching.setNotchesVisible(True)
-#        self.dial_inching.setMinimum(-180)
-#        self.dial_inching.setMaximum(+180)
-#        self.dial_inching.setWrapping(True)
-#        self.dial_inching.setMaximumHeight(75)
-#        layout.addWidget(self.dial_inching, row+1,2, 3,1)
 #        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
@@ -484,20 +479,44 @@ class MainWidget(QWidget):
 #        layout.addWidget(QLabel(''), row,1)
 
         dlayout = QGridLayout()
-        self.btn_inch5 = QPushButton("+5 deg")
-        self.btn_inch5.setMaximumWidth(90)
-        self.btn_inch5.clicked.connect(self.clicked_inching_5)
-        dlayout.addWidget(self.btn_inch5, 0,1)
+        mw = 50
+        cfwd, crev = '#e08214', '#8073ac'
+        
+        b = QPushButton("-120")
+        b.clicked.connect(self.clicked_inching_m120)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,1)
               
-        self.btn_inch10 = QPushButton("+10 deg")
-        self.btn_inch10.setMaximumWidth(90)
-        self.btn_inch10.clicked.connect(self.clicked_inching_10)
-        dlayout.addWidget(self.btn_inch10, 0,2)
+        b = QPushButton("-10")
+        b.clicked.connect(self.clicked_inching_m10)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,2)
+        
+        b = QPushButton("-5")
+        b.clicked.connect(self.clicked_inching_m5)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,3)
               
-        self.btn_inch120 = QPushButton("+120 deg")
-        self.btn_inch120.setMaximumWidth(90)
-        self.btn_inch120.clicked.connect(self.clicked_inching_120)
-        dlayout.addWidget(self.btn_inch120, 0,3)
+        b = QPushButton("+5")
+        b.clicked.connect(self.clicked_inching_p5)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,4)
+              
+        b = QPushButton("+10")
+        b.clicked.connect(self.clicked_inching_p10)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,5)
+        
+        b = QPushButton("+120")
+        b.clicked.connect(self.clicked_inching_p120)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,6)
               
         layout.addLayout(dlayout,row+5, 1, 1, 2)
               
@@ -643,10 +662,14 @@ class MainWidget(QWidget):
         deg = self.sl_inching.value()
         self.ds.start_motor__degrees(deg, throttle_pct=int(self.sl_inchingthrottle.value()))
         
-    def clicked_inching_5(self):   self.ds.start_motor__degrees(  5, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_10(self):  self.ds.start_motor__degrees( 10, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_120(self): self.ds.start_motor__degrees(120, throttle_pct=int(self.sl_inchingthrottle.value()))
-        
+    def clicked_inching_p5(self):   self.ds.start_motor__degrees(  +5, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_p10(self):  self.ds.start_motor__degrees( +10, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_p120(self): self.ds.start_motor__degrees(+120, throttle_pct=int(self.sl_inchingthrottle.value()))
+
+    def clicked_inching_m5(self):   self.ds.start_motor__degrees(  -5, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_m10(self):  self.ds.start_motor__degrees( -10, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_m120(self): self.ds.start_motor__degrees(-120, throttle_pct=int(self.sl_inchingthrottle.value()))
+            
     def clicked_motorstop(self):
         self.ds.stop_motor()
         
@@ -858,7 +881,7 @@ class MainWidget(QWidget):
             self.curve_current.setData(x=x,y=y)
             self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
-            self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = -np.abs(self.ss.depth)
+            self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = -np.abs(self.ss.depth) * 1e-3
             self.hist_incl_ahrs = np.roll(self.hist_incl_ahrs, -1); self.hist_incl_ahrs[-1] = self.ds.incl_ahrs
             self.hist_incl_sfus = np.roll(self.hist_incl_sfus, -1); self.hist_incl_sfus[-1] = self.ds.incl_sfus
             sel = self.xlen_selector['incl']
@@ -869,7 +892,7 @@ class MainWidget(QWidget):
 #            print(x,y)
             self.incl_scatter.setData(x=y, y=x)
 #            self.incl_scatter.setData(x = self.hist_incl_sfus[::dn] if self.orimethod=='sfus' else self.hist_incl_ahrs[::dn], y=self.hist_depth[::dn])
-            self.plot_incl.setTitle(self.htmlfont('<b>Incl. = %.1f deg'%(self.ds.incl_sfus), FS_GRAPH_TITLE))
+            self.plot_incl.setTitle(self.htmlfont('<b>Incl. = %.1f deg'%(self.ds.incl_sfus  if self.orimethod=='sfus' else self.ds.incl_ahrs), FS_GRAPH_TITLE))
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
@@ -993,7 +1016,7 @@ class DepthProgressBar(QWidget):
         )
 
     def sizeHint(self):
-        return QtCore.QSize(50,300)
+        return QtCore.QSize(40,300)
         
     def setValue(self, currentDepth, iceDepth):
         self.curval = currentDepth
@@ -1053,6 +1076,20 @@ class DepthProgressBar(QWidget):
 
     def _trigger_refresh(self):
         self.update()
+        
+
+class QHSeparationLine(QtWidgets.QFrame):
+  '''
+  a horizontal separation line\n
+  '''
+  def __init__(self):
+    super().__init__()
+    self.setMinimumWidth(1)
+    self.setFixedHeight(30)
+    self.setFrameShape(QtWidgets.QFrame.HLine)
+    self.setFrameShadow(QtWidgets.QFrame.Sunken)
+    self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+    return
         
 if __name__ == '__main__':
 
