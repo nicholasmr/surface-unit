@@ -30,4 +30,4 @@ echo *** Launching dispatch.py (modem comms)
 START /B python drill-dispatch/dispatch.py --debug --port=%COM_MODEM%
 
 echo *** Launching drill-control.py (GUI)
-START /B drill-control/drill-control.py
+START /B python drill-control/drill-control.py
