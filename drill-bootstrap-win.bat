@@ -23,13 +23,13 @@ echo.
 
 cd c:\Users\trio\surface-unit 
 
-echo *** Launching codix560.py (depth display comms) ***
+echo *** Launching codix560.py (depth display comms)
 START /B python surface-displays/codix560crlf.py %COM_DEPTH%
 
-echo *** Launching dispatch.py (modem comms) ***
+echo *** Launching dispatch.py (modem comms)
 START /B python drill-dispatch/dispatch.py --debug --port=%COM_MODEM%
 
-echo *** Launching GUI drill-control.py ***
+echo *** Launching GUI drill-control.py
 python drill-control/drill-control.py
 
 echo.
@@ -37,3 +37,4 @@ echo ============================
 echo FINISHED
 echo ============================
 echo.
+
