@@ -2,7 +2,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 from settings import *
 
-LOG_FILE = "%s/drill.log" % WORKING_DIR
+LOG_FILE = "%sdrill.log" % WORKING_DIR
 
 logging.basicConfig(format='%(asctime)s;%(module)s;%(message)s', level=0)
 logger = logging.getLogger('dispatch')
