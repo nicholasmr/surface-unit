@@ -4,4 +4,4 @@ import sys
 
 WORKING_DIR = "/mnt/logs/"
 
-if sys.platform.startswith('win'): WORKING_DIR = r'C:\Users\Trio\Desktop\logs\'
+if sys.platform.startswith('win'): WORKING_DIR = 'C:\\Users\\Trio\\Desktop\\logs\\'
