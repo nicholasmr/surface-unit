@@ -15,9 +15,9 @@ echo COM ports used:
 echo ---------------
 echo %COM_DEPTH% for depth display (codix560)
 echo %COM_LOAD%  for load display (cub5)
-echo %COM_LOAD%  for load display (cub5)
+echo %COM_MODEM% for modem
 echo ---------------
-echo If needed, these can be adjust them in ~trio/surface-unit/drill-bootstrap-win.bat
+echo If needed, these can be adjust them in ~/trio/surface-unit/drill-bootstrap-win.bat
 echo ---------------
 echo.
 
@@ -29,7 +29,7 @@ START /B python surface-displays/codix560crlf.py %COM_DEPTH%
 echo *** Launching dispatch.py (modem comms) ***
 START /B python drill-dispatch/dispatch.py --debug --port=%COM_MODEM%
 
-echo *** Launching GUI drill-control.py [0m
+echo *** Launching GUI drill-control.py ***
 python drill-control/drill-control.py
 
 echo.
