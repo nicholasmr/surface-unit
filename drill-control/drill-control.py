@@ -12,6 +12,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import * 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QKeySequence
 
 #import qwt # https://pypi.org/project/PythonQwt/
 import pyqtgraph as pg
@@ -49,6 +50,13 @@ COLOR_DIAL1  = '#01665e'
 COLOR_DIAL1l = '#c7eae5'
 COLOR_DIAL2  = '#8c510a'
 COLOR_DIAL2l = '#dfc27d'
+
+### Keyboard shortcuts
+
+sc_startdrill = "Ctrl+Return"
+sc_stopdrill  = "Ctrl+Backspace"
+#sc_throttle   = "Ctrl+Shift+Return"
+sc_startrun   = "Ctrl+Space"
 
 #-------------------
 # Program start
@@ -297,6 +305,11 @@ class MainWidget(QWidget):
         
         self.setWindowTitle("Drill Control Panel")
         
+        ### Keyboard shortcuts
+ 
+        pass
+        
+        
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
         layout = QVBoxLayout()
@@ -429,7 +442,6 @@ class MainWidget(QWidget):
         ### Throttle
 
         row = 3
-#        layout.addWidget(QLabel(), row,1)
         layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_throttle_label = QLabel('Throttle: 0%')
         layout.addWidget(self.sl_throttle_label, row+1,1, 1,2)
@@ -441,22 +453,24 @@ class MainWidget(QWidget):
         self.sl_throttle.setTickInterval(20)
         self.sl_throttle.valueChanged.connect(self.changed_throttle) # sliderReleased
         layout.addWidget(self.sl_throttle, row+2,1, 1,2)
-#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+        
         self.btn_motorstart = QPushButton("Start")
         self.btn_motorstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_motorstart.clicked.connect(self.clicked_motorstart)
+        self.btn_motorstart.setShortcut(sc_startdrill)
+        self.btn_motorstart.setMinimumWidth(btn_width); self.btn_motorstart.setMaximumWidth(btn_width)
+        layout.addWidget(self.btn_motorstart, row+4,1)
+        
         self.btn_motorstop = QPushButton("Stop")
         self.btn_motorstop.setStyleSheet("background-color : %s"%(COLOR_RED))
         self.btn_motorstop.clicked.connect(self.clicked_motorstop)
-        self.btn_motorstart.setMinimumWidth(btn_width); self.btn_motorstart.setMaximumWidth(btn_width)
+        self.btn_motorstop.setShortcut(sc_stopdrill)
         self.btn_motorstop.setMinimumWidth(btn_width);  self.btn_motorstop.setMaximumWidth(btn_width)
-        layout.addWidget(self.btn_motorstart, row+4,1)
         layout.addWidget(self.btn_motorstop,  row+4,2)
         
         ### Inching
         
         row += 5
-#        layout.addWidget(QLabel(), row,1)
         layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_inching_label = QLabel('Inching: 0 deg')
         layout.addWidget(self.sl_inching_label, row+1,1)
@@ -465,18 +479,28 @@ class MainWidget(QWidget):
         self.sl_inching.setMaximum(+360)
         self.sl_inching.setValue(0)
         self.sl_inching.setTickPosition(QSlider.TicksBelow)
-#        self.sl_inching.setTickInterval(int(180/4))
         self.sl_inching.setTickInterval(60)
         self.sl_inching.setSingleStep(5)
         self.sl_inching.valueChanged.connect(self.changed_sl_inching)
         layout.addWidget(self.sl_inching, row+2,1, 1,1)
-#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_inchingstart.clicked.connect(self.clicked_inchingstart)
         self.btn_inchingstart.setMinimumWidth(btn_width); self.btn_inchingstart.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_inchingstart, row+4,1)
-#        layout.addWidget(QLabel(''), row,1)
+
+        default_inchingthrottle = 10
+        self.sl_inchingthrottle_label = QLabel('Inching throttle: %i%%'%(default_inchingthrottle))
+        layout.addWidget(self.sl_inchingthrottle_label, row+1, 2)
+        self.sl_inchingthrottle = QSlider(Qt.Horizontal)
+        self.sl_inchingthrottle.setMinimum(0)
+        self.sl_inchingthrottle.setMaximum(20)
+        self.sl_inchingthrottle.setValue(default_inchingthrottle) 
+        self.sl_inchingthrottle.setTickPosition(QSlider.TicksBelow)
+        self.sl_inchingthrottle.setTickInterval(5)
+        self.sl_inchingthrottle.valueChanged.connect(self.changed_inchingthrottle) 
+        layout.addWidget(self.sl_inchingthrottle, row+2,2)
 
         dlayout = QGridLayout()
         mw = 50
@@ -534,6 +558,7 @@ class MainWidget(QWidget):
         self.btn_startrun.clicked.connect(self.clicked_startstop_run)
         self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         #self.btn_startrun.setMinimumWidth(btn_width); self.btn_startrun.setMaximumWidth(btn_width)
+        self.btn_startrun.setShortcut(sc_startrun)
         layout.addWidget(self.btn_startrun)
 
         self.cbox_settareload = QPushButton("Reset tare load")
@@ -555,7 +580,7 @@ class MainWidget(QWidget):
         layout.addStretch(1)
         self.gb_run.setLayout(layout)
 
-    def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
+    def create_gb_expert(self, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
         layout = QGridLayout()
 
@@ -563,20 +588,6 @@ class MainWidget(QWidget):
         self.cbox_unlockexpert = QCheckBox("Unlock")
         self.cbox_unlockexpert.toggled.connect(self.clicked_unlockexpert)     
         layout.addWidget(self.cbox_unlockexpert)
-
-#        layout.addWidget(QLabel(''))        
-        self.sl_inchingthrottle_label = QLabel('Inching throttle: %i%%'%(default_inchingthrottle))
-        self.sl_inchingthrottle_label.setEnabled(False)
-        layout.addWidget(self.sl_inchingthrottle_label)
-        self.sl_inchingthrottle = QSlider(Qt.Horizontal)
-        self.sl_inchingthrottle.setMinimum(0)
-        self.sl_inchingthrottle.setMaximum(15)
-        self.sl_inchingthrottle.setValue(default_inchingthrottle) 
-        self.sl_inchingthrottle.setTickPosition(QSlider.TicksBelow)
-        self.sl_inchingthrottle.setTickInterval(20)
-        self.sl_inchingthrottle.setEnabled(False)
-        self.sl_inchingthrottle.valueChanged.connect(self.changed_inchingthrottle) 
-        layout.addWidget(self.sl_inchingthrottle)
         
 #        layout.addWidget(QLabel(''))
         self.cb_motorconfig_label = QLabel('Motor config:')
@@ -765,10 +776,12 @@ class MainWidget(QWidget):
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
             self.ds.set_tacho(0)
+            self.btn_startrun.setShortcut(sc_startrun)
 #            self.clicked_resettareload() 
         else:
             self.btn_startrun.setText('Start')
             self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+            self.btn_startrun.setShortcut(sc_startrun)
 #            self.ss.set_depthtare(self.ss.depth)
     
     def take_screenshot(self):
@@ -971,7 +984,6 @@ class MainWidget(QWidget):
             self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
 
         self.gb_motor.setEnabled(self.ds.islive)
-        #self.gb_expert.setEnabled(self.ds.islive)
         self.gb_expert.setEnabled(True)
 
         ### Disabled widgets if winch encoder is dead
