@@ -8,16 +8,17 @@ bash surface-unit/drill-bootstrap.sh
 
 <b>- Select the appropriate deployment</b>
 
-* "Deep drill" assumes a full deployment with internet access
-* "Shallow drill" assumes a standalone deployment without internet access
-* "Undeployed" is for debugging and should not be selected
-
-![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/bootstrap/menu1.png#center){: style="width:500px"}    
+![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/bootstrap/menu1.png#center){: style="width:400px"}    
     
 <b>- Select the communication protocol for load and depth displays</b><br>
 This is written on labels above the displays (*CRLF* or *MODBUS*).
 
-![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/bootstrap/menu2.png#center){: style="width:500px"}
+![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/bootstrap/menu2.png#center){: style="width:400px"}
+
+<b>- If internet access not available, set the date manually</b>
+
+![](https://raw.githubusercontent.com/nicholasmr/surface-unit/main/docs/bootstrap/menu3.png#center){: style="width:400px"}
+
   
 ## The bootstrap script
 
