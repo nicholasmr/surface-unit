@@ -40,6 +40,8 @@ clear
 #        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
 
 
+export GUI_SCRIPT=$VPATH/drill-control/drill-control.py
+
 ### Menu 2
 
 OPTIONS=(1 "CRLF for PMD-strain, CRLF for CODIX560"
@@ -52,23 +54,6 @@ case $CHOICE_DISPLAYS in
         1) PMDSTRAIN_CRLF=1; CODIX_CRLF=1 ;;
         2) PMDSTRAIN_CRLF=1; CODIX_CRLF=0 ;;
 esac
-
-### Menu 3
-
-
-VPATH=$VPATH_LATEST; 
-
-OPTIONS=(1 "Start GUI"
-         2 "No GUI"
-         )
-
-CHOICE_GUI=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "Launch drill control GUI?" --menu "$MENU" $HEIGHT $WIDTH $CHOICE_HEIGHT "${OPTIONS[@]}" 2>&1 >/dev/tty)
-clear
-case $CHOICE_GUI in
-        1) export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-        2) export GUI_SCRIPT="-c ''" ;;
-esac
-
 
 ####################################
 
@@ -100,8 +85,8 @@ elif [ $CHOICE_DEPLOYMENT = 3 ]
 then
     echo -e "${INFO}>>> Skipping network setup"
     # set time manually
-    sudo timedatectl set-ntp false &
     SETNEWTIME=$(dialog  --inputbox "Set date and time" 12 30 '2024-06-01 12:15:00' 2>&1 >/dev/tty)
+    sudo timedatectl set-ntp false &
     sudo timedatectl set-time "$SETNEWTIME"
     clear
 fi
