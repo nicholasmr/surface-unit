@@ -3,7 +3,7 @@
 
 ### Settings
 
-VPATH_LATEST=/home/drill/surface-unit
+VPATH=/home/drill/surface-unit
 
 DEV_PMDSTRAIN=/dev/ttyUSB0
 DEV_CODIX=/dev/ttyUSB1
@@ -31,16 +31,16 @@ CHOICE_DEPLOYMENT=$(dialog --clear --nocancel --backtitle "$BACKTITLE" --title "
 clear
 
 #case $CHOICE_DEPLOYMENT in
-#        1)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-#        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
-#        3)  VPATH=$VPATH_LATEST; export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        1)  export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        2)  export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+#        3)  export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
 #esac
 
 # for no GUI, set
-#        2)  VPATH=$VPATH_LATEST; export GUI_SCRIPT="-c ''" ;;
+#        2)  export GUI_SCRIPT="-c ''" ;;
 
 
-export GUI_SCRIPT=$VPATH/drill-control/drill-control.py
+export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
 
 ### Menu 2
 
@@ -113,9 +113,9 @@ sleep 1;
 echo -e "${INFO}>>> Load cell (pmdstrain, CRLF=$PMDSTRAIN_CRLF) ${NC}"
 if  [ $PMDSTRAIN_CRLF = 1 ]
 then
-    python3 $VPATH_LATEST/surface-displays/pmdstraincrlf.py $DEV_PMDSTRAIN & 
+    python3 $VPATH/surface-displays/pmdstraincrlf.py $DEV_PMDSTRAIN & 
 else
-    python2 $VPATH_LATEST/surface-displays/pmdstrain.py $DEV_PMDSTRAIN &
+    python2 $VPATH/surface-displays/pmdstrain.py $DEV_PMDSTRAIN &
 fi
 
 
@@ -123,9 +123,9 @@ sleep 1;
 echo -e "${INFO}>>> Winch encoder (codix560, CRLF=$CODIX_CRLF) ${NC}"
 if  [ $CODIX_CRLF = 1 ]
 then
-    python3 $VPATH_LATEST/surface-displays/codix560crlf.py $DEV_CODIX & 
+    python3 $VPATH/surface-displays/codix560crlf.py $DEV_CODIX & 
 else
-    python2 $VPATH_LATEST/surface-displays/codix560.py $DEV_CODIX &
+    python2 $VPATH/surface-displays/codix560.py $DEV_CODIX &
 fi
 
 
