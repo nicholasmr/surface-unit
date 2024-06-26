@@ -86,9 +86,10 @@ then
     echo -e "${INFO}>>> Skipping network setup"
     # set time manually
     SETNEWTIME=$(dialog  --inputbox "Set date and time" 12 30 '2024-06-01 12:15:00' 2>&1 >/dev/tty)
-    sudo timedatectl set-ntp false &
-    sudo timedatectl set-time "$SETNEWTIME"
     clear
+    sudo timedatectl set-ntp false &
+    sleep 1
+    sudo timedatectl set-time "$SETNEWTIME"
 fi
 
 
