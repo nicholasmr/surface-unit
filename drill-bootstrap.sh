@@ -40,7 +40,7 @@ clear
 #        2)  export GUI_SCRIPT="-c ''" ;;
 
 
-export GUI_SCRIPT=$VPATH/drill-control/drill-control.py ;;
+export GUI_SCRIPT=$VPATH/drill-control/drill-control.py
 
 ### Menu 2
 
