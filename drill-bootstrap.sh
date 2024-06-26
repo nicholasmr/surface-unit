@@ -85,10 +85,10 @@ elif [ $CHOICE_DEPLOYMENT = 3 ]
 then
     echo -e "${INFO}>>> Skipping network setup"
     # set time manually
+    sudo timedatectl set-ntp false &
     SETNEWTIME=$(dialog  --inputbox "Set date and time" 12 30 '2024-06-01 12:15:00' 2>&1 >/dev/tty)
     clear
-    sudo timedatectl set-ntp false &
-    sleep 1
+    sleep 2
     sudo timedatectl set-time "$SETNEWTIME"
 fi
 
