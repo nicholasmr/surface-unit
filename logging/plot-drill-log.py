@@ -203,8 +203,13 @@ zmin = -np.nanpercentile(abs(z), 99)
 plt.ylim([zmin,0])
 #plt.setp(axz.get_xticklabels())
 plt.setp(ax.get_xticklabels(), visible=False)
-ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-500 if zmin < 1000 else -50))
-ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-100 if zmin < 1000 else -10),minor=True)
+if zmin > -150:
+    print(zmin)
+    ax.set_yticks(np.arange(Z_MAX-0,-200+1,-20))
+else:
+    zmin = -3400
+    ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-500 if zmin < 1000 else -50))
+    ax.set_yticks(np.arange(Z_MAX-0,zmin+1,-100 if zmin < 1000 else -10),minor=True)
 ax.grid()
 plt.ylabel('Depth (m)', fontweight=fw, fontsize=fs);
 
@@ -222,7 +227,7 @@ plt.setp(ax.get_xticklabels(), visible=False)
 ax.set_yticks(np.arange(0,3000+1,500))
 plt.xlim(xlims); 
 #plt.ylim([0,1500]); 
-plt.ylim([0, np.nanpercentile(abs(w), 99.8)])
+plt.ylim([0, np.amin([2600, np.nanpercentile(abs(w), 99.8)])])
 ax.grid()
 #    ax.set_yticks(np.arange(500,600+1,100))
 #    plt.xlim(xlims); plt.ylim([500,600]); ax.grid()
