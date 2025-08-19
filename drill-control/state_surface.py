@@ -9,6 +9,8 @@ class SurfaceState():
     depth     = 0.0 # current
     depthtare = 0.0
     
+    corelength = 0.0
+    
     load     = 0.0
     loadprev = 0.0 # used for running smoothed load average
     loadtare = 0.0 # reference value to subtract from "load"
@@ -57,6 +59,7 @@ class SurfaceState():
             now = time.time()
             encoder = json.loads(self.rc.get('depth-encoder'))
             depth = encoder["depth"]
+            depth = abs(depth) # Encoders sometime count depth as negative number due to counting direction. To be insensitive to this, take abs().
             self.islive_depthcounter = not (int(depth) == 9999 or int(depth) == -9999) 
             
             if self.islive_depthcounter:
@@ -83,9 +86,12 @@ class SurfaceState():
             try:    self.depthtare = float(self.rc.get('depth-tare'))
             except: self.depthtare = self.depth
             
+            try:    self.corelength = float(self.rc.get('core-length'))
+            except: self.corelength = 0
+            
         except:
             # probably because not connected?
-            self.depth, self.depthtare = 0.0, 0.0 
+            self.depth, self.depthtare, self.corelength = 0.0, 0.0, 0.0
             self.speedinst, self.speed = 0.0, 0.0
             self.islive_depthcounter = False
 

@@ -1,7 +1,8 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2024
+# N. Rathmann <rathmann@nbi.dk>, 2019-
 
 import sys, os, signal, datetime
 import numpy as np
+import random
 from functools import partial
 
 from settings import *
@@ -12,6 +13,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import * 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QKeySequence
+from PyQt5.QtMultimedia import *
 
 #import qwt # https://pypi.org/project/PythonQwt/
 import pyqtgraph as pg
@@ -28,7 +31,7 @@ tavg = 3 # time-averging length in seconds for velocity estimate
 ALWAYS_SHOW_DRILL_FIELDS = True # ignore if drill is offline and show last recorded redis fields for drill
 
 FS = 13
-FS_GRAPH_TITLE = 4 # font size for graph titles
+FS_GRAPH_TITLE = 5 # font size for graph titles
 PATH_SCREENSHOT = "/mnt/logs/screenshots"
 os.system('mkdir -p %s'%(PATH_SCREENSHOT))
 
@@ -38,7 +41,7 @@ print('%s: running with DT=%.3fs, DT_DRILL=%.3fs'%(sys.argv[0],DT,DT*DTFRAC_DRIL
 # GUI colors
 COLOR_GRAYBG = '#f0f0f0'
 COLOR_GREEN = '#66bd63'
-COLOR_RED   = '#f46d43'
+COLOR_RED   = '#f4a582' # f46d43
 COLOR_DARKRED   = '#b2182b'
 COLOR_DARKGREEN = '#1a9850'
 
@@ -49,6 +52,13 @@ COLOR_DIAL1  = '#01665e'
 COLOR_DIAL1l = '#c7eae5'
 COLOR_DIAL2  = '#8c510a'
 COLOR_DIAL2l = '#dfc27d'
+
+### Keyboard shortcuts
+
+sc_startdrill = "Ctrl+Return"
+sc_stopdrill  = "Ctrl+Backspace"
+#sc_throttle   = "Ctrl+Shift+Return"
+sc_startrun   = "Ctrl+Space"
 
 #-------------------
 # Program start
@@ -68,7 +78,7 @@ class MainWidget(QWidget):
     xlen_selector   = {'speed':0, 'load':0, 'current':0, 'incl':2} # default selection
     
     minYRange_load = 20 # kg
-    minYRange_speed = 10.5 # cm/s
+    minYRange_speed = 4 # cm/s
     maxYRange_speed = 150 # cm/s
     
     SHOW_BNO055_DETAILED = 0
@@ -83,6 +93,14 @@ class MainWidget(QWidget):
         self.ds = DrillState(redis_host=REDIS_HOST)   
         self.ss = SurfaceState(tavg, DT*DTFRAC_DRILL,redis_host=REDIS_HOST)
 
+        ### Sound clips
+        
+        self.sound_startrun   = ["WC1_Human_acknowledge2.wav", "Luigi3.wav"]
+        self.sound_stoprun    = ["WC1_Human_work_complete.wav", "0A - 000E Thank you so much.wav"]
+        self.sound_inching    = ["WC1_Orc_select3.wav","Mario8.wav"]
+        self.sound_startmotor = ["engine-rev-1.wav", "RunnerYes3.wav", "08 - 001A - Let's a go.wav", "08 - 000C - Here we go.wav"]
+        self.sound_stopmotor  = ["WC1_Human_work_complete.wav","Mario10.wav","Mario11.wav"] 
+        
         ### pyqt graphs
 
         pg.setConfigOptions(background=COLOR_GRAYBG) # gray
@@ -101,9 +119,9 @@ class MainWidget(QWidget):
         #self.hist_incl_sfus = np.full(len(self.hist_time_drill), 0.0)
         #self.hist_incl_ahrs = np.full(len(self.hist_time_drill), 0.0)
         
-        self.hist_depth     = np.linspace(0,-3,len(self.hist_time_drill)) 
-        self.hist_incl_sfus = np.linspace(0,8,len(self.hist_time_drill)) 
-        self.hist_incl_ahrs = np.linspace(0,5,len(self.hist_time_drill)) 
+        self.hist_depth     = np.linspace(0.3,0,len(self.hist_time_drill)) 
+        self.hist_incl_sfus = np.linspace(-8,0,len(self.hist_time_drill)) 
+        self.hist_incl_ahrs = np.linspace(-5,0,len(self.hist_time_drill)) 
 
         def setupaxis(obj):
             obj.invertX()
@@ -134,7 +152,8 @@ class MainWidget(QWidget):
     
         self.plot_incl = pg.PlotWidget();  
         self.plot_incl.setXRange(0, 8, padding=0)
-        self.plot_incl.setYRange(-2.9, 0, padding=0)
+        self.plot_incl.setYRange(3, 0, padding=0)
+        self.plot_incl.invertY()
         self.plot_incl.showAxis('right')
         self.plot_incl.showAxis('top')      
         self.plot_incl.setMenuEnabled(False)
@@ -169,7 +188,7 @@ class MainWidget(QWidget):
         self.incl_scatter0.setData(logger_incl, -logger_depth)
         self.plot_incl.addItem(self.incl_scatter0)
 
-        self.incl_scatter = pg.ScatterPlotItem(size=8, pen=None, brush=pg.mkBrush(239,59,44))
+        self.incl_scatter = pg.ScatterPlotItem(size=8, pen=None, brush=pg.mkBrush(0,0,0))
         self.incl_scatter.setData(self.hist_incl_sfus, self.hist_depth)
         self.plot_incl.addItem(self.incl_scatter)
 #        self.curve_incl = self.plot_current.plot( x=self.hist_depth,y=self.hist_incl_sfus, pen=plotpen_black)
@@ -208,6 +227,22 @@ class MainWidget(QWidget):
         speed_xlen_btn4 = QPushButton(self.xlen_names[3]); speed_xlen_btn4.clicked.connect(lambda: self.changed_xaxislen_speed(3)); speed_xlen_btn4.setMaximumWidth(w_btn); plotLayout1btn.addWidget(speed_xlen_btn4)
         plotLayout1btn.addStretch(2)
         plotLayout1.addLayout(plotLayout1btn)
+
+        depthbarLayout = QVBoxLayout()
+        self.lbl_depthbar = QLabel(self.htmlfont('Depth', FS_GRAPH_TITLE))
+        self.lbl_depthbar.setAlignment(QtCore.Qt.AlignCenter)
+        depthbarLayout.addWidget(self.lbl_depthbar)
+        depthbarLayoutInner = QHBoxLayout()
+        depthbarLayoutInner.addStretch(1)
+        self.depthbar = DepthProgressBar()
+        depthbarLayoutInner.addWidget(self.depthbar)
+        depthbarLayoutInner.addStretch(1)
+        depthbarLayoutInner.setContentsMargins(20, 0, 25, 0)
+        depthbarLayout.addLayout(depthbarLayoutInner)
+        self.lbl_ETA = QLabel(self.htmlfont('ETA', FS_GRAPH_TITLE))
+        self.lbl_ETA.setAlignment(QtCore.Qt.AlignCenter)
+        depthbarLayout.addWidget(self.lbl_ETA)
+#        botLayout.addLayout(depthbarLayout,0)
 
         plotLayout2 = QVBoxLayout()
         plotLayout2.addWidget(self.plot_load)
@@ -252,25 +287,14 @@ class MainWidget(QWidget):
         plotLayout4.addLayout(plotLayout4btn)
 
         topLayout.addLayout(plotLayout1,1)
+        topLayout.addLayout(depthbarLayout,0)
         topLayout.addLayout(plotLayout2,3)
         topLayout.addLayout(plotLayout3,1)
         topLayout.addLayout(plotLayout4,1)
 
         # State fields (bottom)
         botLayout = QHBoxLayout()
-
-        depthbarLayout = QVBoxLayout()
-        self.lbl_depthbar = QLabel(self.htmlfont('<b>Depth', FS_GRAPH_TITLE))
-        depthbarLayout.addWidget(self.lbl_depthbar)
-        depthbarLayoutInner = QHBoxLayout()
-        depthbarLayoutInner.addStretch(1)
-        self.depthbar = DepthProgressBar(DEPTH_MAX)
-        depthbarLayoutInner.addWidget(self.depthbar)
-        depthbarLayoutInner.addStretch(1)
-        depthbarLayoutInner.setContentsMargins(10, 0, 20, 0)
-        depthbarLayout.addLayout(depthbarLayoutInner)
-        botLayout.addLayout(depthbarLayout,0)
-        
+       
         botLayout.addWidget(self.gb_surface)
         botLayout.addWidget(self.gb_orientation)
         botLayout.addWidget(self.gb_temperature)
@@ -297,22 +321,34 @@ class MainWidget(QWidget):
         
         self.setWindowTitle("Drill Control Panel")
         
+        ### Keyboard shortcuts
+ 
+        pass
+        
+    def randsound(self, arr):
+        script_path = os.path.abspath(__file__)
+        script_directory = os.path.dirname(script_path)
+        return QSound.play('%s/sound/%s'%(script_directory, random.choice(arr)))
+        
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
         layout = QVBoxLayout()
-        self.gb_surface_load            = self.MakeStateBox('surface_load',            'Load (kg)',            initstr)
-        self.gb_surface_depth           = self.MakeStateBox('surface_depth',           'Depth (m)',            initstr)
-        self.gb_surface_speed           = self.MakeStateBox('surface_speed',           'Inst. speed (cm/s)',   initstr)
-        self.gb_surface_loadcable       = self.MakeStateBox('surface_loadcable',       'Load - cable (kg)',    initstr)
-        self.gb_run_deltaload           = self.MakeStateBox('run_deltaload',  'Tare load (kg)',   initstr)
-#        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load, %is (kg)'%(self.xlen[0]), initstr)
-        self.gb_run_peakload            = self.MakeStateBox('run_peakload',   'Peak load (kg)', initstr)
+        self.gb_surface_load      = self.MakeStateBox('surface_load',      'Load (kg)',            initstr)
+        self.gb_surface_depth     = self.MakeStateBox('surface_depth',     'Depth (m)',            initstr)
+        self.gb_surface_speed     = self.MakeStateBox('surface_speed',     'Inst. speed (cm/s)',   initstr)
+        self.gb_surface_loadcable = self.MakeStateBox('surface_loadcable', 'Load - cable (kg)',    initstr)
+        self.gb_run_deltaload     = self.MakeStateBox('run_deltaload',     'Tare load (kg)',   initstr)
+#        self.gb_run_peakload      = self.MakeStateBox('run_peakload',     'Peak load, %is (kg)'%(self.xlen[0]), initstr)
+        self.gb_run_peakload      = self.MakeStateBox('run_peakload',      'Peak load (kg)', initstr)
+        self.gb_run_corelength    = self.MakeStateBox('run_corelength',    'Core len. disp. (m)', initstr)
+
         layout.addWidget(self.gb_surface_depth)
         layout.addWidget(self.gb_surface_speed)
         layout.addWidget(self.gb_surface_load)
         layout.addWidget(self.gb_surface_loadcable)
         layout.addWidget(self.gb_run_deltaload)
         layout.addWidget(self.gb_run_peakload)
+        layout.addWidget(self.gb_run_corelength)
         layout.addStretch(1)
         self.gb_surface.setLayout(layout)
 
@@ -331,8 +367,8 @@ class MainWidget(QWidget):
             d.setMinimum(-180)
             d.setMaximum(+180)
             d.setWrapping(True)
-            d.setMinimumHeight(100)
-#            d.setMaximumHeight(85)
+            d.setMinimumHeight(40)
+            d.setMaximumHeight(120)
 #            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
             d.setInvertedAppearance(True)
             d.setInvertedControls(True)
@@ -356,9 +392,9 @@ class MainWidget(QWidget):
         lbl_method = QLabel('Method:')
         dlayout.addWidget(lbl_method, 0,0)
         self.cb_orimethod = QComboBox()
-        self.cb_orimethod.addItems(["Sensor fusion", "AHRS"])
+        self.cb_orimethod.addItems(["AHRS","Sensor fusion"])
         self.cb_orimethod.currentIndexChanged.connect(self.changed_orimethod)
-        self.orimethod = 'sfus'
+        self.orimethod = 'ahrs'
         dlayout.addWidget(self.cb_orimethod,0,1)
         dlayout.setColumnStretch(2,1)
         layout.addLayout(dlayout)
@@ -398,7 +434,7 @@ class MainWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.MakeStateBox('hammer', 'Hammer (%)', initstr))
         layout.addWidget(self.MakeStateBox('orientation_spin', 'Drill spin (RPM)',   initstr))
-        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downh. volt. (V)',   initstr)
+        self.gb_surface_downholevoltage = self.MakeStateBox('surface_downholevoltage', 'Downhole volt. (V)',   initstr)
         layout.addWidget(self.gb_surface_downholevoltage)
         layout.addStretch(1)
         self.gb_other.setLayout(layout)
@@ -429,7 +465,6 @@ class MainWidget(QWidget):
         ### Throttle
 
         row = 3
-#        layout.addWidget(QLabel(), row,1)
         layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_throttle_label = QLabel('Throttle: 0%')
         layout.addWidget(self.sl_throttle_label, row+1,1, 1,2)
@@ -441,22 +476,69 @@ class MainWidget(QWidget):
         self.sl_throttle.setTickInterval(20)
         self.sl_throttle.valueChanged.connect(self.changed_throttle) # sliderReleased
         layout.addWidget(self.sl_throttle, row+2,1, 1,2)
-#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+        
         self.btn_motorstart = QPushButton("Start")
-        self.btn_motorstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+        self.btn_motorstart.setStyleSheet("font-weight: bold; background-color : %s"%(COLOR_GREEN))
         self.btn_motorstart.clicked.connect(self.clicked_motorstart)
-        self.btn_motorstop = QPushButton("Stop")
-        self.btn_motorstop.setStyleSheet("background-color : %s"%(COLOR_RED))
-        self.btn_motorstop.clicked.connect(self.clicked_motorstop)
+        self.btn_motorstart.setShortcut(sc_startdrill)
         self.btn_motorstart.setMinimumWidth(btn_width); self.btn_motorstart.setMaximumWidth(btn_width)
-        self.btn_motorstop.setMinimumWidth(btn_width);  self.btn_motorstop.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_motorstart, row+4,1)
+        
+        self.btn_motorstop = QPushButton("Stop")
+        self.btn_motorstop.setStyleSheet("font-weight: bold; background-color : %s"%(COLOR_RED))
+        self.btn_motorstop.clicked.connect(self.clicked_motorstop)
+        self.btn_motorstop.setShortcut(sc_stopdrill)
+        self.btn_motorstop.setMinimumWidth(btn_width);  self.btn_motorstop.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_motorstop,  row+4,2)
         
         ### Inching
         
         row += 5
-#        layout.addWidget(QLabel(), row,1)
+        layout.addWidget(QHSeparationLine(), row, 1, 1,2)   
+        
+        dlayout = QGridLayout()
+        mw = 50
+        cfwd, crev = '#e08214', '#8073ac'
+        
+        b = QPushButton("-180")
+        b.clicked.connect(self.clicked_inching_m180)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,1)
+              
+        b = QPushButton("-60")
+        b.clicked.connect(self.clicked_inching_m60)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,2)
+        
+        b = QPushButton("-10")
+        b.clicked.connect(self.clicked_inching_m10)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(crev))
+        dlayout.addWidget(b, 0,3)
+              
+        b = QPushButton("+10")
+        b.clicked.connect(self.clicked_inching_p10)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,4)
+              
+        b = QPushButton("+60")
+        b.clicked.connect(self.clicked_inching_p60)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,5)
+        
+        b = QPushButton("+180")
+        b.clicked.connect(self.clicked_inching_p180)
+        b.setMaximumWidth(mw)
+        b.setStyleSheet("font-weight: bold; background-color : %s"%(cfwd))
+        dlayout.addWidget(b, 0,6)
+              
+        layout.addLayout(dlayout,row+5, 1, 1, 2)
+        
+        row += 6
         layout.addWidget(QHSeparationLine(), row, 1, 1,2)
         self.sl_inching_label = QLabel('Inching: 0 deg')
         layout.addWidget(self.sl_inching_label, row+1,1)
@@ -465,61 +547,29 @@ class MainWidget(QWidget):
         self.sl_inching.setMaximum(+360)
         self.sl_inching.setValue(0)
         self.sl_inching.setTickPosition(QSlider.TicksBelow)
-#        self.sl_inching.setTickInterval(int(180/4))
         self.sl_inching.setTickInterval(60)
         self.sl_inching.setSingleStep(5)
         self.sl_inching.valueChanged.connect(self.changed_sl_inching)
         layout.addWidget(self.sl_inching, row+2,1, 1,1)
-#        layout.addWidget(QLabel('Press start to express'), row+3,1, 1,2)
+
         self.btn_inchingstart = QPushButton("Start")
         self.btn_inchingstart.setStyleSheet("background-color : %s"%(COLOR_GREEN))
         self.btn_inchingstart.clicked.connect(self.clicked_inchingstart)
         self.btn_inchingstart.setMinimumWidth(btn_width); self.btn_inchingstart.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_inchingstart, row+4,1)
-#        layout.addWidget(QLabel(''), row,1)
 
-        dlayout = QGridLayout()
-        mw = 50
-        cfwd, crev = '#e08214', '#8073ac'
-        
-        b = QPushButton("-120")
-        b.clicked.connect(self.clicked_inching_m120)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(crev))
-        dlayout.addWidget(b, 0,1)
-              
-        b = QPushButton("-10")
-        b.clicked.connect(self.clicked_inching_m10)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(crev))
-        dlayout.addWidget(b, 0,2)
-        
-        b = QPushButton("-5")
-        b.clicked.connect(self.clicked_inching_m5)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(crev))
-        dlayout.addWidget(b, 0,3)
-              
-        b = QPushButton("+5")
-        b.clicked.connect(self.clicked_inching_p5)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(cfwd))
-        dlayout.addWidget(b, 0,4)
-              
-        b = QPushButton("+10")
-        b.clicked.connect(self.clicked_inching_p10)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(cfwd))
-        dlayout.addWidget(b, 0,5)
-        
-        b = QPushButton("+120")
-        b.clicked.connect(self.clicked_inching_p120)
-        b.setMaximumWidth(mw)
-        b.setStyleSheet("background-color : %s"%(cfwd))
-        dlayout.addWidget(b, 0,6)
-              
-        layout.addLayout(dlayout,row+5, 1, 1, 2)
-              
+        default_inchingthrottle = 10
+        self.sl_inchingthrottle_label = QLabel('Inching throttle: %i%%'%(default_inchingthrottle))
+        layout.addWidget(self.sl_inchingthrottle_label, row+1, 2)
+        self.sl_inchingthrottle = QSlider(Qt.Horizontal)
+        self.sl_inchingthrottle.setMinimum(0)
+        self.sl_inchingthrottle.setMaximum(20)
+        self.sl_inchingthrottle.setValue(default_inchingthrottle) 
+        self.sl_inchingthrottle.setTickPosition(QSlider.TicksBelow)
+        self.sl_inchingthrottle.setTickInterval(5)
+        self.sl_inchingthrottle.valueChanged.connect(self.changed_inchingthrottle) 
+        layout.addWidget(self.sl_inchingthrottle, row+2,2)
+
         ###              
         
         layout.setRowStretch(row+5, 1)
@@ -532,11 +582,12 @@ class MainWidget(QWidget):
         self.btn_startrun = QPushButton("Start")
         self.btn_startrun.setCheckable(True)
         self.btn_startrun.clicked.connect(self.clicked_startstop_run)
-        self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
+        self.btn_startrun.setStyleSheet("font-weight: bold; background-color : %s"%(COLOR_GREEN))
         #self.btn_startrun.setMinimumWidth(btn_width); self.btn_startrun.setMaximumWidth(btn_width)
+        self.btn_startrun.setShortcut(sc_startrun)
         layout.addWidget(self.btn_startrun)
 
-        self.cbox_settareload = QPushButton("Reset tare load")
+        self.cbox_settareload = QPushButton("Tare load")
         self.cbox_settareload.clicked.connect(self.clicked_resettareload)
         #self.cbox_settareload.setMinimumWidth(btn_width); self.cbox_settareload.setMaximumWidth(btn_width)
         layout.addWidget(self.cbox_settareload)
@@ -546,37 +597,24 @@ class MainWidget(QWidget):
         #self.btn_screenshot.setMinimumWidth(btn_width); self.btn_screenshot.setMaximumWidth(btn_width)
         layout.addWidget(self.btn_screenshot)
 
+        layout.addWidget(self.MakeStateBox('run_deltadepth', 'Delta depth (m)',    initstr))
         layout.addWidget(self.MakeStateBox('run_time', 'Run time',                 initstr))
         layout.addWidget(self.MakeStateBox('run_startdepth', 'Start depth (m)',    initstr))
-        layout.addWidget(self.MakeStateBox('run_deltadepth', 'Delta depth (m)',    initstr))
         layout.addWidget(self.MakeStateBox('run_startload',  'Start load (kg)',    initstr))
         layout.addWidget(self.MakeStateBox('motor_tachometer', 'Tachometer (rev)', initstr))
 
         layout.addStretch(1)
         self.gb_run.setLayout(layout)
 
-    def create_gb_expert(self, default_inchingthrottle=5, initstr='N/A'):
+    def create_gb_expert(self, initstr='N/A'):
         self.gb_expert = QGroupBox("Expert control")
-        layout = QGridLayout()
+#        layout = QGridLayout()
+        layout = QVBoxLayout()
 
 #        layout.addWidget(QLabel(''))
         self.cbox_unlockexpert = QCheckBox("Unlock")
         self.cbox_unlockexpert.toggled.connect(self.clicked_unlockexpert)     
         layout.addWidget(self.cbox_unlockexpert)
-
-#        layout.addWidget(QLabel(''))        
-        self.sl_inchingthrottle_label = QLabel('Inching throttle: %i%%'%(default_inchingthrottle))
-        self.sl_inchingthrottle_label.setEnabled(False)
-        layout.addWidget(self.sl_inchingthrottle_label)
-        self.sl_inchingthrottle = QSlider(Qt.Horizontal)
-        self.sl_inchingthrottle.setMinimum(0)
-        self.sl_inchingthrottle.setMaximum(15)
-        self.sl_inchingthrottle.setValue(default_inchingthrottle) 
-        self.sl_inchingthrottle.setTickPosition(QSlider.TicksBelow)
-        self.sl_inchingthrottle.setTickInterval(20)
-        self.sl_inchingthrottle.setEnabled(False)
-        self.sl_inchingthrottle.valueChanged.connect(self.changed_inchingthrottle) 
-        layout.addWidget(self.sl_inchingthrottle)
         
 #        layout.addWidget(QLabel(''))
         self.cb_motorconfig_label = QLabel('Motor config:')
@@ -588,8 +626,8 @@ class MainWidget(QWidget):
         self.cb_motorconfig.setEnabled(False)
         layout.addWidget(self.cb_motorconfig)
 
-#        layout.addStretch(3)
-        layout.rowStretch(1)
+        layout.addStretch(3)
+#        layout.rowStretch(1)
         self.gb_expert.setLayout(layout)
 
     def create_gb_status(self):
@@ -600,11 +638,12 @@ class MainWidget(QWidget):
         self.status_depthcounter = QLabel('Offline')
         layout.addWidget(QLabel('Drill:'),1,1)
         layout.addWidget(QLabel('Load cell:'),2,1)
-        layout.addWidget(QLabel('Winch enc.:'),3,1)
+        layout.addWidget(QLabel('Depth enc:'),3,1)
         layout.addWidget(self.status_drill,1,2)
         layout.addWidget(self.status_loadcell,2,2)
         layout.addWidget(self.status_depthcounter,3,2)
-        layout.rowStretch(1)
+        layout.rowStretch(2)
+#        layout.addStretch(1)
         self.gb_status.setLayout(layout)
 
     def create_gb_bno055calib(self, initstr='N/A'):
@@ -640,8 +679,8 @@ class MainWidget(QWidget):
     
     def changed_orimethod(self):
         self.orimethod = None
-        if self.cb_orimethod.currentIndex()==0: self.orimethod = 'sfus'
-        if self.cb_orimethod.currentIndex()==1: self.orimethod = 'ahrs'
+        if self.cb_orimethod.currentIndex()==0: self.orimethod = 'ahrs'
+        if self.cb_orimethod.currentIndex()==1: self.orimethod = 'sfus'
         print('orimethod is now ', self.orimethod)
     
     # Motor
@@ -657,21 +696,28 @@ class MainWidget(QWidget):
     def clicked_motorstart(self):
         throttle_pct = int(self.sl_throttle.value())
         self.ds.start_motor__throttle(throttle_pct)
+        self.randsound(self.sound_startmotor)
         
     def clicked_inchingstart(self):
         deg = self.sl_inching.value()
+        self.randsound(self.sound_inching)
         self.ds.start_motor__degrees(deg, throttle_pct=int(self.sl_inchingthrottle.value()))
         
-    def clicked_inching_p5(self):   self.ds.start_motor__degrees(  +5, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_p10(self):  self.ds.start_motor__degrees( +10, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_p120(self): self.ds.start_motor__degrees(+120, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def start_inching(self, ang):
+        self.randsound(self.sound_inching)
+        self.ds.start_motor__degrees(ang, throttle_pct=int(self.sl_inchingthrottle.value()))
 
-    def clicked_inching_m5(self):   self.ds.start_motor__degrees(  -5, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_m10(self):  self.ds.start_motor__degrees( -10, throttle_pct=int(self.sl_inchingthrottle.value()))
-    def clicked_inching_m120(self): self.ds.start_motor__degrees(-120, throttle_pct=int(self.sl_inchingthrottle.value()))
-            
+    def clicked_inching_p10(self):  self.start_inching(+10)  #self.ds.start_motor__degrees( +10, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_p60(self):  self.start_inching(+60)  #self.ds.start_motor__degrees( +60, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_p180(self): self.start_inching(+180) #self.ds.start_motor__degrees(+180, throttle_pct=int(self.sl_inchingthrottle.value()))
+
+    def clicked_inching_m10(self):  self.start_inching(-10)  #self.ds.start_motor__degrees( -10, throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_m60(self):  self.start_inching(-60)  #self.ds.start_motor__degrees(-60,  throttle_pct=int(self.sl_inchingthrottle.value()))
+    def clicked_inching_m180(self): self.start_inching(-180) #self.ds.start_motor__degrees(-180, throttle_pct=int(self.sl_inchingthrottle.value()))
+    
     def clicked_motorstop(self):
         self.ds.stop_motor()
+        self.randsound(self.sound_stopmotor)
         
     def clicked_resettacho(self):
         self.ds.set_tacho(0)
@@ -761,15 +807,19 @@ class MainWidget(QWidget):
     def clicked_startstop_run(self):
         if self.btn_startrun.isChecked(): # start pressed
             self.btn_startrun.setText('Stop')
-            self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_RED))
+            self.btn_startrun.setStyleSheet("font-weight: bold; background-color : %s"%(COLOR_RED))
             self.runtime0 = datetime.datetime.now()
             self.ss.set_depthtare(self.ss.depth)
             self.ds.set_tacho(0)
+            self.btn_startrun.setShortcut(sc_startrun)
+            self.randsound(self.sound_startrun)
 #            self.clicked_resettareload() 
         else:
             self.btn_startrun.setText('Start')
-            self.btn_startrun.setStyleSheet("background-color : %s"%(COLOR_GREEN))
-#            self.ss.set_depthtare(self.ss.depth)
+            self.btn_startrun.setStyleSheet("font-weight: bold; background-color : %s"%(COLOR_GREEN))
+            self.btn_startrun.setShortcut(sc_startrun)
+            self.randsound(self.sound_stoprun)
+            self.ss.set_depthtare(self.ss.depth)
     
     def take_screenshot(self):
         fname = '%s/%s.png'%(PATH_SCREENSHOT, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
@@ -821,6 +871,7 @@ class MainWidget(QWidget):
         self.ss.update()
 
         ### Update graphs
+        
         self.hist_speed = np.roll(self.hist_speed, -1); self.hist_speed[-1] = abs(self.ss.speed)
         sel = self.xlen_selector['speed']
         I0 = -int(self.xlen[sel]/DT)
@@ -842,10 +893,22 @@ class MainWidget(QWidget):
         self.plot_load.setTitle(   self.htmlfont('<b>%s = %.1f kg'%(self.loadmeasures[self.loadmeasure_inuse], hist_loadmeas[-1]), FS_GRAPH_TITLE))
         self.plot_speed.setTitle(  self.htmlfont('<b>Speed = %.1f cm/s'%(self.hist_speed[-1]), FS_GRAPH_TITLE))        
 
+        ### Depth bar
+        
+#        if 1: self.ss.depth, self.ss.depthtare = 500+1.5, 500 # DEBUG
         self.depthbar.setValue(self.ss.depth, self.ss.depthtare)
-        self.lbl_depthbar.setText(self.htmlfont('<b>Depth<br>%0.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
+        self.lbl_depthbar.setText(self.htmlfont('<b>%0.1fm'%(self.ss.depth), FS_GRAPH_TITLE))
 
+        if not self.btn_startrun.isChecked(): 
+            ETA = None
+            v = self.hist_speed[-1] * 1e-2
+#            if 1: v = 50 * 1e-2 # m/s # DEBUG
+            if   self.ss.speedinst < -5e-2: ETA = np.abs((self.ss.depthtare-self.ss.depth)/v)
+            elif self.ss.speedinst > +5e-2: ETA = np.abs(self.ss.depth/v)
+            self.lbl_ETA.setText(self.htmlfont('<b>ETA<br>%.0fmin'%(ETA/60) if ETA is not None else '<b>ETA<br>(...)', FS_GRAPH_TITLE-0.5))
+            
         ### Update state fields
+        
         self.updateStateBox('surface_depth',           round(self.ss.depth,PRECISION_DEPTH),  warn__nothres)  # precision to match physical display
         self.updateStateBox('surface_speed',           round(self.ss.speedinst,2),            warn__velocity)
         self.updateStateBox('surface_load',            round(self.ss.load,PRECISION_LOAD),    warn__load) # precision to match physical display
@@ -853,16 +916,18 @@ class MainWidget(QWidget):
         self.updateStateBox('surface_downholevoltage', round(self.ds.downhole_voltage,1),     warn__downholevoltage)
         self.updateStateBox('run_peakload',            round(np.amax(self.hist_load),PRECISION_LOAD), warn__nothres)
         self.updateStateBox('run_deltaload',           round(self.ss.load  - self.ss.loadtare,PRECISION_LOAD),   warn__nothres)
-                
+        self.updateStateBox('run_corelength',          round(self.ss.corelength,PRECISION_DEPTH), warn__nothres)
+        
         if self.btn_startrun.isChecked(): 
             self.runtime1 = datetime.datetime.now() # update run time
             if self.runtime0 is not None:
                 druntime = self.runtime1-self.runtime0
-                self.updateStateBox('run_time',       self.timestamp(druntime),                                 warn__nothres)
-                self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH),                 warn__nothres)    
-                self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),                   warn__nothres)    
-                self.updateStateBox('run_deltadepth', round(self.ss.depth - self.ss.depthtare,PRECISION_DEPTH), warn__corelength)    
-                
+                self.updateStateBox('run_time',       self.timestamp(druntime),                 warn__nothres)
+                self.updateStateBox('run_startdepth', round(self.ss.depthtare,PRECISION_DEPTH), warn__nothres)    
+                self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),   warn__nothres)    
+                dL = self.ss.depth - self.ss.depthtare
+                self.updateStateBox('run_deltadepth', round(dL,PRECISION_DEPTH), warn__corelength)
+                self.lbl_ETA.setText(self.htmlfont('<b>&#916;%.2fm'%(dL), FS_GRAPH_TITLE))
 
         #-----------------------
         # Update drill state
@@ -881,7 +946,7 @@ class MainWidget(QWidget):
             self.curve_current.setData(x=x,y=y)
             self.plot_current.setTitle(self.htmlfont('<b>Current = %.1f A'%(self.ds.motor_current), FS_GRAPH_TITLE))
 
-            self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = -np.abs(self.ss.depth) * 1e-3
+            self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = np.abs(self.ss.depth) * 1e-3
             self.hist_incl_ahrs = np.roll(self.hist_incl_ahrs, -1); self.hist_incl_ahrs[-1] = self.ds.incl_ahrs
             self.hist_incl_sfus = np.roll(self.hist_incl_sfus, -1); self.hist_incl_sfus[-1] = self.ds.incl_sfus
             sel = self.xlen_selector['incl']
@@ -892,18 +957,19 @@ class MainWidget(QWidget):
 #            print(x,y)
             self.incl_scatter.setData(x=y, y=x)
 #            self.incl_scatter.setData(x = self.hist_incl_sfus[::dn] if self.orimethod=='sfus' else self.hist_incl_ahrs[::dn], y=self.hist_depth[::dn])
-            self.plot_incl.setTitle(self.htmlfont('<b>Incl. = %.1f deg'%(self.ds.incl_sfus  if self.orimethod=='sfus' else self.ds.incl_ahrs), FS_GRAPH_TITLE))
+            self.plot_incl.setYRange(0, np.amax([0.3, np.amax(x)*1.03]), padding=0.02)
+            self.plot_incl.setTitle(self.htmlfont('<b>Inc = %.1f deg'%(self.ds.incl_sfus if self.orimethod=='sfus' else self.ds.incl_ahrs), FS_GRAPH_TITLE))
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
-            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
-            else:              self.status_drill.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
+            if self.ds.islive: self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKGREEN))
+            else:              self.status_drill.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKRED))
             self.status_loadcell.setText('Online' if self.ss.islive_loadcell else 'Offline')
-            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
-            else:                       self.status_loadcell.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
+            if self.ss.islive_loadcell: self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKGREEN))
+            else:                       self.status_loadcell.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKRED))
             self.status_depthcounter.setText('Online' if self.ss.islive_depthcounter else 'Offline')
-            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKGREEN))
-            else:                           self.status_depthcounter.setStyleSheet("font-weight: normal; color: %s;"%(COLOR_DARKRED))
+            if self.ss.islive_depthcounter: self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKGREEN))
+            else:                           self.status_depthcounter.setStyleSheet("font-weight: bold; color: %s;"%(COLOR_DARKRED))
 
 
             if self.ds.islive or ALWAYS_SHOW_DRILL_FIELDS:
@@ -971,7 +1037,6 @@ class MainWidget(QWidget):
             self.gb_surface_downholevoltage.setEnabled(self.ds.islive)
 
         self.gb_motor.setEnabled(self.ds.islive)
-        #self.gb_expert.setEnabled(self.ds.islive)
         self.gb_expert.setEnabled(True)
 
         ### Disabled widgets if winch encoder is dead
@@ -1002,13 +1067,12 @@ class MainWidget(QWidget):
 
 class DepthProgressBar(QWidget):
 
-    def __init__(self, iceThickness):
+    def __init__(self, H_borehole=1e3):
         super().__init__()
 
         self.minval = 0 # min depth
-        self.maxval = iceThickness # max depth (bedrock)
-        self.iceval = self.maxval*2/3 # ice depth (last max drilling depth)
-        self.curval = self.maxval*1/3 # current drill depth (position)
+        self.maxval = H_borehole # max depth (curr ice drilling depth)
+        self.curval = self.maxval * 0.5 # current drill depth (position)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
@@ -1016,67 +1080,95 @@ class DepthProgressBar(QWidget):
         )
 
     def sizeHint(self):
-        return QtCore.QSize(40,300)
+        return QtCore.QSize(50,300)
         
     def setValue(self, currentDepth, iceDepth):
         self.curval = currentDepth
-#        self.curval = iceDepth - 20 # debug colors
-        self.iceval = iceDepth
+        self.maxval = np.amax([iceDepth,0.1])
         self.repaint()
 
     def paintEvent(self, e):
 
-        painter = QtGui.QPainter(self)
-        H, W = painter.device().height(), painter.device().width()
-#        H = int(0.6*H) # debug
-        tol = 20 # metre
-        
-        c_ice      = '#969696' 
-        c_icehatch = '#252525'
-        c_fluid    = 'white' #COLOR_GRAYBG 
-        c_drill    = COLOR_DARKGREEN if self.curval < self.iceval - tol else COLOR_DARKRED
+        self.painter = QtGui.QPainter(self)
+        self.H, self.W = self.painter.device().height(), self.painter.device().width()
 
-        ### backgorund (fluid)
+        ### Backgorund (fluid)
         brush = QtGui.QBrush()
+        c_fluid = 'white' #COLOR_GRAYBG 
         brush.setColor(QtGui.QColor(c_fluid))
         brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(0, 0, W, H)
-        painter.fillRect(rect, brush)
+        rect = QtCore.QRect(0, 0, self.W, self.H)
+        self.painter.fillRect(rect, brush)
         
-        ### undrilled ice
-        ystart_ice = self.maxval
-        yend_ice   = int(self.iceval/self.maxval * H) # in px
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_ice))
-        brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(0, ystart_ice, W, yend_ice-ystart_ice)
-        painter.fillRect(rect, brush)
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_icehatch))
-        brush.setStyle(Qt.BDiagPattern)
-        painter.fillRect(rect, brush)
-        
-        ### drill position
-        y_drill = int(self.curval/self.maxval * H) # in px
-        brush = QtGui.QBrush()
-        brush.setColor(QtGui.QColor(c_drill))
-        brush.setStyle(Qt.SolidPattern)
-        rect = QtCore.QRect(0, 0, W, y_drill)
-        painter.fillRect(rect, brush)
+        # Zoom-in for drilling mode?
+        Htol = 1 # meter above bottom before change to zoom-in 
+        if self.curval<self.maxval - Htol:
+            Hrel_ice = 0.05
+            self.draw_ice(Hrel_ice)
+            Hrel_drill = self.curval/self.maxval * (1-Hrel_ice)
+            tol = 25 # metre
+            c_drill = COLOR_DARKGREEN if self.curval < self.maxval - tol else COLOR_DARKRED
+            self.draw_drill(Hrel_drill, c_drill)
+            
+        # Zoom-out for travelling mode?
+        else:
+            # ice mass
+            Hice = 2 # ice core max length
+            if self.curval-self.maxval > 2: Hice = 4
+            if self.curval-self.maxval > 4: Hice = 5 
+            Htot = Htol+Hice
+            self.draw_ice(Hice/Htot)
 
+            # drill depth
+            Hrel_drill = (self.curval-self.maxval+1)/Htot
+            self.draw_drill(Hrel_drill, COLOR_DARKGREEN)
+
+            # hatched delta L
+            if self.curval > self.maxval:
+                brush = QtGui.QBrush()
+                brush.setColor(QtGui.QColor("#abd9e9"))
+                brush.setStyle(Qt.BDiagPattern)
+                rect = QtCore.QRect(0, int(Htol/Htot*self.H), self.W, int((Hrel_drill-Htol/Htot)*self.H))
+                self.painter.fillRect(rect, brush)
+
+            # horiz lines
+            self.painter.setPen(QtGui.QPen(Qt.black, 3.5, Qt.SolidLine))
+            H0 = int(1/Htot * self.H)
+            self.painter.drawLine(0,H0,self.W,H0)        
+
+            self.painter.setPen(QtGui.QPen(Qt.black, 3, Qt.DashLine))
+            for dl in np.arange(Htol+1, Hice+1e-1, 1):
+                H0 = int(dl/Htot * self.H)
+                self.painter.drawLine(0,H0,self.W,H0)        
+                
         ### Walls
-        painter.setBrush(Qt.black)
-        painter.setPen(QtGui.QPen(Qt.black, 4, Qt.SolidLine))
-        painter.drawLine(0,0,0,H)
-        painter.drawLine(W,0,W,H)
-        painter.drawLine(0,H,W,H)
-        painter.drawLine(0,0,W,0)
+        self.painter.setBrush(Qt.black)
+        self.painter.setPen(QtGui.QPen(Qt.black, 4, Qt.SolidLine))
+        self.painter.drawLine(0,0,0,self.H)
+        self.painter.drawLine(self.W,0,self.W,self.H)
+        self.painter.drawLine(0,self.H,self.W,self.H)
+        self.painter.drawLine(0,0,self.W,0)
         
-        painter.end()
+        self.painter.end()
+        
+    def draw_drill(self, Hrel, color):
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(color))
+        brush.setStyle(Qt.SolidPattern)
+        H = int(Hrel*self.H) # in px
+        rect = QtCore.QRect(0, 0, self.W, H)
+        self.painter.fillRect(rect, brush)
+
+    def draw_ice(self, Hrel, color="#abd9e9"):
+        brush = QtGui.QBrush()
+        brush.setColor(QtGui.QColor(color))
+        brush.setStyle(Qt.SolidPattern)
+        H0 = int((1-Hrel)*self.H) - 1
+        rect = QtCore.QRect(0, H0, self.W, self.H)
+        self.painter.fillRect(rect, brush)
 
     def _trigger_refresh(self):
         self.update()
-        
 
 class QHSeparationLine(QtWidgets.QFrame):
   '''
