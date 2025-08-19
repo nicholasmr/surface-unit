@@ -1,4 +1,4 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2024
+# N. Rathmann <rathmann@nbi.dk>, 2019-2025
 
 DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
 
@@ -20,13 +20,12 @@ import socket, sys
 
 if socket.gethostname() == 'drill' or DEBUG_IS_LOCALHOST or sys.platform.startswith('win'): 
     REDIS_HOST = LOCAL_HOST
-    
 else:         
-    if IS_UNDEPLOYED: # is undeployed?
-        print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST (%s) with DHCP-given IP (%s)'%(DRILL_HOST, DRILL_HOST_LAN))
-        DRILL_HOST = DRILL_HOST_LAN # on drill run "dhcpcd" and note down the "leased IP" here
-
     REDIS_HOST = DRILL_HOST
+
+if IS_UNDEPLOYED: # is undeployed?
+    print('*** UNDEPLOYED MODE (settings.py): Overriding DRILL_HOST (%s) with given IP (%s)'%(DRILL_HOST, DRILL_HOST_LAN))
+    DRILL_HOST = DRILL_HOST_LAN # on drill run "dhcpcd" and note down the "leased IP" here
 
 #----------------------
 # Cable linear density for load-cable calculation
@@ -53,18 +52,18 @@ PRECISION_LOAD  = 1
 PRECISION_DEPTH = 2
 
 # Presumed max depth of core site
-DEPTH_MAX = 2700
+DEPTH_MAX = 500 # NOT USED ANY MORE
 
 #----------------------
 # Safe range for drill sensors
 #----------------------
 
 warn__motor_current           = [0,13]     # Amps
-warn__motor_rpm               = [-75,75]   # RPM
+warn__motor_rpm               = [-80,80]   # RPM
 warn__temperature_motor       = [-60,60]   # deg C
 warn__temperature_electronics = [-60,60]   # deg C
-warn__pressure                = [700,1100] # mbar
-warn__hammer                  = [0,50]     # percent
+warn__pressure                = [500,1100] # mbar
+warn__hammer                  = [50,100]     # percent
 warn__spin                    = [0,10]     # rpm
 warn__corelength              = [0.0,4.0]  # metre
 warn__downholevoltage         = [325,425]  # volt
