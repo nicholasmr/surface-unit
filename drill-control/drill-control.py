@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QKeySequence
-from PyQt5.QtMultimedia import *
+#from PyQt5.QtMultimedia import *
 
 #import qwt # https://pypi.org/project/PythonQwt/
 import pyqtgraph as pg
@@ -328,7 +328,7 @@ class MainWidget(QWidget):
     def randsound(self, arr):
         script_path = os.path.abspath(__file__)
         script_directory = os.path.dirname(script_path)
-        return QSound.play('%s/sound/%s'%(script_directory, random.choice(arr)))
+#        return QSound.play('%s/sound/%s'%(script_directory, random.choice(arr)))
         
     def create_gb_surface(self, initstr='N/A'):
         self.gb_surface = QGroupBox("Surface")
