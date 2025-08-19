@@ -452,7 +452,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 ##        self.axp  = self.fig.add_subplot(gs[0,0]); 
 #        self.ax3d = self.fig.add_subplot(gs[0,1], projection='3d'); 
 
-        self.fig = plt.figure(10, figsize=(11, 10), facecolor='w', edgecolor='k')
+        self.fig = plt.figure(10, figsize=(10, 9), facecolor='w', edgecolor='k')
         plt.get_current_fig_manager().set_window_title('Drill orientation')
         gs = self.fig.add_gridspec(1,1)
         gs.update(left=0.085, right=1, top=0.98, bottom=0.08, wspace=-0.05)
@@ -487,7 +487,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         ### View buttons
 
-        x0 = 0.10
+        x0 = 0.15
         y0 = 0.14
         
         plt.text(x0, y0+1.25*dy, 'Change view', fontweight='bold', **kwargs_text)
@@ -699,7 +699,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.ax3d.legend(self.legend_lines, ['$+x$ axis: Trench parallel', '$+y$ axis: Trench perp.', '$-z$ axis: Plumb line', \
                             #'Drill axis (SFUS)', 'Spring direction (SFUS)', ], \
                             'Drill axis (AHRS)', 'Spring direction (AHRS)', ], \
-                            loc=2, bbox_to_anchor=(-0.05,1.01), ncol=1, fancybox=False, framealpha=1, frameon=False, edgecolor=frameec, fontsize=12)
+                            loc=2, bbox_to_anchor=(-0.07,0.95), ncol=1, fancybox=False, framealpha=1, frameon=False, edgecolor=frameec, fontsize=12)
 
 
     def run(self, dt=1, debug=False, REDIS_HOST=REDIS_HOST, AHRS_estimator='SAAM'):
