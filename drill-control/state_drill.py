@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-2024
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-
 
 import redis, json, datetime, time, math
 import numpy as np
@@ -94,26 +94,32 @@ class DrillState():
 
     incl_sfus, azim_sfus, roll_sfus = 0, 0, 0 
     incl_ahrs, azim_ahrs, roll_ahrs = 0, 0, 0 
+    incl_accl, azim_accl, roll_accl = 0, 0, 0 
         
     # Sensor raws; scalar-last (x, y, z, w) format
     quat0_ahrs = np.array([0,0,0,1])
     quat0_sfus = np.array([0,0,0,1])
+    quat0_accl = np.array([0,0,0,1])
 
     # ... with offsets applied
     quat_ahrs = quat0_ahrs
     quat_sfus = quat0_sfus
+    quat_accl = quat0_accl
 
     # Sensor offsets
     # @TODO rename to offsets_*
     oricalib_ahrs = np.array([0,0,0]) # incl, azim, roll
     oricalib_sfus = np.array([0,0,0]) # incl, azim, roll
+    oricalib_accl = np.array([0,0,0]) # incl, azim, roll
 
     # Sensor axes
     ei0 = np.eye(3) # cartesian axes
     ei0_sfus = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
     ei0_ahrs = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
+    ei0_accl = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
     ei_sfus  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
     ei_ahrs  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
+    ei_accl  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
         
     ### Communication status 
     # Was the drill state update recently?
@@ -163,7 +169,7 @@ class DrillState():
         ### Orientation
 
         # Get orientation offset parameters
-        for method in ['sfus','ahrs']:
+        for method in ['sfus','ahrs','accl']:
             oricalib = np.array([self.rc.get('offset-%s-%s'%(method,ang)) for ang in ['incl','azim','roll']], dtype=np.float64)
             if np.any(np.isnan(oricalib)): oricalib = np.array([0,0,0])
             setattr(self, 'offset_%s'%(method), oricalib)      
@@ -196,6 +202,28 @@ class DrillState():
         self.quat_ahrs = self.apply_offsets(self.quat0_ahrs, 'ahrs') # apply calibration
         (self.ei_ahrs, self.incl_ahrs, self.azim_ahrs, self.roll_ahrs) = self.quat2ori(self.quat_ahrs)
         (self.ei0_ahrs, _,_,_) = self.quat2ori(self.quat0_ahrs)
+        
+        # ACCL (accelerometer only)
+        
+        ai = self.accelerometer_vec/np.linalg.norm(self.accelerometer_vec)
+
+        DEBUG_ACCEL = False
+
+        if DEBUG_ACCEL:
+            R_y = Rotation.from_euler('x', 4, degrees=True).as_matrix() 
+            ai = np.matmul(R_y,ai)
+#            R_z = Rotation.from_euler('z', 90, degrees=True).as_matrix() 
+#            ai = np.matmul(R_z,ai)
+
+        ax, ay, az = ai
+        self.incl_accl = np.rad2deg(np.arccos(-az))
+        self.roll_accl = np.rad2deg(np.arctan2(ay, az))
+        self.azim_accl = 0 # not known for this method
+
+        if DEBUG_ACCEL:
+            print()
+            print("%.2f, %.2f %.2f"%(ax,ay,az))
+            print("roll %.2f :: theta %.2f"%(self.roll_accl,self.incl_accl))
             
         ### Motor
         

@@ -122,6 +122,7 @@ class MainWidget(QWidget):
         self.hist_depth     = np.linspace(0.3,0,len(self.hist_time_drill)) 
         self.hist_incl_sfus = np.linspace(-8,0,len(self.hist_time_drill)) 
         self.hist_incl_ahrs = np.linspace(-5,0,len(self.hist_time_drill)) 
+        self.hist_incl_accl = np.linspace(-5,0,len(self.hist_time_drill)) 
 
         def setupaxis(obj):
             obj.invertX()
@@ -239,7 +240,7 @@ class MainWidget(QWidget):
         depthbarLayoutInner.addStretch(1)
         depthbarLayoutInner.setContentsMargins(20, 0, 25, 0)
         depthbarLayout.addLayout(depthbarLayoutInner)
-        self.lbl_ETA = QLabel(self.htmlfont('ETA', FS_GRAPH_TITLE))
+        self.lbl_ETA = QLabel(self.htmlfont('', FS_GRAPH_TITLE))
         self.lbl_ETA.setAlignment(QtCore.Qt.AlignCenter)
         depthbarLayout.addWidget(self.lbl_ETA)
 #        botLayout.addLayout(depthbarLayout,0)
@@ -392,12 +393,13 @@ class MainWidget(QWidget):
         lbl_method = QLabel('Method:')
         dlayout.addWidget(lbl_method, 0,0)
         self.cb_orimethod = QComboBox()
-        self.cb_orimethod.addItems(["AHRS","Sensor fusion"])
+        self.cb_orimethod.addItems(["Accelerometer","AHRS","Sensor fusion"])
         self.cb_orimethod.currentIndexChanged.connect(self.changed_orimethod)
-        self.orimethod = 'ahrs'
+        self.orimethod = 'accl'
         dlayout.addWidget(self.cb_orimethod,0,1)
         dlayout.setColumnStretch(2,1)
         layout.addLayout(dlayout)
+        self.changed_orimethod() # update dial
 
         self.gb_BNO055 = QGroupBox("BNO055 triaxial values") # create already here because self.cb_show_bno055.setChecked() below requires it be defined
         layout_BNO055 = QVBoxLayout()
@@ -679,9 +681,11 @@ class MainWidget(QWidget):
     
     def changed_orimethod(self):
         self.orimethod = None
-        if self.cb_orimethod.currentIndex()==0: self.orimethod = 'ahrs'
-        if self.cb_orimethod.currentIndex()==1: self.orimethod = 'sfus'
+        if self.cb_orimethod.currentIndex()==0: self.orimethod = 'accl'
+        if self.cb_orimethod.currentIndex()==1: self.orimethod = 'ahrs'
+        if self.cb_orimethod.currentIndex()==2: self.orimethod = 'sfus'
         print('orimethod is now ', self.orimethod)
+        self.dial_azim.setVisible(self.orimethod != 'accl')
     
     # Motor
     
@@ -905,7 +909,7 @@ class MainWidget(QWidget):
 #            if 1: v = 50 * 1e-2 # m/s # DEBUG
             if   self.ss.speedinst < -5e-2: ETA = np.abs((self.ss.depthtare-self.ss.depth)/v)
             elif self.ss.speedinst > +5e-2: ETA = np.abs(self.ss.depth/v)
-            self.lbl_ETA.setText(self.htmlfont('<b>ETA<br>%.0fmin'%(ETA/60) if ETA is not None else '<b>ETA<br>(...)', FS_GRAPH_TITLE-0.5))
+            #self.lbl_ETA.setText(self.htmlfont('<b>ETA<br>%.0fmin'%(ETA/60) if ETA is not None else '<b>ETA<br>(...)', FS_GRAPH_TITLE-0.5))
             
         ### Update state fields
         
@@ -927,7 +931,7 @@ class MainWidget(QWidget):
                 self.updateStateBox('run_startload',  round(self.ss.loadtare,PRECISION_LOAD),   warn__nothres)    
                 dL = self.ss.depth - self.ss.depthtare
                 self.updateStateBox('run_deltadepth', round(dL,PRECISION_DEPTH), warn__corelength)
-                self.lbl_ETA.setText(self.htmlfont('<b>&#916;%.2fm'%(dL), FS_GRAPH_TITLE))
+                #self.lbl_ETA.setText(self.htmlfont('<b>&#916;%.2fm'%(dL), FS_GRAPH_TITLE))
 
         #-----------------------
         # Update drill state
@@ -949,16 +953,21 @@ class MainWidget(QWidget):
             self.hist_depth     = np.roll(self.hist_depth, -1); self.hist_depth[-1] = np.abs(self.ss.depth) * 1e-3
             self.hist_incl_ahrs = np.roll(self.hist_incl_ahrs, -1); self.hist_incl_ahrs[-1] = self.ds.incl_ahrs
             self.hist_incl_sfus = np.roll(self.hist_incl_sfus, -1); self.hist_incl_sfus[-1] = self.ds.incl_sfus
+            self.hist_incl_accl = np.roll(self.hist_incl_accl, -1); self.hist_incl_accl[-1] = self.ds.incl_accl
             sel = self.xlen_selector['incl']
             I0 = -int(self.xlen[sel]/(DT*DTFRAC_DRILL))
             x = self.hist_depth[I0:len(self.hist_depth):self.xlen_samplerate[sel]]
-            y0 = self.hist_incl_sfus if self.orimethod=='sfus' else self.hist_incl_ahrs 
+            y0 = self.hist_incl_sfus if self.orimethod=='sfus' else (self.hist_incl_ahrs if self.orimethod=='ahrs' else self.hist_incl_accl)
             y = y0[I0:len(y0):self.xlen_samplerate[sel]]
 #            print(x,y)
             self.incl_scatter.setData(x=y, y=x)
 #            self.incl_scatter.setData(x = self.hist_incl_sfus[::dn] if self.orimethod=='sfus' else self.hist_incl_ahrs[::dn], y=self.hist_depth[::dn])
             self.plot_incl.setYRange(0, np.amax([0.3, np.amax(x)*1.03]), padding=0.02)
-            self.plot_incl.setTitle(self.htmlfont('<b>Inc = %.1f deg'%(self.ds.incl_sfus if self.orimethod=='sfus' else self.ds.incl_ahrs), FS_GRAPH_TITLE))
+            incl_to_show = 0
+            if self.orimethod=='sfus': incl_to_show = self.ds.incl_sfus
+            if self.orimethod=='ahrs': incl_to_show = self.ds.incl_ahrs
+            if self.orimethod=='accl': incl_to_show = self.ds.incl_accl
+            self.plot_incl.setTitle(self.htmlfont('<b>Inc = %.1f deg'%(incl_to_show), FS_GRAPH_TITLE))
 
             ### Check components statuses
             self.status_drill.setText('Online' if self.ds.islive else 'Offline')
