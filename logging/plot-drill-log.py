@@ -54,7 +54,8 @@ def empty_array(len):
     arr[:] = np.nan
     return arr;
 
-flen = sum(1 for l in open(DRILLLOG, "r"))
+kwload = dict(encoding="utf8", errors='ignore')
+flen = sum(1 for l in open(DRILLLOG, "r", **kwload))
 
 ### Time
 t  = empty_array(flen) # time in seconds
@@ -88,20 +89,23 @@ gyroalarm = np.zeros((flen))
 
 print('*** Loading %s'%(DRILLLOG))
 
-fh  = open(DRILLLOG, "r")
+fh  = open(DRILLLOG, "r", **kwload)
 jj = 0
 
 Icsv = []
 
 for ii, l in enumerate(fh):
 
-    date_time_obj0 = datetime.datetime.strptime(date_time_str0, '%Y-%m-%d')    
+    try:
+        date_time_obj0 = datetime.datetime.strptime(date_time_str0, '%Y-%m-%d')    
 
-    date_time_str1 = l[:23]
-    date_time_obj1 = datetime.datetime.strptime(date_time_str1, '%Y-%m-%d %H:%M:%S,%f')
-    t[ii]  = (date_time_obj1-date_time_obj0).total_seconds()
-    th[ii] = t[ii]/(60**2)
-    tabs[ii] = time.mktime(date_time_obj1.timetuple())
+        date_time_str1 = l[:23]
+        date_time_obj1 = datetime.datetime.strptime(date_time_str1, '%Y-%m-%d %H:%M:%S,%f')
+        t[ii]  = (date_time_obj1-date_time_obj0).total_seconds()
+        th[ii] = t[ii]/(60**2)
+        tabs[ii] = time.mktime(date_time_obj1.timetuple())
+    except:
+        continue
 
     if "GyroSlipAlarm" in l:
         gyroalarm[ii] = 1

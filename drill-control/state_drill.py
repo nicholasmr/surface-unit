@@ -206,24 +206,26 @@ class DrillState():
         # ACCL (accelerometer only)
         
         ai = self.accelerometer_vec/np.linalg.norm(self.accelerometer_vec)
-
-        DEBUG_ACCEL = False
-
-        if DEBUG_ACCEL:
-            R_y = Rotation.from_euler('x', 4, degrees=True).as_matrix() 
-            ai = np.matmul(R_y,ai)
+        self.incl_accl, self.incl_roll = self.get_accelori(*ai)
+        self.azim_accl = 0
+        
+        #DEBUG_ACCEL = False
+#
+#        if DEBUG_ACCEL:
+#            R_y = Rotation.from_euler('x', 4, degrees=True).as_matrix() 
+#            ai = np.matmul(R_y,ai)
 #            R_z = Rotation.from_euler('z', 90, degrees=True).as_matrix() 
 #            ai = np.matmul(R_z,ai)
-
-        ax, ay, az = ai
-        self.incl_accl = np.rad2deg(np.arccos(-az))
-        self.roll_accl = np.rad2deg(np.arctan2(ay, az))
-        self.azim_accl = 0 # not known for this method
-
-        if DEBUG_ACCEL:
-            print()
-            print("%.2f, %.2f %.2f"%(ax,ay,az))
-            print("roll %.2f :: theta %.2f"%(self.roll_accl,self.incl_accl))
+#
+#        ax, ay, az = ai
+#        self.incl_accl = np.rad2deg(np.arccos(-az))
+#        self.roll_accl = np.rad2deg(np.arctan2(ay, az))
+#        self.azim_accl = 0 # not known for this method
+#
+#        if DEBUG_ACCEL:
+#            print()
+#            print("%.2f, %.2f %.2f"%(ax,ay,az))
+#            print("roll %.2f :: theta %.2f"%(self.roll_accl,self.incl_accl))
             
         ### Motor
         
@@ -254,6 +256,14 @@ class DrillState():
 
 
     ### Orientation
+    
+    def get_accelori(self, accx, accy, accz):
+        # Calculate magnitude once for all elements
+        magnitude = np.sqrt(accx**2 + accy**2 + accz**2)
+        # Calculate Inclination and Roll for the entire vector
+        incl = 180 - np.degrees(np.arccos(np.clip(accz/magnitude, -1.0, 1.0)))
+        roll = np.degrees(np.arctan2(accy, accz))
+        return incl, roll
 
     def quat2ori(self, quat):
         q = Rotation.from_quat(quat)
@@ -261,7 +271,7 @@ class DrillState():
         for ii in range(3): ei[ii] = q.apply(self.ei0[ii]) # sensor x,y,z axes
         x1,x2,x3 = ei[0] # sensor x axis 
         z1,z2,z3 = ei[2] # sensor z axis (drill axis)
-        incl = 180 - np.rad2deg(np.arccos(z3)) # pitch (theta)
+        incl = 180 - np.rad2deg(np.arccos(np.clip(z3,-1,1))) # pitch (theta)
         azim = np.rad2deg(np.arctan2(z2,z1)) # yaw (phi)
         roll = np.rad2deg(np.arctan2(x2,x1)) # roll (psi)
         return (ei, incl, azim, roll)

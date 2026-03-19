@@ -1,4 +1,4 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2025
+# N. Rathmann <rathmann@nbi.dk>, 2019-
 
 DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
 

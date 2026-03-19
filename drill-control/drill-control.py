@@ -1089,7 +1089,7 @@ class DepthProgressBar(QWidget):
         )
 
     def sizeHint(self):
-        return QtCore.QSize(50,300)
+        return QtCore.QSize(35,250)
         
     def setValue(self, currentDepth, iceDepth):
         self.curval = currentDepth
@@ -1109,17 +1109,20 @@ class DepthProgressBar(QWidget):
         rect = QtCore.QRect(0, 0, self.W, self.H)
         self.painter.fillRect(rect, brush)
         
-        # Zoom-in for drilling mode?
+        cgreen = "#a1d99b"
+        cred   = "#fc9272"
+        
+        ### Zoom-in for drilling mode
         Htol = 1 # meter above bottom before change to zoom-in 
         if self.curval<self.maxval - Htol:
             Hrel_ice = 0.05
             self.draw_ice(Hrel_ice)
             Hrel_drill = self.curval/self.maxval * (1-Hrel_ice)
             tol = 25 # metre
-            c_drill = COLOR_DARKGREEN if self.curval < self.maxval - tol else COLOR_DARKRED
+            c_drill = cgreen if self.curval < self.maxval - tol else cred
             self.draw_drill(Hrel_drill, c_drill)
             
-        # Zoom-out for travelling mode?
+        ### Zoom-out for travelling mode
         else:
             # ice mass
             Hice = 2 # ice core max length
@@ -1130,7 +1133,7 @@ class DepthProgressBar(QWidget):
 
             # drill depth
             Hrel_drill = (self.curval-self.maxval+1)/Htot
-            self.draw_drill(Hrel_drill, COLOR_DARKGREEN)
+            self.draw_drill(Hrel_drill, cgreen)
 
             # hatched delta L
             if self.curval > self.maxval:
@@ -1168,7 +1171,7 @@ class DepthProgressBar(QWidget):
         rect = QtCore.QRect(0, 0, self.W, H)
         self.painter.fillRect(rect, brush)
 
-    def draw_ice(self, Hrel, color="#abd9e9"):
+    def draw_ice(self, Hrel, color="#deebf7"):
         brush = QtGui.QBrush()
         brush.setColor(QtGui.QColor(color))
         brush.setStyle(Qt.SolidPattern)
