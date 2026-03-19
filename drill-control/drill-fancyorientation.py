@@ -383,7 +383,8 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.view_followdrill = False
         
         self.show_sfus = 0
-        self.show_ahrs = 1
+        self.show_ahrs = 0
+        self.show_accl = 1
 
         self.curr_oriplot = 'inclination'
 #        self.curr_oriplot = 'azimuth' # debug
@@ -405,6 +406,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         # Quat coordinates (x,y,z,w)
         self.qc_sfus = [0,0,0,1]
         self.qc_ahrs = [0,0,0,1]
+        self.qc_accl = [0,0,0,1]
         
         # Drill inclination history
         dt = 0.8 # update rate
@@ -417,10 +419,13 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         self.drill_depth     = initval
         self.drill_incl_ahrs = initval
         self.drill_incl_sfus = initval
+        self.drill_incl_accl = initval
         self.drill_azim_ahrs = initval
         self.drill_azim_sfus = initval
+        self.drill_azim_accl = initval
         self.drill_roll_ahrs = initval
         self.drill_roll_sfus = initval
+        self.drill_roll_accl = initval
         
 
     def update_internal_states(self):
@@ -432,6 +437,7 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
         # pyrotation Quaternion() objects
         self.q_sfus = Quaternion(*self.xyzw_to_wxyz(self.qc_sfus))
         self.q_ahrs = Quaternion(*self.xyzw_to_wxyz(self.qc_ahrs))
+        self.q_accl = Quaternion(*self.xyzw_to_wxyz(self.qc_accl))
         
     # copy from state_drill.py
     def xyzw_to_wxyz(self, q): return np.roll(q,1)
@@ -675,14 +681,17 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
         # Plot the rotated axes.        
         if self.show_sfus: self.plot_circle(self.ax3d, self.q_sfus, O, r, plane='xoy', style='--', color=c_dred, method='q')
-        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='-', color=c_dred, method='q')
+        if self.show_ahrs: self.plot_circle(self.ax3d, self.q_ahrs, O, r, plane='xoy', style='-',  color=c_dred, method='q')
+        if self.show_accl: self.plot_circle(self.ax3d, self.q_accl, O, r, plane='xoy', style='-',  color=c_dred, method='q')
+        
         if self.show_sfus: self.plot_xyz_axes(self.ax3d, self.q_sfus, O, scale=scale, style='--', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
-        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='-', cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_ahrs: self.plot_xyz_axes(self.ax3d, self.q_ahrs, O, scale=scale, style='-',  cx=cx, cy=cy, cz=cz, arrow=True, method='q')
+        if self.show_accl: self.plot_xyz_axes(self.ax3d, self.q_accl, O, scale=scale, style='-',  cx=cx, cy=cy, cz=cz, arrow=True, method='q')
 
         # Trench frame
         lwc = lw_default-1
-        self.plot_vector(self.ax3d, scale*1,0,0,  0,0,0,  style='-', color=cex, lw=lwc, arrow=True)
-        self.plot_vector(self.ax3d, 0,scale*1,0,  0,0,0,  style='-', color=cey, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, scale*1,0,0,   0,0,0,  style='-', color=cex, lw=lwc, arrow=True)
+        self.plot_vector(self.ax3d, 0,scale*1,0,   0,0,0,  style='-', color=cey, lw=lwc, arrow=True)
         self.plot_vector(self.ax3d, 0,0,-scale*1,  0,0,0,  style='-', color=cez, lw=lwc, arrow=True)
 
         # debug:
@@ -730,18 +739,27 @@ class QuaternionVisualizer3D(RotationVisualizer3D):
 
                 self.qc0_sfus = self.ds.quat0_sfus
                 self.qc0_ahrs = self.ds.quat0_ahrs
+                self.qc0_accl = self.ds.quat0_accl
                 self.qc_sfus = self.ds.quat_sfus
                 self.qc_ahrs = self.ds.quat_ahrs
+                self.qc_accl = self.ds.quat_accl
                 
 #                print(self.ds.inclination_sfus, self.ds.azimuth_sfus, self.ds.roll_sfus)
 
                 self.drill_depth[nn] = -abs(self.ss.depth)
+                
                 self.drill_incl_ahrs[nn] = self.ds.incl_ahrs
                 self.drill_incl_sfus[nn] = self.ds.incl_sfus
+                self.drill_incl_accl[nn] = self.ds.incl_accl
+                
                 self.drill_azim_ahrs[nn] = self.ds.azim_ahrs
                 self.drill_azim_sfus[nn] = self.ds.azim_sfus
+                self.drill_azim_accl[nn] = self.ds.azim_accl
+                
                 self.drill_roll_ahrs[nn] = self.ds.roll_ahrs
                 self.drill_roll_sfus[nn] = self.ds.roll_sfus
+                self.drill_roll_accl[nn] = self.ds.roll_accl
+                
                 nn += 1
                 if nn > len(self.drill_depth)-1: nn = 0 # wrap around
                 

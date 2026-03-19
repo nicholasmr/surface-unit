@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore', message='.*Gimbal', )
 
 from scipy.spatial.transform import Rotation
 import ahrs
-from ahrs.filters import SAAM, FLAE, QUEST, OLEQ, FQA
+from ahrs.filters import SAAM, FLAE, QUEST, OLEQ, FQA, Tilt
 from ahrs import Quaternion
 
 egrip_N, egrip_E, egrip_height = 75.63248, -35.98911, 2.6
@@ -22,6 +22,7 @@ frame = 'NED'
 
 AHRS_estimators = {
     'SAAM': SAAM(),
+    'Tilt': Tilt(),
     'FLAE': FLAE(magnetic_dip=mag_dip),
     'OLEQ': OLEQ(magnetic_ref=mag_ref, frame=frame),
     'FQA' : FQA(mag_ref=mag_ref)
@@ -131,7 +132,7 @@ class DrillState():
     rc = None 
     
     
-    def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='SAAM', DEBUG=True):
+    def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='Tilt', DEBUG=True):
     
         # redis connection (rc) object
         try:    
@@ -176,20 +177,20 @@ class DrillState():
 
         # SFUS (BNO055 Sensor Fusion)
         
-        self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
-        # Maybe zero on start-up, so ignore value if that is the case
-        norm = np.linalg.norm(self.quat0_sfus)
-        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm) # normalize just in case
-        else:                                self.quat0_sfus = np.array([1,0,0,0])
-        #self.quat_sfus = self.quat0_sfus # no calibration
-        self.quat_sfus = self.apply_offsets(self.quat0_sfus, 'sfus') # apply calibration
-        (self.ei_sfus, self.incl_sfus, self.azim_sfus, self.roll_sfus) = self.quat2ori(self.quat_sfus)
-        (self.ei0_sfus, _,_,_) = self.quat2ori(self.quat0_sfus)
+#        self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
+#        # Maybe zero on start-up, so ignore value if that is the case
+#        norm = np.linalg.norm(self.quat0_sfus)
+#        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm) # normalize just in case
+#        else:                                self.quat0_sfus = np.array([1,0,0,0])
+#        #self.quat_sfus = self.quat0_sfus # no calibration
+#        self.quat_sfus = self.apply_offsets(self.quat0_sfus, 'sfus') # apply calibration
+#        (self.ei_sfus, self.incl_sfus, self.azim_sfus, self.roll_sfus) = self.quat2ori(self.quat_sfus)
+#        (self.ei0_sfus, _,_,_) = self.quat2ori(self.quat0_sfus)
 
-        # DEBUG: Compare to Euler angles
-        if 0:
-            print(self.incl_sfus, self.azim_sfus, self.roll_sfus)
-            print(*quat_to_euler(self.quat_sfus))
+#        # DEBUG: Compare to Euler angles
+#        if 0:
+#            print(self.incl_sfus, self.azim_sfus, self.roll_sfus)
+#            print(*quat_to_euler(self.quat_sfus))
 
         # AHRS
 
@@ -199,7 +200,7 @@ class DrillState():
         if np.size(self.quat0_ahrs) != 4 or np.any(np.isnan(self.quat0_ahrs)): self.quat0_ahrs = np.array([0,0,0,-1])
 #        self.quat0_ahrs *= -1 # follow SFUS sign convention
         self.quat_ahrs = self.quat0_ahrs # no calibration
-        self.quat_ahrs = self.apply_offsets(self.quat0_ahrs, 'ahrs') # apply calibration
+#        self.quat_ahrs = self.apply_offsets(self.quat0_ahrs, 'ahrs') # apply calibration
         (self.ei_ahrs, self.incl_ahrs, self.azim_ahrs, self.roll_ahrs) = self.quat2ori(self.quat_ahrs)
         (self.ei0_ahrs, _,_,_) = self.quat2ori(self.quat0_ahrs)
         
