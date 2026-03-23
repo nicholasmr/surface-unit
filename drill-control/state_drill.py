@@ -207,7 +207,7 @@ class DrillState():
         # ACCL (accelerometer only)
         
         ai = self.accelerometer_vec/np.linalg.norm(self.accelerometer_vec)
-        self.incl_accl, self.incl_roll = self.get_accelori(*ai)
+        self.incl_accl, self.roll_accl = self.get_accelori(*ai)
         self.azim_accl = 0
         
         #DEBUG_ACCEL = False
