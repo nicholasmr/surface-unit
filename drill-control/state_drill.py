@@ -194,10 +194,8 @@ class DrillState():
 
         # AHRS
 
-        if self.AHRS_estimator == 'Tilt':
-            self.quat0_ahrs = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec)) # note estimate() returns w,x,y,z ordered quats
-        else:
-            self.quat0_ahrs = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=self.magnetometer_vec)) # note estimate() returns w,x,y,z ordered quats        
+        magvec = None if self.AHRS_estimator == 'Tilt' else self.magnetometer_vec
+        self.quat0_ahrs = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=magvec)) # note estimate() returns w,x,y,z ordered quats
         self.quat0_ahrs = np.array(self.quat0_ahrs, dtype=np.float64)
         # if estimator is bad, ignore result
         if np.size(self.quat0_ahrs) != 4 or np.any(np.isnan(self.quat0_ahrs)): self.quat0_ahrs = np.array([0,0,0,-1])
@@ -207,16 +205,19 @@ class DrillState():
         (self.ei_ahrs, self.incl_ahrs, self.azim_ahrs, self.roll_ahrs) = self.quat2ori(self.quat_ahrs)
         (self.ei0_ahrs, _,_,_) = self.quat2ori(self.quat0_ahrs)
         
+        if self.AHRS_estimator == 'Tilt':
+            self.roll_ahrs, self.azim_ahrs = -self.azim_ahrs, self.roll_ahrs
+        
         # ACCL (accelerometer only)
         
 #        ai = self.accelerometer_vec/np.linalg.norm(self.accelerometer_vec)
 #        self.incl_accl, self.roll_accl = self.get_accelori(*ai)
 #        self.azim_accl = 0
-        tiltest = Tilt(as_angles=True)
-        Q = tiltest.estimate(acc=self.accelerometer_vec)
-#        print(Q)
-        self.roll_accl, self.incl_accl, self.azim_accl = Q # np.rad2deg(Q)
-        self.incl_accl = 180 - self.incl_accl
+#
+#        tiltest = Tilt(as_angles=True)
+#        Q = tiltest.estimate(acc=self.accelerometer_vec)
+#        self.roll_accl, self.incl_accl, self.azim_accl = Q # np.rad2deg(Q)
+#        self.incl_accl = 180 - self.incl_accl
         
         #DEBUG_ACCEL = False
 #
