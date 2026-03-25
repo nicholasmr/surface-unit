@@ -193,8 +193,7 @@ class DrillState():
         quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=acc, mag=None)) # note estimate() returns w,x,y,z ordered quats
         if np.size(quat) != 4 or np.any(np.isnan(quat)): quat = np.array([0,0,0,-1]) # if estimator is bad, ignore result
         ei, incl, azim, roll = self.quat2ang(quat)
-        roll, azim = azim, roll # swap
-        roll = 360-roll # adjust
+        roll, azim = -azim, roll # swap and adjust
         return (quat, ei, incl, azim, roll)
         
     def quat2ang(self, quat):
