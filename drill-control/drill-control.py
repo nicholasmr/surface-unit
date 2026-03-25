@@ -956,8 +956,8 @@ class MainWidget(QWidget):
                 self.updatestatebox('orientation_acceleration',       str_aclvec,    warn__nothres)
                 self.updatestatebox('orientation_magnetometer',       str_magvec,    warn__nothres)
                 self.updatestatebox('orientation_gyroscope',          str_spnvec,    warn__nothres)
-                self.updatestatebox('orientation_linearacceleration', str_linaclvec, warn__nothres)
-                self.updatestatebox('orientation_inclinometer',       str_inclvec,   warn__nothres)
+#                self.updatestatebox('orientation_linearacceleration', str_linaclvec, warn__nothres)
+#                self.updatestatebox('orientation_inclinometer',       str_inclvec,   warn__nothres)
 
                 #self.dial_azim.setValue(int(azim))
                 self.dial_roll.setValue(int(roll))
