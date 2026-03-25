@@ -152,8 +152,10 @@ class DrillState():
         # AHRS
 
         if self.AHRS_estimator == 'Tilt':
-    
-            self.quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=None)) # note estimate() returns w,x,y,z ordered quats
+            
+#            acc = self.accelerometer_vec
+            acc = self.gravity_vec
+            self.quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=acc, mag=None)) # note estimate() returns w,x,y,z ordered quats
             if np.size(self.quat) != 4 or np.any(np.isnan(self.quat)): self.quat = np.array([0,0,0,-1]) # if estimator is bad, ignore result
             (self.ei, self.incl, self.azim, self.roll) = self.quat2ang(self.quat)
             self.roll, self.azim = 360-self.azim, self.roll # adjust 

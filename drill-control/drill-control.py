@@ -369,12 +369,12 @@ class MainWidget(QWidget):
         dlayout.addWidget(self.dial_roll, 0,1)
         layout.addLayout(dlayout)
 
+        layout.addWidget(self.makestatebox('orientation_gravity',      'Gravity (m/s^2)',     initstr))
         layout.addWidget(self.makestatebox('orientation_acceleration', 'Acceleration (m/s^2)', initstr))
         layout.addWidget(self.makestatebox('orientation_magnetometer', 'Magnetometer (mT)',    initstr))   
         layout.addWidget(self.makestatebox('orientation_gyroscope',    'Gyroscope (deg/s)',    initstr))
-        layout.addWidget(self.makestatebox('orientation_linearacceleration', 'Linear accel. (m/s^2)', initstr))
-        layout.addWidget(self.makestatebox('orientation_gravity',            'Gravity (m/s^2)',     initstr))
-        layout.addWidget(self.makestatebox('orientation_inclinometer',       'Inclinometer (...)',  initstr))
+#        layout.addWidget(self.makestatebox('orientation_linearacceleration', 'Linear accel. (m/s^2)', initstr))
+#        layout.addWidget(self.makestatebox('orientation_inclinometer',       'Inclinometer (...)',  initstr))
         
         layout.addStretch(1)
         self.gb_orientation.setLayout(layout)
@@ -945,18 +945,18 @@ class MainWidget(QWidget):
                 self.updatestatebox('orientation_inclination', '%.1f,&nbsp; <font color="%s">%.0f</font>,&nbsp; <font color="%s">%.0f</font>'%(incl, COLOR_DIAL1, azim, COLOR_DIAL2, roll), warn__nothres)
                 self.updatestatebox('orientation_spin',        "%.2f"%(self.ds.spin), warn__nothres)
                 
+                str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_mag)
                 str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
                 str_magvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.magnetometer_x,self.ds.magnetometer_y,self.ds.magnetometer_z, self.ds.magnetometer_mag)
-                str_linaclvec = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.linearaccel_x,self.ds.linearaccel_y,self.ds.linearaccel_z, self.ds.linearaccel_mag)
-                str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_mag)
                 str_spnvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gyroscope_x,self.ds.gyroscope_y,self.ds.gyroscope_z, self.ds.gyroscope_mag)
+                str_linaclvec = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.linearaccel_x,self.ds.linearaccel_y,self.ds.linearaccel_z, self.ds.linearaccel_mag)
                 str_inclvec   = '[%.1f, %.1f], %.1f'%(self.ds.inclination_x,self.ds.inclination_y, -1)
 
+                self.updatestatebox('orientation_gravity',            str_gravvec,   warn__nothres)
                 self.updatestatebox('orientation_acceleration',       str_aclvec,    warn__nothres)
                 self.updatestatebox('orientation_magnetometer',       str_magvec,    warn__nothres)
-                self.updatestatebox('orientation_linearacceleration', str_linaclvec, warn__nothres)
-                self.updatestatebox('orientation_gravity',            str_gravvec,   warn__nothres)
                 self.updatestatebox('orientation_gyroscope',          str_spnvec,    warn__nothres)
+                self.updatestatebox('orientation_linearacceleration', str_linaclvec, warn__nothres)
                 self.updatestatebox('orientation_inclinometer',       str_inclvec,   warn__nothres)
 
                 #self.dial_azim.setValue(int(azim))
