@@ -1,43 +1,28 @@
 #!/usr/bin/python
 # N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-
 
-import redis, json, datetime, time, math
+import redis, json, datetime
 import numpy as np
-from settings import *
 import warnings
 warnings.filterwarnings('ignore', message='.*Gimbal', )
 
+from settings import *
+
 from scipy.spatial.transform import Rotation
-import ahrs
-from ahrs.filters import SAAM, FLAE, QUEST, OLEQ, FQA, Tilt
-from ahrs import Quaternion
-
-egrip_N, egrip_E, egrip_height = 75.63248, -35.98911, 2.6
-
-wmm = ahrs.utils.WMM(datetime.datetime.now(), latitude=egrip_N, longitude=egrip_E, height=egrip_height) 
-mag_dip = wmm.I # Inclination angle (a.k.a. dip angle) -- https://ahrs.readthedocs.io/en/latest/wmm.html
-mag_ref = np.array([wmm.X, wmm.Y, wmm.Z])
-#print('mag_ref = (%.1f, %.1f, %.1f) %.1f'%(mag_ref[0],mag_ref[1],mag_ref[2], np.linalg.norm(mag_ref)))
-frame = 'NED'
+from ahrs.filters import Tilt, SAAM
 
 AHRS_estimators = {
-    'SAAM': SAAM(),
     'Tilt': Tilt(),
-    'FLAE': FLAE(magnetic_dip=mag_dip),
-    'OLEQ': OLEQ(magnetic_ref=mag_ref, frame=frame),
-    'FQA' : FQA(mag_ref=mag_ref)
+    'SAAM': SAAM(),
 }
-
 
 class DrillState():
 
-    ### State variables
+    rc = None # redis connection object
 
-    motor_rpm             = 0
-    motor_voltage         = 0
-    motor_current         = 0
-    motor_controller_temp = 0
-    motor_duty_cycle      = 0
+    """
+    Drill sensors
+    """
 
     temperature_electronics    = 0     
     temperature_auxelectronics = 0
@@ -53,10 +38,38 @@ class DrillState():
     pressure_gear1       = 0
     pressure_gear2       = 0
     
-    hammer = 0
-    tachometer = 0
-    spin = 0 # = gyroscope_z
     downhole_voltage = 0.0
+    
+    ### Alerts
+    
+    hammer = 0
+    spin   = 0 # = gyroscope_z when close to vertical
+
+    """
+    Motor state 
+    """
+    
+    motor_rpm             = 0
+    motor_voltage         = 0
+    motor_current         = 0
+    motor_controller_temp = 0
+    motor_duty_cycle      = 0
+
+    tachometer = 0
+    
+    """
+    Orientation
+    """
+    
+    ### Calculated drill orientation
+
+    ei0 = np.eye(3) # Cartesian axes
+    
+    quat = np.array([0,0,0,1]) # sensor orientation quarternion in scalar-last (x, y, z, w) format
+    ei   = [np.zeros(3), np.zeros(3), np.zeros(3)] # corresponding x,y,z axes of sensor
+    incl = 0 # 0 = plumb
+    azim = 0
+    roll = 0
     
     ### BNO055 triaxial values
 
@@ -68,6 +81,22 @@ class DrillState():
     magnetometer_y = 1
     magnetometer_z = 0
 
+    gyroscope_x = 0
+    gyroscope_y = 0
+    gyroscope_z = 0
+
+    quality_sys   = 0
+    quality_gyro  = 0
+    quality_accel = 0
+    quality_magn  = 0
+    
+    ### Independent inclinometer reading
+    
+    inclination_x = 0
+    inclination_y = 0
+
+    ### ??? sensors ???
+
     linearaccel_x = 0
     linearaccel_y = 0
     linearaccel_z = 0
@@ -75,82 +104,33 @@ class DrillState():
     gravity_x = 0
     gravity_y = 0
     gravity_z = 9.82
-
-    gyroscope_x = 0
-    gyroscope_y = 0
-    gyroscope_z = 0
-
-    quaternion_x = 0
-    quaternion_y = 0
-    quaternion_z = 0
-    quaternion_w = 1
-            
-    quality_sys   = 0
-    quality_gyro  = 0
-    quality_accel = 0
-    quality_magn  = 0
     
-    inclination_x = 0
-    inclination_y = 0
-
-    incl_sfus, azim_sfus, roll_sfus = 0, 0, 0 
-    incl_ahrs, azim_ahrs, roll_ahrs = 0, 0, 0 
-    incl_accl, azim_accl, roll_accl = 0, 0, 0 
-        
-    # Sensor raws; scalar-last (x, y, z, w) format
-    quat0_ahrs = np.array([0,0,0,1])
-    quat0_sfus = np.array([0,0,0,1])
-    quat0_accl = np.array([0,0,0,1])
-
-    # ... with offsets applied
-    quat_ahrs = quat0_ahrs
-    quat_sfus = quat0_sfus
-    quat_accl = quat0_accl
-
-    # Sensor offsets
-    # @TODO rename to offsets_*
-    oricalib_ahrs = np.array([0,0,0]) # incl, azim, roll
-    oricalib_sfus = np.array([0,0,0]) # incl, azim, roll
-    oricalib_accl = np.array([0,0,0]) # incl, azim, roll
-
-    # Sensor axes
-    ei0 = np.eye(3) # cartesian axes
-    ei0_sfus = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
-    ei0_ahrs = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
-    ei0_accl = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor
-    ei_sfus  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
-    ei_ahrs  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
-    ei_accl  = [np.zeros(3), np.zeros(3), np.zeros(3)] # x,y,z axis of sensor, with offsets applied
-        
-    ### Communication status 
-    # Was the drill state update recently?
-    received        = '2022-01-01 00:00:00'
-    islive          = False # True = connection is live, else False
-    islivethreshold = 15 # seconds before drill state is assumed dead (unless a new state was received)
+    """
+    Flags and state 
+    """
     
-    ### Redis connection
-    rc = None 
-    
-    
+    received        = '2026-01-01 00:00:00'
+    islive          = False # True = drill is online (communication active), else offline
+    islivethreshold = 8     # seconds before drill state is assumed dead (unless a new state was received)
+   
+    ######## 
+   
     def __init__(self, redis_host=LOCAL_HOST, AHRS_estimator='Tilt', DEBUG=True):
     
-        # redis connection (rc) object
         try:    
-            if DEBUG: print('Connecting to redis server %s ...'%(redis_host))
+            if DEBUG: print('DrillState(): Connecting to redis server %s ...'%(redis_host))
             self.rc = redis.StrictRedis(host=redis_host) 
             self.rc.ping() 
         except:
             print('DrillState(): redis connection to %s failed. Using %s instead.'%(redis_host,LOCAL_HOST))
             self.rc = redis.StrictRedis(host=LOCAL_HOST) 
 
-        self.AHRS_estimator = AHRS_estimator
+        self.set_AHRS_estimator(AHRS_estimator)
         self.update()
                 
-
     def get(self, attr):
         try:    return getattr(self, attr)
         except: return None
-
 
     def update(self):
     
@@ -169,73 +149,19 @@ class DrillState():
 
         ### Orientation
 
-        # Get orientation offset parameters
-        for method in ['sfus','ahrs','accl']:
-            oricalib = np.array([self.rc.get('offset-%s-%s'%(method,ang)) for ang in ['incl','azim','roll']], dtype=np.float64)
-            if np.any(np.isnan(oricalib)): oricalib = np.array([0,0,0])
-            setattr(self, 'offset_%s'%(method), oricalib)      
-
-        # SFUS (BNO055 Sensor Fusion)
-        
-#        self.quat0_sfus = np.array([self.quaternion_x, self.quaternion_y, self.quaternion_z, self.quaternion_w], dtype=np.float64)
-#        # Maybe zero on start-up, so ignore value if that is the case
-#        norm = np.linalg.norm(self.quat0_sfus)
-#        if norm is not None and norm > 1e-1: self.quat0_sfus /= float(norm) # normalize just in case
-#        else:                                self.quat0_sfus = np.array([1,0,0,0])
-#        #self.quat_sfus = self.quat0_sfus # no calibration
-#        self.quat_sfus = self.apply_offsets(self.quat0_sfus, 'sfus') # apply calibration
-#        (self.ei_sfus, self.incl_sfus, self.azim_sfus, self.roll_sfus) = self.quat2ori(self.quat_sfus)
-#        (self.ei0_sfus, _,_,_) = self.quat2ori(self.quat0_sfus)
-
-#        # DEBUG: Compare to Euler angles
-#        if 0:
-#            print(self.incl_sfus, self.azim_sfus, self.roll_sfus)
-#            print(*quat_to_euler(self.quat_sfus))
-
         # AHRS
 
-        magvec = None if self.AHRS_estimator == 'Tilt' else self.magnetometer_vec
-        self.quat0_ahrs = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=magvec)) # note estimate() returns w,x,y,z ordered quats
-        self.quat0_ahrs = np.array(self.quat0_ahrs, dtype=np.float64)
-        # if estimator is bad, ignore result
-        if np.size(self.quat0_ahrs) != 4 or np.any(np.isnan(self.quat0_ahrs)): self.quat0_ahrs = np.array([0,0,0,-1])
-#        self.quat0_ahrs *= -1 # follow SFUS sign convention
-        self.quat_ahrs = self.quat0_ahrs # no calibration
-#        self.quat_ahrs = self.apply_offsets(self.quat0_ahrs, 'ahrs') # apply calibration
-        (self.ei_ahrs, self.incl_ahrs, self.azim_ahrs, self.roll_ahrs) = self.quat2ori(self.quat_ahrs)
-        (self.ei0_ahrs, _,_,_) = self.quat2ori(self.quat0_ahrs)
-        
         if self.AHRS_estimator == 'Tilt':
-            self.roll_ahrs, self.azim_ahrs = -self.azim_ahrs, self.roll_ahrs
-        
-        # ACCL (accelerometer only)
-        
-#        ai = self.accelerometer_vec/np.linalg.norm(self.accelerometer_vec)
-#        self.incl_accl, self.roll_accl = self.get_accelori(*ai)
-#        self.azim_accl = 0
-#
-#        tiltest = Tilt(as_angles=True)
-#        Q = tiltest.estimate(acc=self.accelerometer_vec)
-#        self.roll_accl, self.incl_accl, self.azim_accl = Q # np.rad2deg(Q)
-#        self.incl_accl = 180 - self.incl_accl
-        
-        #DEBUG_ACCEL = False
-#
-#        if DEBUG_ACCEL:
-#            R_y = Rotation.from_euler('x', 4, degrees=True).as_matrix() 
-#            ai = np.matmul(R_y,ai)
-#            R_z = Rotation.from_euler('z', 90, degrees=True).as_matrix() 
-#            ai = np.matmul(R_z,ai)
-#
-#        ax, ay, az = ai
-#        self.incl_accl = np.rad2deg(np.arccos(-az))
-#        self.roll_accl = np.rad2deg(np.arctan2(ay, az))
-#        self.azim_accl = 0 # not known for this method
-#
-#        if DEBUG_ACCEL:
-#            print()
-#            print("%.2f, %.2f %.2f"%(ax,ay,az))
-#            print("roll %.2f :: theta %.2f"%(self.roll_accl,self.incl_accl))
+    
+            self.quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=self.accelerometer_vec, mag=None)) # note estimate() returns w,x,y,z ordered quats
+            if np.size(self.quat) != 4 or np.any(np.isnan(self.quat)): self.quat = np.array([0,0,0,-1]) # if estimator is bad, ignore result
+            (self.ei, self.incl, self.azim, self.roll) = self.quat2ang(self.quat)
+            self.roll, self.azim = 360-self.azim, self.roll # adjust 
+
+        elif self.AHRS_estimator == 'SAAM': 
+            pass
+        else:
+            raise ValueError('DrillState(): AHRS_estimator "%s"not supported'%(self.AHRS_estimator))
             
         ### Motor
         
@@ -254,28 +180,17 @@ class DrillState():
         self.hammer      = 100 * self.hammer/HAMMER_MAX
         self.motorconfig = self.rc.get('motor-config')
         
-        ### Is live?
+        ### Is drill online?
         
-        now = datetime.datetime.now()
         lastreceived = datetime.datetime.strptime(self.received, '%Y-%m-%d %H:%M:%S')
-        dt = (now - lastreceived).total_seconds()
-        self.islive = dt < self.islivethreshold
-#        print(self.received, lastreceived, now, dt, self.islivethreshold)
-#        self.islive = 1
-#        print('ds: dt=%f'%dt)
+        dt = (datetime.datetime.now() - lastreceived).total_seconds()
+        self.islive = dt < self.islivethreshold # online/offline flag
 
-
-    ### Orientation
+    """
+    Orientation routines
+    """
     
-    def get_accelori(self, accx, accy, accz):
-        # Calculate magnitude once for all elements
-        magnitude = np.sqrt(accx**2 + accy**2 + accz**2)
-        # Calculate Inclination and Roll for the entire vector
-        incl = 180 - np.degrees(np.arccos(np.clip(accz/magnitude, -1.0, 1.0)))
-        roll = np.degrees(np.arctan2(accy, accz))
-        return incl, roll
-
-    def quat2ori(self, quat):
+    def quat2ang(self, quat):
         q = Rotation.from_quat(quat)
         ei = [np.zeros(3), np.zeros(3), np.zeros(3)]
         for ii in range(3): ei[ii] = q.apply(self.ei0[ii]) # sensor x,y,z axes
@@ -286,91 +201,36 @@ class DrillState():
         roll = np.rad2deg(np.arctan2(x2,x1)) # roll (psi)
         return (ei, incl, azim, roll)
 
-    def _qz(self, angle):
-        # apply rotation around z-axis
-        return Rotation.from_rotvec(np.deg2rad(angle)*np.array([0,0,1])) 
-        
-    def _qr(self, r, angle):
-        return Rotation.from_rotvec(np.deg2rad(angle)*r) 
-
-    def apply_offsets(self, quat0, method):
-        
-        ### First, rotate around z-axis to account for azimuthal offset
-        (incl, azim, roll) = getattr(self, 'offset_%s'%(method))
-        q0 = Rotation.from_quat(quat0)
-        qz = self._qz(azim) # apply rotation around z-axis so drill roll is zero when spring in trench (x) direction for plumb position
-        q = qz*q0
-
-        ### Next, rotate drill around own axis (r) to account for roll offset
-        (ei, _,_,_) = self.quat2ori(q.as_quat())
-        qr = self._qr(ei[2], roll) # rotate around "roll" around drill axis
-
-        ### Combine both rotations
-        q = qr * qz * q0
-        return q.as_quat()
-
-    def save_offset(self, method, reset=False):
-        incl, azim, roll = 0, 0, 0
-        if not reset:
-        
-            ### First get rotation of drill around z axis so that azimuth is 0 when drill tilts outward towards the x-axis (down-tower direction)
-            
-            ei0 = getattr(self, 'ei0_%s'%(method)) # raw sensor frame, no offsets applied
-            rx,ry,rz = ei0[2] # raw sensor z-axis (drill axis r)
-            azim = np.rad2deg(np.arctan2(ry,rx)) # azimuth of drill axis
-            
-            # Apply rotation to get the "zero azimuth" frame
-            q0 = Rotation.from_quat(getattr(self, 'quat0_%s'%(method))) # raw sensor quat, no offsets applied
-            qz = self._qz(-azim) # inverse rotation
-            q = qz*q0
-            (ei, _,_,_) = self.quat2ori(q.as_quat()) # new sensor frame, with offset applied
-            ry = ei[2][1]
-            if abs(ry) > 1e-8: 
-                print('ERROR, ROTATED COORDSYS SHOULD HAVE ry=0 BUT IS ry=%f'%(ry))
-                print('old z axis is', ei0[2])
-                print('new z axis is', ei[2])
-                print('old x axis is', ei0[0])            
-                print('new x axis is', ei[0])
-            
-            ### Next, rotate drill around own axis (r) so that spring direction points along the x-axis (down-tower direction)
-            
-            sx,sy,sz = ei[0] # spring axis is x-axis
-            roll = np.rad2deg(np.arctan2(sy,sx))
-            
-        # Save
-        print('state_drill.py: setting offsets for "%s":'%(method), incl, azim, roll)
-        self.rc.set('offset-%s-roll'%(method), roll)
-        self.rc.set('offset-%s-azim'%(method), -azim)
-        self.rc.set('offset-%s-incl'%(method), 0)
-        
-    def set_AHRS_estimator(self, name):
-        self.AHRS_estimator = name
+    def set_AHRS_estimator(self, AHRS_estimator):
+        self.AHRS_estimator = AHRS_estimator
 
     def get_spin(self):
         # z-component of angular velocity vector, i.e. spin about drill (z) axis (deg/s)
         DEGS_TO_RPM = 1/6 
-        return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM (will be zero if USE_BNO055_FOR_ORIENTATION is false)
+        return self.gyroscope_z * DEGS_TO_RPM # convert deg/s to RPM
 
-    def save_bno055_calibration(self, slot):
-        print('state_drill.py: Saving calibration in slot %i'% slot)
-        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(1, slot))
-    
-    def load_bno055_calibration(self, slot):
-        print('state_drill.py: Loading calibration from slot %i'% slot)
-        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(0, slot))
+#    def save_bno055_calibration(self, slot):
+#        print('state_drill.py: Saving calibration in slot %i'% slot)
+#        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(1, slot))
+#    
+#    def load_bno055_calibration(self, slot):
+#        print('state_drill.py: Loading calibration from slot %i'% slot)
+#        self.rc.publish('downhole','bno055-calibrate:%d,%d' %(0, slot))
 
-    ### Motor control
+    """
+    Motor routines
+    """
 
     def stop_motor(self):
-        print('DrillState: Stopping motor')
+        print('DrillState(): Stopping motor')
         self.rc.publish('downhole','motor-stop')
 
     def start_motor__throttle(self, throttle_pct):
-        print('DrillState: Starting motor at %i pct throttle'%(throttle_pct))
+        print('DrillState(): Starting motor at %i pct throttle'%(throttle_pct))
         self.rc.publish('downhole','motor-pwm:%d'%(self.throttle_to_PWM(throttle_pct)))
     
     def start_motor__degrees(self, degrees, throttle_pct=10):
-        print('DrillState: Starting motor, rotating %i deg at %i pct throttle'%(degrees,throttle_pct))
+        print('DrillState(): Starting motor, rotating %i deg at %i pct throttle'%(degrees,throttle_pct))
         self.rc.publish('downhole', 'motor-rotate-by: %d, %d,'%(degrees, self.throttle_to_PWM(throttle_pct)))
 
     def throttle_to_PWM(self, throttle_pct):
@@ -378,35 +238,20 @@ class DrillState():
         if -255 <= PWM <= 255: # formal bounds
             return PWM
         else:          
-            print("DrillState error: argument throttle_pct must be between -100% and 100%")
+            print("DrillState() error: argument throttle_pct must be between -100% and 100%")
             return 0
+
+    def set_tacho(self, tacho_index):
+        self.rc.publish('downhole', 'motor-set-tachometer: %d'%(tacho_index))
     
-    def set_motorconfig(self, motorid):
-        motor_id = motorid
+    def set_motorconfig(self, motor_id):
         if   motor_id == 0: self.rc.publish('downhole','motor-config:parvalux')
         elif motor_id == 1: self.rc.publish('downhole','motor-config:skateboard')
         elif motor_id == 2: self.rc.publish('downhole','motor-config:hacker')
         elif motor_id == 3: self.rc.publish('downhole','motor-config:plettenberg')
 
-    def set_tacho(self, tacho_index):
-        self.rc.publish('downhole', 'motor-set-tachometer: %d'%(tacho_index))
-        
+### Change order of quarternion components
 
-def quat_to_euler(quat):
+def xyzw_to_wxyz(q): return np.array(np.roll(q,1),  dtype=np.float64)
+def wxyz_to_xyzw(q): return np.array(np.roll(q,-1), dtype=np.float64)
 
-    if Rotation is not None:
-        try:    rot = Rotation.from_quat(quat) # might fail if BNO055 is not ready (internal calibration not ready or error) => quat not normalized
-        except: rot = Rotation.from_quat([0,0,0,1])
-        alpha, beta, gamma = rot.as_euler('ZYZ', degrees=True) # intrinsic rotations, this order gives the correct inclination and azimuth values for drill axis "r" (see above)
-    else:
-        alpha, beta, gamma = 0, 0, 0
-
-    incl = 180-beta  # pitch (theta)
-    azim = alpha # yaw   (phi)
-    roll = gamma # roll  (psi)
-
-    return incl, azim, roll
-    
-def xyzw_to_wxyz(q): return np.roll(q,1)
-def wxyz_to_xyzw(q): return np.roll(q,-1)
-    

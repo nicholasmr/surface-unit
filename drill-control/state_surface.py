@@ -1,7 +1,9 @@
-# N. Rathmann <rathmann@nbi.dk>, 2019-2022
+#!/usr/bin/python
+# N. M. Rathmann <rathmann@nbi.ku.dk>, 2017-
 
 import redis, json, time
 import numpy as np
+
 from settings import *
 
 class SurfaceState():
@@ -27,9 +29,9 @@ class SurfaceState():
     
     # Redis connection
     rc = None 
-    
-    ###
-    
+
+    ########    
+   
     def __init__(self, tavg, dt_intended, redis_host=LOCAL_HOST):
     
         # redis connection (rc) object

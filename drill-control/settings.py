@@ -1,6 +1,6 @@
 # N. Rathmann <rathmann@nbi.dk>, 2019-
 
-DEBUG_IS_LOCALHOST = False # testing code on local host, so assume this is the REDIS drill host
+DEBUG_IS_LOCALHOST = True # testing code on local host, so assume this is the REDIS drill host
 
 IS_UNDEPLOYED = False # not deployed to field with EGRIP network, drill host has address DRILL_HOST_LAN instead of DRILL_HOST
 
