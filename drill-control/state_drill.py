@@ -92,10 +92,10 @@ class DrillState():
     
     ### Independent inclinometer reading
     
-    inclination_x = 0
-    inclination_y = 0
+    inclination_x = 0 # **no longer available**
+    inclination_y = 0 # **no longer available**
 
-    ### ??? sensors ???
+    ### Other sensors
 
     linearaccel_x = 0
     linearaccel_y = 0
@@ -103,7 +103,7 @@ class DrillState():
 
     gravity_x = 0
     gravity_y = 0
-    gravity_z = 9.82
+    gravity_z = -9.8
     
     """
     Flags and state 
@@ -149,16 +149,13 @@ class DrillState():
 
         ### Orientation
 
-        # AHRS
-
         if self.AHRS_estimator == 'Tilt':
             
-#            acc = self.accelerometer_vec
-            acc = self.gravity_vec
-            self.quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=acc, mag=None)) # note estimate() returns w,x,y,z ordered quats
-            if np.size(self.quat) != 4 or np.any(np.isnan(self.quat)): self.quat = np.array([0,0,0,-1]) # if estimator is bad, ignore result
-            (self.ei, self.incl, self.azim, self.roll) = self.quat2ang(self.quat)
-            self.roll, self.azim = 360-self.azim, self.roll # adjust 
+            # BNO055 measurement
+            (self.quat, self.ei, self.incl, self.azim, self.roll) = self.get_tiltquat(self.accelerometer_vec)
+
+            # Alt. instrument
+            (self.quat_alt, self.ei_alt, self.incl_alt, self.azim_alt, self.roll_alt) = self.get_tiltquat(self.gravity_vec)
 
         elif self.AHRS_estimator == 'SAAM': 
             pass
@@ -192,6 +189,14 @@ class DrillState():
     Orientation routines
     """
     
+    def get_tiltquat(self, acc):
+        quat = wxyz_to_xyzw(AHRS_estimators[self.AHRS_estimator].estimate(acc=acc, mag=None)) # note estimate() returns w,x,y,z ordered quats
+        if np.size(quat) != 4 or np.any(np.isnan(quat)): quat = np.array([0,0,0,-1]) # if estimator is bad, ignore result
+        ei, incl, azim, roll = self.quat2ang(quat)
+        roll, azim = azim, roll # swap
+        roll = 360-roll # adjust
+        return (quat, ei, incl, azim, roll)
+        
     def quat2ang(self, quat):
         q = Rotation.from_quat(quat)
         ei = [np.zeros(3), np.zeros(3), np.zeros(3)]

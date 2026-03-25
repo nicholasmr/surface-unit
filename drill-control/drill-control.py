@@ -347,26 +347,26 @@ class MainWidget(QWidget):
         self.gb_orientation = QGroupBox("Orientation (deg)")
 #        self.gb_orientation.setMinimumWidth(330)
         layout = QVBoxLayout()
-        layout.addWidget(self.makestatebox('orientation_inclination',  'Inclination,  Azimuth,  Roll',  initstr))
 
         dlayout = QGridLayout()
-        cdial = dict(dial_azim=COLOR_DIAL1, dial_roll=COLOR_DIAL2)
-        #for tt in ['dial_azim', 'dial_roll']:
-        for tt in ['dial_roll',]:
+        dlayout.addWidget(self.makestatebox('orientation_inclination',      'Incl., Roll (BNO)',  initstr), 1,1)
+        dlayout.addWidget(self.makestatebox('orientation_inclination_alt',  'Incl., Roll (alt)',  initstr), 1,2)
+
+        cdial = dict(dial_roll=COLOR_DIAL1, dial_roll_alt=COLOR_DIAL2)
+        for tt in ['dial_roll','dial_roll_alt']:
             d = QDial()
             d.setNotchesVisible(True)
             d.setMinimum(-180)
             d.setMaximum(+180)
             d.setWrapping(True)
-            d.setMinimumHeight(120)
+            d.setMinimumHeight(110)
             d.setMaximumHeight(150)
-#            if tt in ['dial_azim_sfus', 'dial_azim_ahrs']:
             d.setInvertedAppearance(True)
             d.setInvertedControls(True)
             d.setStyleSheet("background-color: %s; border : 2px solid black;"%(cdial[tt]));
             setattr(self, tt, d)
-#        dlayout.addWidget(self.dial_azim, 0,0)
-        dlayout.addWidget(self.dial_roll, 0,1)
+        dlayout.addWidget(self.dial_roll,     2,1)
+        dlayout.addWidget(self.dial_roll_alt, 2,2)
         layout.addLayout(dlayout)
 
         layout.addWidget(self.makestatebox('orientation_gravity',      'Gravity (m/s^2)',     initstr))
@@ -941,9 +941,9 @@ class MainWidget(QWidget):
 
                 # ORIENTATION
                
-                incl, azim, roll = self.ds.incl, self.ds.azim, self.ds.roll
-                self.updatestatebox('orientation_inclination', '%.1f,&nbsp; <font color="%s">%.0f</font>,&nbsp; <font color="%s">%.0f</font>'%(incl, COLOR_DIAL1, azim, COLOR_DIAL2, roll), warn__nothres)
-                self.updatestatebox('orientation_spin',        "%.2f"%(self.ds.spin), warn__nothres)
+                self.updatestatebox('orientation_inclination',     '%.1f,&nbsp; <font color="%s">%.0f</font>'%(self.ds.incl,     COLOR_DIAL1, self.ds.roll),     warn__nothres)
+                self.updatestatebox('orientation_inclination_alt', '%.1f,&nbsp; <font color="%s">%.0f</font>'%(self.ds.incl_alt, COLOR_DIAL2, self.ds.roll_alt), warn__nothres)
+                self.updatestatebox('orientation_spin', "%.2f"%(self.ds.spin), warn__nothres)
                 
                 str_gravvec   = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.gravity_x,self.ds.gravity_y,self.ds.gravity_z, self.ds.gravity_mag)
                 str_aclvec    = '[%.1f, %.1f, %.1f], %.1f'%(self.ds.accelerometer_x,self.ds.accelerometer_y,self.ds.accelerometer_z, self.ds.accelerometer_mag)
@@ -959,8 +959,8 @@ class MainWidget(QWidget):
 #                self.updatestatebox('orientation_linearacceleration', str_linaclvec, warn__nothres)
 #                self.updatestatebox('orientation_inclinometer',       str_inclvec,   warn__nothres)
 
-                #self.dial_azim.setValue(int(azim))
-                self.dial_roll.setValue(int(roll))
+                self.dial_roll.setValue(int(self.ds.roll))
+                self.dial_roll_alt.setValue(int(self.ds.roll_alt))
 
         """
         SYSTEM STATUS
