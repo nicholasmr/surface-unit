@@ -30,13 +30,6 @@ def uphole_worker(arguments, redis, transport):
             try:    packet.load_cell = json.loads(redis.get('load-cell'))
             except: pass
 
-            # Orientation calibration values
-            for method in ['sfus','ahrs']:
-                for i in ['azim','incl','roll']:
-                    field = 'oricalib_%s_%s'%(method,i)
-                    try:    setattr(packet, field, json.loads(redis.get('oricalib-%s-%s'%(method,i))))
-                    except: setattr(packet, field, 0) 
-
             redis_conn.set("drill-state", packet.as_json())
 
         try:    logger.info(packet.as_json())
